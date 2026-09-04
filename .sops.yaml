@@ -9,11 +9,7 @@ keys:
   - &david-debian age1j4lkxpdweugkfz900u023kx8p6k7yuhdp8jmxthj0qse3w6ahfesyqnj96
 
   # GitHub Actions CI recipient (private key: SOPS_AGE_KEY Actions secret).
-  - &github_actions_ci age13lmqk3hlmegnvm477hk3g4kxh0mpxr8rffghxg5lzunf4nlet5nqdydd8a
-
-  # Dedicated PR preview environment recipient. Its private identity can
-  # decrypt only the restricted preview deploy key.
-  - &github_actions_pr_preview age1vd3q5a9sftvhzpjppnvrl66n5n8da0s7wq8z7nfvrez7lgujy90s2sekut
+  - &github_actions_ci age1cz3h4rnd5gsu78zsa3sw2800e34patdnyk3z0dd587xu3da2n9ps9rv44h
 
 creation_rules:
   - path_regex: secrets/dev\.yaml$
@@ -37,11 +33,3 @@ creation_rules:
           - *david-x1-nixos
           - *david-debian
           - *github_actions_ci
-
-  - path_regex: secrets/pr-preview\.yaml$
-    key_groups:
-      - age:
-          - *david-z890-nixos
-          - *david-x1-nixos
-          - *david-debian
-          - *github_actions_pr_preview
