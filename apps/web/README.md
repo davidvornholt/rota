@@ -68,6 +68,10 @@ All values are read once in `src/shared/env.ts` and validated at boot. Developme
 | `PORT`                           | Port the production server listens on                                                                                         | Optional, default 3000 (`bun run start` only)   | process environment      |
 | `ROTA_TICK_TOKEN`                | Set by the server process for itself at boot; authorises `/api/internal/tick`                                                 | Never set by hand                               | `scripts/serve.ts`       |
 
+## Container
+
+`Dockerfile` at the repo root builds the production image: dependencies, the Vite build, then a runner that holds only `dist/`, `scripts/`, and the production `node_modules`, and runs as an unprivileged user. `bun run db:migrate:deploy` applies the generated migrations from the same image; the host runs it as a one-shot before the server starts. `.github/workflows/publish-container.yml` builds `ghcr.io/davidvornholt/rota` for every commit on `main` once the standards gate has passed for that exact commit, and `announce-container.yml` tells `personal-infra` about the new digest, which is where deployment lives.
+
 ## Verification
 
 ```sh

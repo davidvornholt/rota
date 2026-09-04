@@ -1,0 +1,129 @@
+name: Announce container
+
+# A source run cannot prove its own successful conclusion while it is still
+# executing. This trusted follow-up starts only after Publish container has
+# completed, extracts that exact run's immutable record, and announces it.
+on:
+  workflow_run:
+    workflows:
+      - Publish container
+    types:
+      - completed
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-main
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  announce:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout the published commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Recover the immutable promotion record
+        id: record
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          current_main=$(gh api "repos/$REPOSITORY/commits/main" --jq .sha)
+          if [ "$current_main" != "$SHA" ]; then
+            echo "::error::Refusing to announce stale main commit $SHA; current main is $current_main"
+            exit 1
+          fi
+
+          jobs=$(gh api "repos/$REPOSITORY/actions/runs/$RUN_ID/jobs" --paginate --slurp)
+          job_id=$(jq -er '[.[].jobs[] | select(.name == "build" and .conclusion == "success")] | if length == 1 then .[0].id else error("expected one successful build job") end' <<< "$jobs")
+          curl --fail --silent --show-error --location \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "X-GitHub-Api-Version: 2026-03-10" \
+            "https://api.github.com/repos/$REPOSITORY/actions/jobs/$job_id/logs" \
+            --output "$RUNNER_TEMP/build.log"
+          escape=$'\033'
+          normalized=$(sed -E "s/${escape}\\[[0-9;]*[[:alpha:]]//g; s/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[^[:space:]]+[[:space:]]//" "$RUNNER_TEMP/build.log")
+          marker_left=IMAGE_PROMOTION
+          marker_right=_RECORD
+          records=$(sed -n "s/^${marker_left}${marker_right} //p" <<< "$normalized" | jq -cs '.')
+          digest=$(jq -er --arg repository "$REPOSITORY" --arg sha "$SHA" --arg runId "$RUN_ID" '
+            if length == 1 and
+              .[0].repository == $repository and
+              .[0].ref == "refs/heads/main" and
+              .[0].sha == $sha and
+              .[0].runId == $runId and
+              .[0].image == "ghcr.io/davidvornholt/rota" and
+              (.[0].digest | test("^sha256:[0-9a-f]{64}$"))
+            then .[0].digest
+            else error("build log does not contain exactly one valid promotion record")
+            end
+          ' <<< "$records")
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve the broker app id
+        uses: ./.github/actions/sops-secret
+        with:
+          age-key: ${{ secrets.SOPS_AGE_KEY }}
+          secret-file: secrets/ci.yaml
+          secret-key: broker_app.app_id
+          env-name: BROKER_APP_ID
+
+      - name: Resolve the broker private key
+        uses: ./.github/actions/sops-secret
+        with:
+          age-key: ${{ secrets.SOPS_AGE_KEY }}
+          secret-file: secrets/ci.yaml
+          secret-key: broker_app.private_key
+          env-name: BROKER_APP_PRIVATE_KEY
+
+      - name: Mint an infrastructure announcement token
+        id: broker
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ env.BROKER_APP_ID }}
+          private-key: ${{ env.BROKER_APP_PRIVATE_KEY }}
+          owner: davidvornholt
+          repositories: personal-infra
+          permission-contents: write
+
+      - name: Announce image digest
+        env:
+          BUILD_DIGEST: ${{ steps.record.outputs.digest }}
+          GH_TOKEN: ${{ steps.broker.outputs.token }}
+          IMAGE_REPOSITORY: ghcr.io/davidvornholt/rota
+          SOURCE_REF: refs/heads/main
+          SOURCE_REPOSITORY: ${{ github.repository }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_DIGEST" =~ ^sha256:[0-9a-f]{64}$ && "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ && "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          test "$SOURCE_REPOSITORY" = davidvornholt/rota
+          test "$SOURCE_REF" = refs/heads/main
+          test "$IMAGE_REPOSITORY" = ghcr.io/davidvornholt/rota
+          gh api repos/davidvornholt/personal-infra/dispatches \
+            -f event_type=image-bump \
+            -f "client_payload[app]=rota" \
+            -f "client_payload[source_repository]=$SOURCE_REPOSITORY" \
+            -f "client_payload[source_ref]=$SOURCE_REF" \
+            -f "client_payload[source_sha]=$SOURCE_SHA" \
+            -f "client_payload[source_run_id]=$SOURCE_RUN_ID" \
+            -f "client_payload[image_repository]=$IMAGE_REPOSITORY" \
+            -f "client_payload[digest]=$BUILD_DIGEST"

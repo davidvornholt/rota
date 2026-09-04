@@ -1,0 +1,141 @@
+name: Publish container
+
+# The infrastructure promotion proof binds push runs by workflow path and id.
+# A squash commit on main is new, so wait for Standards to pass on that exact
+# commit before building instead of relying on the pull request's checks.
+# Rota has no pull request previews (recorded in personal-infra), so this
+# workflow runs for main only.
+on:
+  push:
+    branches:
+      - main
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      gated-sha: ${{ steps.gate.outputs.sha }}
+    steps:
+      - name: Require the standards gate for this exact commit
+        id: gate
+        env:
+          GATE_JOB: check
+          GATE_WORKFLOW: standards.yml
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          deadline=$(($(date -u +%s) + 2400))
+          while :; do
+            run=$(gh api \
+              "repos/$REPOSITORY/actions/workflows/$GATE_WORKFLOW/runs?head_sha=$SHA&event=push&per_page=1" \
+              --jq '.workflow_runs[0] // empty')
+            if [ -n "$run" ] && [ "$(jq -er .status <<<"$run")" = completed ]; then
+              break
+            fi
+            if [ "$(date -u +%s)" -ge "$deadline" ]; then
+              echo "::error::The $GATE_WORKFLOW gate did not complete for $SHA within the deadline"
+              exit 1
+            fi
+            sleep 20
+          done
+
+          test "$(jq -er .head_sha <<<"$run")" = "$SHA"
+          conclusion=$(jq -er .conclusion <<<"$run")
+          if [ "$conclusion" != success ]; then
+            echo "::error::The $GATE_WORKFLOW gate concluded $conclusion for $SHA"
+            exit 1
+          fi
+
+          run_id=$(jq -er .id <<<"$run")
+          job=$(gh api --paginate "repos/$REPOSITORY/actions/runs/$run_id/jobs" \
+            --jq ".jobs[] | select(.name == \"$GATE_JOB\") | .conclusion")
+          if [ "$job" != success ]; then
+            echo "::error::The $GATE_JOB job of run $run_id concluded ${job:-nothing} for $SHA"
+            exit 1
+          fi
+
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: gate
+    if: needs.gate.outputs.gated-sha == github.sha
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout the commit being published
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Log in to the GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and publish the tracked tag
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          provenance: false
+          tags: ghcr.io/davidvornholt/rota:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - name: Promote the image only while this commit is current main
+        env:
+          BUILD_DIGEST: ${{ steps.build.outputs.digest }}
+          GATED_SHA: ${{ needs.gate.outputs.gated-sha }}
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ghcr.io/davidvornholt/rota
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$GATED_SHA" = "$SHA"
+          test "$(git rev-parse HEAD)" = "$SHA"
+          current_main=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          if [ "$current_main" != "$SHA" ]; then
+            echo "::error::Refusing to publish stale main commit $SHA; current main is $current_main"
+            exit 1
+          fi
+          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:main" "$IMAGE@$BUILD_DIGEST"
+          resolved=$(docker buildx imagetools inspect "$IMAGE:main" --format '{{json .Manifest}}' | jq -er .digest)
+          test "$resolved" = "$BUILD_DIGEST"
+          current_main=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          if [ "$current_main" != "$SHA" ]; then
+            echo "::error::Main advanced to $current_main while $SHA was being published"
+            exit 1
+          fi
+
+      - name: Emit immutable promotion record
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE: ghcr.io/davidvornholt/rota
+          REF: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          record=$(jq -cn --arg repository "$REPOSITORY" --arg ref "$REF" --arg sha "$SHA" --arg runId "$RUN_ID" --arg image "$IMAGE" --arg digest "$DIGEST" '{repository:$repository,ref:$ref,sha:$sha,runId:$runId,image:$image,digest:$digest}')
+          marker_left=IMAGE_PROMOTION
+          marker_right=_RECORD
+          printf '%s %s\n' "${marker_left}${marker_right}" "$record"
