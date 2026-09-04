@@ -6,6 +6,7 @@ import {
   linkButtonClass,
   quietButtonClass,
 } from '#/shared/ui/classes.ts';
+import { Dialog } from '#/shared/ui/dialog.tsx';
 
 type OccasionNoteProps = {
   readonly occasion: string | null;
@@ -15,10 +16,13 @@ type OccasionNoteProps = {
   readonly onSave: (occasion: string) => void;
 };
 
+const occasionLength = 280;
+
 /**
  * The one free-text input on Today. A note is an instruction to the valet:
- * "meeting at two", "hiking", "at home all day". While the day is open, saving
- * asks for the outfit again with the note in hand.
+ * "meeting at two", "hiking", "at home all day". It is written in a dialog, so
+ * the outfit stays where it is; while the day is open, saving asks for the
+ * outfit again with the note in hand.
  */
 export const OccasionNote = ({
   occasion,
@@ -30,75 +34,70 @@ export const OccasionNote = ({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(occasion ?? '');
 
-  const submit = () => {
-    onSave(draft);
-    setEditing(false);
+  const openEditor = () => {
+    setDraft(occasion ?? '');
+    setEditing(true);
   };
 
-  if (!editing) {
-    return (
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <p className="type-eyebrow">Occasion</p>
-        <p className="text-ink text-sm">
-          {occasion ?? <span className="text-ink-faint">None noted</span>}
-        </p>
-        <button
-          className={linkButtonClass}
-          onClick={() => {
-            setDraft(occasion ?? '');
-            setEditing(true);
-          }}
-          type="button"
-        >
-          {occasion === null ? 'Add a note' : 'Change'}
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <form
-      className="max-w-prose"
-      onSubmit={(event) => {
-        event.preventDefault();
-        submit();
-      }}
-    >
-      <label className={labelClass} htmlFor={id}>
-        Occasion
-      </label>
-      <input
-        autoComplete="off"
-        className={[fieldClass, 'mt-2'].join(' ')}
-        id={id}
-        maxLength={280}
-        onChange={(event) => setDraft(event.target.value)}
-        placeholder="Meeting at two, hiking, at home all day …"
-        type="text"
-        value={draft}
-      />
-      <p className="mt-2 text-ink-faint text-xs">
-        {remakes
-          ? 'Saving asks for the outfit again with this in mind.'
-          : 'The day is decided; the note is kept with it.'}
+    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+      <p className="type-eyebrow">Occasion</p>
+      <p className="text-ink text-sm">
+        {occasion ?? <span className="text-ink-faint">None noted</span>}
       </p>
-      <div className="mt-3 flex gap-3">
-        <button
-          aria-busy={pending}
-          className={quietButtonClass}
-          disabled={pending}
-          type="submit"
+      <button className={linkButtonClass} onClick={openEditor} type="button">
+        {occasion === null ? 'Add a note' : 'Change'}
+      </button>
+      <Dialog
+        eyebrow="Occasion"
+        onClose={() => setEditing(false)}
+        open={editing}
+        title={occasion === null ? 'What is today?' : 'Change the note'}
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSave(draft);
+            setEditing(false);
+          }}
         >
-          {pending ? 'Saving …' : 'Save note'}
-        </button>
-        <button
-          className={linkButtonClass}
-          onClick={() => setEditing(false)}
-          type="button"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
+          <label className={labelClass} htmlFor={id}>
+            A word for the valet
+          </label>
+          <input
+            autoComplete="off"
+            className={[fieldClass, 'mt-2'].join(' ')}
+            id={id}
+            maxLength={occasionLength}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="Meeting at two, hiking, at home all day …"
+            type="text"
+            value={draft}
+          />
+          <p className="mt-2 text-ink-faint text-xs">
+            {remakes
+              ? 'Saving asks for the outfit again with this in mind.'
+              : 'The day is decided; the note is kept with it.'}
+          </p>
+          <div className="mt-5 flex gap-3">
+            <button
+              aria-busy={pending}
+              className={quietButtonClass}
+              disabled={pending}
+              type="submit"
+            >
+              {pending ? 'Saving …' : 'Save note'}
+            </button>
+            <button
+              className={linkButtonClass}
+              onClick={() => setEditing(false)}
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Dialog>
+    </div>
   );
 };

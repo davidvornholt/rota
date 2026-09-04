@@ -15,20 +15,70 @@ type WeatherStripProps = {
 
 const degrees = (value: number) => `${Math.round(value)}°`;
 
-const Absent = ({
-  locationLabel,
-}: {
-  readonly locationLabel: string | null;
-}) =>
-  locationLabel === null ? (
-    <>No place chosen yet</>
-  ) : (
-    <>{locationLabel} · forecast unavailable</>
-  );
+type Fact = {
+  readonly key: string;
+  readonly text: string;
+  readonly tone: 'ink' | 'muted' | 'faint';
+};
+
+const factsFor = (
+  weather: WeatherDay | null,
+  locationLabel: string | null,
+  stale: boolean,
+): ReadonlyArray<Fact> => {
+  if (weather === null) {
+    return [
+      locationLabel === null
+        ? { key: 'place', text: 'No place chosen yet', tone: 'muted' }
+        : { key: 'place', text: locationLabel, tone: 'faint' },
+      ...(locationLabel === null
+        ? []
+        : [
+            {
+              key: 'forecast',
+              text: 'forecast unavailable',
+              tone: 'muted',
+            } as const,
+          ]),
+    ];
+  }
+  return [
+    {
+      key: 'temperature',
+      text: `${degrees(weather.high)} / ${degrees(weather.low)}`,
+      tone: 'ink',
+    },
+    { key: 'sky', text: weatherWords(weather.weatherCode), tone: 'muted' },
+    {
+      key: 'rain',
+      text: `${Math.round(weather.precipitationProbability)}% rain`,
+      tone: 'muted',
+    },
+    ...(locationLabel === null
+      ? []
+      : [{ key: 'place', text: locationLabel, tone: 'faint' } as const]),
+    ...(stale
+      ? [
+          {
+            key: 'stale',
+            text: 'forecast from yesterday',
+            tone: 'faint',
+          } as const,
+        ]
+      : []),
+  ];
+};
+
+const toneClass = {
+  ink: 'text-ink',
+  muted: 'text-ink-muted',
+  faint: 'text-ink-faint',
+} as const;
 
 /**
  * The day and its weather, set as the page's dateline: weekday large in the
- * serif, the numbers tabular so tomorrow's line up under today's.
+ * serif, the facts beside it as a row separated by middots, the numbers
+ * tabular so tomorrow's line up under today's.
  */
 export const WeatherStrip = ({
   today,
@@ -41,23 +91,22 @@ export const WeatherStrip = ({
       {formatWeekday(today)}
       <span className="text-ink-faint"> {formatDayMonth(today)}</span>
     </h1>
-    <p className="type-data text-ink-muted text-sm sm:text-base">
-      {weather === null ? (
-        <Absent locationLabel={locationLabel} />
-      ) : (
-        <>
-          <span className="text-ink">{degrees(weather.high)}</span>
-          <span className="text-ink-faint"> / {degrees(weather.low)}</span>·
-          {weatherWords(weather.weatherCode)}·
-          {Math.round(weather.precipitationProbability)}% rain
-          {locationLabel === null ? null : (
-            <span className="text-ink-faint"> · {locationLabel}</span>
+    <ul className="type-data flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm sm:text-base">
+      {factsFor(weather, locationLabel, stale).map((fact, index) => (
+        <li
+          className={['flex items-baseline gap-x-3', toneClass[fact.tone]].join(
+            ' ',
           )}
-          {stale ? (
-            <span className="text-ink-faint"> · forecast from yesterday</span>
+          key={fact.key}
+        >
+          {index > 0 ? (
+            <span aria-hidden="true" className="text-ink-faint">
+              ·
+            </span>
           ) : null}
-        </>
-      )}
-    </p>
+          {fact.text}
+        </li>
+      ))}
+    </ul>
   </div>
 );

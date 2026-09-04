@@ -110,12 +110,10 @@ const OutfitList = ({ today }: { readonly today: TodayController }) => {
               <>
                 <button
                   className={linkButtonClass}
-                  onClick={() =>
-                    setSwapping(swapping === item.slot ? null : item.slot)
-                  }
+                  onClick={() => setSwapping(item.slot)}
                   type="button"
                 >
-                  {swapping === item.slot ? 'Keep this' : 'Swap'}
+                  Swap
                 </button>
                 {optionalSlots.includes(item.slot) ? (
                   <button
@@ -131,7 +129,6 @@ const OutfitList = ({ today }: { readonly today: TodayController }) => {
             budget={item.budget}
             continued={item.continued}
             dayOfBudget={item.dayOfBudget}
-            expansion={swapping === item.slot ? sheetFor(item.slot) : undefined}
             garment={item.garment}
             key={item.slot}
             reason={item.reason}
@@ -139,8 +136,8 @@ const OutfitList = ({ today }: { readonly today: TodayController }) => {
           />
         ))}
       </ul>
-      {swapping !== null && open.includes(swapping) ? sheetFor(swapping) : null}
-      {open.length > 0 && swapping === null ? (
+      {swapping === null ? null : sheetFor(swapping)}
+      {open.length > 0 ? (
         <p className="mt-3 flex flex-wrap gap-x-5">
           {open.map((slot) => (
             <button

@@ -16,8 +16,6 @@ type OutfitRowProps = {
   readonly animateTally?: boolean;
   /** Actions for this garment (swap, skip); rendered under the reason. */
   readonly actions?: ReactNode;
-  /** Something opened beneath the row, spanning its full width: the swap sheet. */
-  readonly expansion?: ReactNode;
   readonly emphasis?: 'proposal' | 'receipt';
 };
 
@@ -35,7 +33,6 @@ export const OutfitRow = ({
   reason,
   animateTally = false,
   actions,
-  expansion,
   emphasis = 'proposal',
 }: OutfitRowProps) => (
   <li className="grid grid-cols-[6rem_1fr] gap-4 border-rule border-t py-4 sm:grid-cols-[8rem_1fr] sm:gap-6 sm:py-5">
@@ -77,8 +74,5 @@ export const OutfitRow = ({
         <div className="flex flex-wrap gap-x-5 gap-y-1">{actions}</div>
       )}
     </div>
-    {expansion === undefined ? null : (
-      <div className="col-span-2 mt-2">{expansion}</div>
-    )}
   </li>
 );
