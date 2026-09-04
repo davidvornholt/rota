@@ -221,6 +221,11 @@ const renderStudio = (
       height: dimensions?.height ?? 0,
       bytes: stored.bytes,
     });
+    // A garment that showed its photo only because no render existed now shows
+    // the render; a photo the wearer chose over an earlier render stays.
+    if (garment.images.studio === undefined) {
+      yield* deps.garments.setImageChoice(garment.id, 'studio');
+    }
   });
 
 export class IngestService extends Effect.Service<IngestService>()(
