@@ -15,9 +15,9 @@
   --color-paper-deep: oklch(0.958 0.005 240);
   --color-ink: oklch(0.21 0.02 262);
   --color-ink-muted: oklch(0.45 0.015 262);
-  --color-ink-faint: oklch(0.62 0.012 262);
+  --color-ink-faint: oklch(0.545 0.012 262);
   --color-rule: oklch(0.87 0.008 250);
-  --color-rule-strong: oklch(0.72 0.01 255);
+  --color-rule-strong: oklch(0.64 0.01 255);
   --color-signal: oklch(0.87 0.17 93);
   --color-signal-deep: oklch(0.8 0.16 90);
   --color-white: oklch(1 0 0);

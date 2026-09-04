@@ -35,3 +35,7 @@ config/dev.local.yaml
 
 # Throwaway local drive scripts.
 apps/web/scripts/tmp/
+
+# Playwright output from the a11y scan.
+playwright-report
+test-results
