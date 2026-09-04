@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { useId } from 'react';
 import { type Slot, slotLabel } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
-import { linkButtonClass } from '#/shared/ui/classes.ts';
+import { Dialog } from '#/shared/ui/dialog.tsx';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import type { AlternativesView } from '../services/today-actions.ts';
@@ -64,7 +63,9 @@ const Strip = ({
 }) =>
   garments.length === 0 ? null : (
     <>
-      <p className="mt-4 text-ink-muted text-xs">{heading}</p>
+      <p className="text-ink-muted text-xs [&:not(:first-child)]:mt-5">
+        {heading}
+      </p>
       <ul className="mt-2 flex snap-x gap-4 overflow-x-auto pb-2">
         {garments.map((garment) => (
           <Choice garment={garment} key={garment.id} onPick={onPick} />
@@ -81,7 +82,7 @@ const Choices = ({
   readonly onPick: (garment: GarmentView) => void;
 }) =>
   view.ranked.length === 0 && view.others.length === 0 ? (
-    <p className="mt-4 text-ink-muted text-sm">
+    <p className="text-ink-muted text-sm">
       Nothing else in the wardrobe fits this slot. Add a garment for it from the
       wardrobe.
     </p>
@@ -101,9 +102,9 @@ const Choices = ({
   );
 
 /**
- * The picker for one slot: the engine's ranked candidates first, then the rest
- * of what could go there. Opens in place beneath the row it changes, as a
- * strip you can thumb through.
+ * The picker for one slot, opened as a dialog over the outfit: the engine's
+ * ranked candidates first, then the rest of what could go there, each as a
+ * strip you can thumb through. Picking closes it.
  */
 export const SwapSheet = ({
   slot,
@@ -112,38 +113,32 @@ export const SwapSheet = ({
   onPick,
   onClose,
 }: SwapSheetProps) => {
-  const headingId = useId();
   const alternatives = useQuery({
     queryKey: ['alternatives', slot, ...currentIds],
     queryFn: () => load(slot, currentIds),
   });
 
   return (
-    <section
-      aria-labelledby={headingId}
-      className="border-ink border-y bg-paper-deep p-4 sm:px-6"
+    <Dialog
+      eyebrow="Swap"
+      onClose={onClose}
+      open={true}
+      size="wide"
+      title={`Another ${slotLabel[slot].toLowerCase()}`}
     >
-      <div className="flex items-baseline justify-between gap-4">
-        <h3 className="type-eyebrow text-ink" id={headingId}>
-          Another {slotLabel[slot].toLowerCase()}
-        </h3>
-        <button className={linkButtonClass} onClick={onClose} type="button">
-          Close
-        </button>
-      </div>
       {alternatives.isPending ? (
-        <p className="mt-4 text-ink-muted text-sm" role="status">
+        <p className="text-ink-muted text-sm" role="status">
           Looking through the wardrobe …
         </p>
       ) : null}
       {alternatives.isError ? (
-        <Notice className="mt-4" live={true}>
+        <Notice live={true}>
           The alternatives could not be loaded. Close this and try again.
         </Notice>
       ) : null}
       {alternatives.isSuccess ? (
         <Choices onPick={onPick} view={alternatives.data} />
       ) : null}
-    </section>
+    </Dialog>
   );
 };

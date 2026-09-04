@@ -52,7 +52,7 @@ export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
               value={row.name}
             />
             <button
-              className={linkButtonClass}
+              className={[linkButtonClass, 'whitespace-nowrap'].join(' ')}
               onClick={() =>
                 onChange(colors.filter((_, at) => at !== row.position))
               }
