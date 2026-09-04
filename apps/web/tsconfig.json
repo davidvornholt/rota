@@ -1,0 +1,25 @@
+{
+  "extends": "@davidvornholt/typescript-config/base",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "paths": {
+      "#/*": ["./src/*"]
+    },
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "bun"],
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": [
+    "src",
+    "a11y",
+    "scripts",
+    "playwright.config.ts",
+    "vite.config.ts"
+  ],
+  "exclude": ["node_modules"]
+}

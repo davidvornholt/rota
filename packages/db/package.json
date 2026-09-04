@@ -1,0 +1,35 @@
+{
+  "name": "@rota/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./schema": "./src/schema.ts",
+    "./auth-schema": "./src/auth-schema.ts",
+    "./pool": "./src/pool.ts",
+    "./effect-client": "./src/effect-client.ts",
+    "./migrate": "./src/migrate.ts"
+  },
+  "scripts": {
+    "lint": "biome check --error-on-warnings .",
+    "lint:fix": "biome check --write --error-on-warnings .",
+    "check-types": "tsc --noEmit",
+    "test": "bun test",
+    "db:generate": "bun --env-file=.env.local run drizzle-kit generate",
+    "db:studio": "bun --env-file=.env.local run drizzle-kit studio"
+  },
+  "dependencies": {
+    "@effect/sql": "^0.52.1",
+    "@effect/sql-pg": "^0.53.0",
+    "drizzle-orm": "^0.45.2",
+    "effect": "^3.22.1",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@davidvornholt/typescript-config": "workspace:*",
+    "@types/bun": "^1.4.1",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "7.0.2"
+  }
+}
