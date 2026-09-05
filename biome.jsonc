@@ -174,9 +174,13 @@
     },
     {
       // noImgElement is a Next.js rule about its <Image> component. This is a
-      // Vite app; the garment figure renders a plain <img> with explicit
-      // dimensions, async decoding, and lazy loading, which is the right tag.
-      "includes": ["apps/web/src/shared/ui/garment-figure.tsx"],
+      // Vite app; the garment figure and its enlarged view render a plain
+      // <img> with explicit dimensions and async decoding, which is the right
+      // tag.
+      "includes": [
+        "apps/web/src/shared/ui/garment-figure.tsx",
+        "apps/web/src/shared/ui/enlargeable-figure.tsx"
+      ],
       "linter": {
         "rules": {
           "performance": {

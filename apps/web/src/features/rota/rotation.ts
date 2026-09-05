@@ -116,15 +116,13 @@ const bandFloors: ReadonlyArray<{
   readonly band: number;
   readonly felt: number;
 }> = [
-  { band: 1, felt: 24 },
-  { band: 2, felt: 18 },
-  { band: 3, felt: 12 },
-  { band: 4, felt: 6 },
+  { band: 1, felt: 18 },
+  { band: 2, felt: 12 },
 ];
-const coldestBand = 5;
+const coldestBand = 3;
 
 /**
- * The day's warmth band, 1 (hot) to 5 (cold), from a felt temperature that
+ * The day's garment warmth, 1 (light), 2 (medium), or 3 (heavy), from a felt temperature that
  * leans on the high: you dress for the afternoon you will be out in.
  */
 export const warmthBand = (day: Pick<WeatherDay, 'high' | 'low'>): number => {
@@ -257,7 +255,7 @@ export const candidatesFor = (
       return [];
     }
     const warmthDistance = Math.abs(garment.warmth - band);
-    if (warmthDistance > 2) {
+    if (warmthDistance > 1) {
       return [];
     }
     const rest = daysSinceWorn(input.log, garment.id, input.today);
@@ -270,7 +268,7 @@ export const candidatesFor = (
       },
     ];
   });
-  const close = all.filter((candidate) => candidate.warmthDistance <= 1);
+  const close = all.filter((candidate) => candidate.warmthDistance === 0);
   const byWeather = close.length >= comfortableChoice ? close : all;
   const rested = byWeather.filter((candidate) => !candidate.inCooldown);
   const pool = rested.length > 0 ? rested : byWeather;

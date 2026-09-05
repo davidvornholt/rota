@@ -6,9 +6,9 @@
 
 export type Slot = 'bottom' | 'under' | 'top' | 'over';
 
-/** Warmth and formality are both judged on a five-step scale. */
+/** Warmth and formality are both judged on a three-step scale. */
 export const scaleMinimum = 1;
-export const scaleMaximum = 5;
+export const scaleMaximum = 3;
 /** The most days in a row any garment may be worn before washing. */
 export const longestWearBudget = 30;
 

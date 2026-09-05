@@ -24,9 +24,9 @@ const garment = (
   category: slots[0] === 'bottom' ? 'trousers' : 'shirt',
   subcategory: '',
   slots,
-  warmth: 3,
+  warmth: 2,
   rainOk: true,
-  formality: 3,
+  formality: 2,
   wearBudget: null,
   colors: [],
   pattern: '',
@@ -68,11 +68,9 @@ const mild: WeatherDay = {
 const today = localDate('2026-09-04');
 const threeDays = 3;
 const fourDays = 4;
-const hotBand = 1;
-const warmBand = 2;
-const mildBand = 3;
-const coolBand = 4;
-const coldBand = 5;
+const light = 1;
+const medium = 2;
+const heavy = 3;
 
 describe('consecutive wear', () => {
   it('counts back over logged days and stops at the first day the garment was off', () => {
@@ -155,7 +153,7 @@ describe('continuations', () => {
     const [result] = continuations({
       today,
       log,
-      garments: [garment('wool', ['over'], { warmth: 5, category: 'jumper' })],
+      garments: [garment('wool', ['over'], { warmth: 3, category: 'jumper' })],
       settings,
       weather: { ...mild, high: 29, low: 18 },
       excluded: new Set(),
@@ -224,6 +222,35 @@ describe('candidates', () => {
     ]);
   });
 
+  it.each([
+    { high: 30, low: 20, fits: light, adjacent: medium, opposite: heavy },
+    { high: 2, low: -4, fits: heavy, adjacent: medium, opposite: light },
+  ])(
+    'ranks exact fits, falls back one level, and excludes the opposite extreme at $high degrees',
+    ({ high, low, fits, adjacent, opposite }) => {
+      const result = candidatesFor(
+        {
+          today,
+          log: [],
+          garments: [
+            garment('opposite', ['top'], { warmth: opposite }),
+            garment('adjacent', ['top'], { warmth: adjacent }),
+            garment('exact', ['top'], { warmth: fits }),
+          ],
+          settings,
+          weather: { ...mild, high, low },
+          excluded: new Set(),
+        },
+        'top',
+        new Set(),
+      );
+      expect(result.map((candidate) => candidate.garment.id)).toEqual([
+        'exact',
+        'adjacent',
+      ]);
+    },
+  );
+
   it('measures days since worn against the day being dressed', () => {
     expect(daysSinceWorn(log, 'recent', today)).toBe(2);
     expect(daysSinceWorn(log, 'never', today)).toBeNull();
@@ -231,11 +258,20 @@ describe('candidates', () => {
 });
 
 describe('warmth band', () => {
-  it('leans on the high and steps every six degrees or so', () => {
-    expect(warmthBand({ high: 30, low: 20 })).toBe(hotBand);
-    expect(warmthBand({ high: 22, low: 14 })).toBe(warmBand);
-    expect(warmthBand({ high: 16, low: 9 })).toBe(mildBand);
-    expect(warmthBand({ high: 9, low: 3 })).toBe(coolBand);
-    expect(warmthBand({ high: 2, low: -4 })).toBe(coldBand);
-  });
+  it.each([
+    { high: 30, low: 20, expected: light },
+    { high: 22, low: 14, expected: light },
+    { high: 18, low: 18, expected: light },
+    { high: 17, low: 17, expected: medium },
+    { high: 16, low: 9, expected: medium },
+    { high: 12, low: 12, expected: medium },
+    { high: 11, low: 11, expected: heavy },
+    { high: 9, low: 3, expected: heavy },
+    { high: 2, low: -4, expected: heavy },
+  ])(
+    'matches insulation to a day with high $high and low $low',
+    ({ high, low, expected }) => {
+      expect(warmthBand({ high, low })).toBe(expected);
+    },
+  );
 });

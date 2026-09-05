@@ -17,7 +17,7 @@ import {
   quietButtonClass,
 } from '#/shared/ui/classes.ts';
 import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
-import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
+import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import type { GarmentEdit } from '../schemas/garment-input.ts';
 import {
@@ -78,8 +78,8 @@ const Picture = ({
   renderRequested,
 }: PictureProps) => (
   <div className="lg:sticky lg:top-8">
-    <GarmentFigure
-      alt={garment.name}
+    <EnlargeableFigure
+      caption={garment.imageChoice === 'studio' ? 'Studio render' : 'Photo'}
       colors={garment.colors}
       image={garment.image}
       loading="eager"

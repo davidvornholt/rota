@@ -18,6 +18,19 @@ export type GarmentImageView = {
 };
 
 /** A garment as every page shows it: the row plus its image URLs and wear facts. */
+/**
+ * A garment in review whose studio render has neither landed nor failed: the
+ * reading came back first and the render is still being made.
+ */
+export const isRendering = (garment: {
+  readonly status: string;
+  readonly studio: GarmentImageView | undefined;
+  readonly processingError: string | null;
+}): boolean =>
+  garment.status === 'review' &&
+  garment.studio === undefined &&
+  garment.processingError === null;
+
 export type GarmentView = {
   readonly id: string;
   readonly status: GarmentStatus;

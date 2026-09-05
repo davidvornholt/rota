@@ -5,7 +5,7 @@ import {
   slotLabel,
   slotOrder,
 } from '#/shared/data/garment-types.ts';
-import type { GarmentView } from '#/shared/data/garment-view.ts';
+import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
 import { frameClass, tabActiveClass, tabClass } from '#/shared/ui/classes.ts';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { Swatches } from '#/shared/ui/swatches.tsx';
@@ -79,7 +79,7 @@ export const WardrobePage = ({
   const [filter, setFilter] = useState<Filter>('all');
   const [showRetired, setShowRetired] = useState(false);
   const processing = view.queue.some(
-    (garment) => garment.status === 'processing',
+    (garment) => garment.status === 'processing' || isRendering(garment),
   );
   useEffect(() => {
     if (!processing) {
@@ -125,7 +125,7 @@ export const WardrobePage = ({
               <ReviewCard
                 categoryBudgets={categoryBudgets}
                 garment={garment}
-                key={`${garment.id}-${garment.status}-${garment.studio?.url ?? ''}`}
+                key={`${garment.id}-${garment.status}`}
                 onChanged={refresh}
               />
             ))}

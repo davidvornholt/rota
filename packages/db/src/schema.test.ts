@@ -37,10 +37,10 @@ it('a garment keeps at most one image of each kind', () => {
   expect(uniqueColumns(garmentImage)).toEqual([['garment_id', 'kind']]);
 });
 
-it('warmth and formality stay on the five-step scale the reading uses', () => {
+it('warmth and formality stay on the three-step scale the reading uses', () => {
   const rendered = checks(garment);
-  expect(rendered.garment_warmth_range).toContain('between 1 and 5');
-  expect(rendered.garment_formality_range).toContain('between 1 and 5');
+  expect(rendered.garment_warmth_range).toContain('between 1 and 3');
+  expect(rendered.garment_formality_range).toContain('between 1 and 3');
 });
 
 it('settings is a single row', () => {
