@@ -83,8 +83,8 @@ export const proposalStatus = pgEnum('proposal_status', [
  */
 const pricePrecision = 10;
 const priceScale = 2;
-/** Where an unread garment sits on the five-step warmth and formality scales. */
-const scaleMiddle = 3;
+/** Where an unread garment sits on the three-step warmth and formality scales. */
+const scaleMiddle = 2;
 /** A garment rests a week before the engine offers it again, unless settings say otherwise. */
 const defaultCooldownDays = 7;
 /** The morning hour the day is decided at, unless settings say otherwise. */
@@ -125,8 +125,8 @@ export const garment = pgTable(
       .defaultNow(),
   },
   (table) => [
-    check('garment_warmth_range', sql`${table.warmth} between 1 and 5`),
-    check('garment_formality_range', sql`${table.formality} between 1 and 5`),
+    check('garment_warmth_range', sql`${table.warmth} between 1 and 3`),
+    check('garment_formality_range', sql`${table.formality} between 1 and 3`),
     check(
       'garment_wear_budget_positive',
       sql`${table.wearBudget} is null or ${table.wearBudget} between 1 and 30`,

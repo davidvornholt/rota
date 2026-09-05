@@ -1,50 +1,50 @@
 import { useId } from 'react';
 
+import type { GarmentScaleOption } from '#/shared/data/garment-scales.ts';
 import { fieldClass, labelClass } from '#/shared/ui/classes.ts';
 
 type ScaleProps = {
   readonly label: string;
   readonly value: number;
-  readonly words: ReadonlyArray<string>;
+  readonly options: ReadonlyArray<GarmentScaleOption>;
   readonly onChange: (value: number) => void;
 };
 
-/** A five-step scale as a row of squares; the chosen step is filled in ink. */
-export const Scale = ({ label, value, words, onChange }: ScaleProps) => {
+export const Scale = ({ label, value, options, onChange }: ScaleProps) => {
   const id = useId();
+  const descriptionId = `${id}-description`;
   return (
-    <fieldset>
+    <fieldset aria-describedby={descriptionId}>
       <legend className={labelClass}>{label}</legend>
-      <div
-        className="mt-2 grid grid-cols-5 border border-rule-strong"
-        role="radiogroup"
-      >
-        {words.map((word, index) => {
-          const level = index + 1;
-          const checked = level === value;
+      <div className="mt-2 grid grid-cols-3 border border-rule-strong">
+        {options.map((option, index) => {
+          const checked = option.value === value;
           return (
             <label
               className={[
-                'flex h-14 cursor-pointer flex-col items-center justify-center border-rule-strong px-1 text-center text-xs leading-tight',
+                'relative flex h-14 cursor-pointer items-center justify-center border-rule-strong px-2 text-center text-sm leading-tight has-focus-visible:z-10 has-focus-visible:outline-2 has-focus-visible:outline-ink has-focus-visible:outline-offset-2',
                 index > 0 ? 'border-l' : '',
                 checked ? 'bg-ink text-paper' : 'text-ink-muted hover:text-ink',
               ].join(' ')}
-              key={word}
+              key={option.value}
             >
               <input
+                aria-describedby={descriptionId}
                 checked={checked}
                 className="sr-only"
                 name={id}
-                onChange={() => onChange(level)}
+                onChange={() => onChange(option.value)}
                 type="radio"
-                value={level}
+                value={option.value}
               />
-              <span className="type-data">{level}</span>
-              <span className="hidden sm:block">{word}</span>
+              <span>{option.label}</span>
             </label>
           );
         })}
       </div>
+      <p className="mt-2 text-ink-muted text-sm" id={descriptionId}>
+        {options.find((option) => option.value === value)?.description}
+      </p>
     </fieldset>
   );
 };

@@ -8,6 +8,8 @@ import {
   garmentCategories,
   type ImageChoice,
   type Slot,
+  scaleMaximum,
+  scaleMinimum,
 } from './garment-types.ts';
 
 export const SlotSchema: Schema.Schema<Slot> = Schema.Literal(
@@ -45,6 +47,10 @@ export const GarmentImageSchema = Schema.Struct({
 });
 export type GarmentImage = Schema.Schema.Type<typeof GarmentImageSchema>;
 
+export const GarmentScaleSchema = Schema.Int.pipe(
+  Schema.between(scaleMinimum, scaleMaximum),
+);
+
 const NumericFromRow = Schema.NullOr(Schema.NumberFromString);
 
 /**
@@ -60,11 +66,11 @@ export const GarmentFromRow = Schema.Struct({
   category: Schema.String,
   subcategory: Schema.String,
   slots: Schema.Array(SlotSchema),
-  warmth: Schema.Number,
+  warmth: GarmentScaleSchema,
   rainOk: Schema.propertySignature(Schema.Boolean).pipe(
     Schema.fromKey('rain_ok'),
   ),
-  formality: Schema.Number,
+  formality: GarmentScaleSchema,
   wearBudget: Schema.propertySignature(Schema.NullOr(Schema.Number)).pipe(
     Schema.fromKey('wear_budget'),
   ),

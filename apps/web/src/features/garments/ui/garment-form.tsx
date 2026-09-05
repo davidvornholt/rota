@@ -1,5 +1,8 @@
 import { useId } from 'react';
-
+import {
+  formalityOptions,
+  warmthOptions,
+} from '#/shared/data/garment-scales.ts';
 import {
   categoryDefaults,
   type GarmentCategory,
@@ -24,15 +27,6 @@ type FieldsProps = {
     next: GarmentEdit[K],
   ) => void;
 };
-
-const warmthWords = ['Hot', 'Warm', 'Mild', 'Cool', 'Cold'] as const;
-const formalityWords = [
-  'Sport',
-  'Casual',
-  'Smart',
-  'Office',
-  'Formal',
-] as const;
 
 const IdentityFields = ({
   value,
@@ -244,13 +238,13 @@ export const GarmentForm = ({
           label="Warmth"
           onChange={(level) => set('warmth', level)}
           value={value.warmth}
-          words={warmthWords}
+          options={warmthOptions}
         />
         <Scale
           label="Formality"
           onChange={(level) => set('formality', level)}
           value={value.formality}
-          words={formalityWords}
+          options={formalityOptions}
         />
       </div>
       <RotationFields categoryBudget={categoryBudget} set={set} value={value} />

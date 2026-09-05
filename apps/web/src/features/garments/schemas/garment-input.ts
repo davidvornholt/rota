@@ -3,12 +3,12 @@ import { Schema } from 'effect';
 import {
   GarmentCategorySchema,
   GarmentColorSchema,
+  GarmentScaleSchema,
   ImageChoiceSchema,
   SlotSchema,
 } from '#/shared/data/garment.ts';
 import {
   longestWearBudget,
-  scaleMaximum,
   scaleMinimum,
 } from '#/shared/data/garment-types.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
@@ -27,9 +27,9 @@ export const GarmentEditSchema = Schema.Struct({
   category: GarmentCategorySchema,
   subcategory: shortText,
   slots: Schema.Array(SlotSchema).pipe(Schema.minItems(1)),
-  warmth: Schema.Int.pipe(Schema.between(scaleMinimum, scaleMaximum)),
+  warmth: GarmentScaleSchema,
   rainOk: Schema.Boolean,
-  formality: Schema.Int.pipe(Schema.between(scaleMinimum, scaleMaximum)),
+  formality: GarmentScaleSchema,
   wearBudget: Schema.NullOr(
     Schema.Int.pipe(Schema.between(scaleMinimum, longestWearBudget)),
   ),

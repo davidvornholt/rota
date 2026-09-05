@@ -17,9 +17,9 @@ CREATE TABLE "garment" (
 	"category" text DEFAULT '' NOT NULL,
 	"subcategory" text DEFAULT '' NOT NULL,
 	"slots" "garment_slot"[] DEFAULT '{}' NOT NULL,
-	"warmth" integer DEFAULT 3 NOT NULL,
+	"warmth" integer DEFAULT 2 NOT NULL,
 	"rain_ok" boolean DEFAULT true NOT NULL,
-	"formality" integer DEFAULT 3 NOT NULL,
+	"formality" integer DEFAULT 2 NOT NULL,
 	"wear_budget" integer,
 	"colors" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"pattern" text DEFAULT '' NOT NULL,
@@ -37,8 +37,8 @@ CREATE TABLE "garment" (
 	"retired_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "garment_warmth_range" CHECK ("garment"."warmth" between 1 and 5),
-	CONSTRAINT "garment_formality_range" CHECK ("garment"."formality" between 1 and 5),
+	CONSTRAINT "garment_warmth_range" CHECK ("garment"."warmth" between 1 and 3),
+	CONSTRAINT "garment_formality_range" CHECK ("garment"."formality" between 1 and 3),
 	CONSTRAINT "garment_wear_budget_positive" CHECK ("garment"."wear_budget" is null or "garment"."wear_budget" between 1 and 30)
 );
 --> statement-breakpoint

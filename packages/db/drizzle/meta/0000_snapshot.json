@@ -1,5 +1,5 @@
 {
-  "id": "966006ed-ff72-4254-b0c2-4d85be566bad",
+  "id": "691fe7c7-c762-4b3c-981d-a0cd24feb8e4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -89,7 +89,7 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": 3
+          "default": 2
         },
         "rain_ok": {
           "name": "rain_ok",
@@ -103,7 +103,7 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": 3
+          "default": 2
         },
         "wear_budget": {
           "name": "wear_budget",
@@ -244,11 +244,11 @@
       "checkConstraints": {
         "garment_warmth_range": {
           "name": "garment_warmth_range",
-          "value": "\"garment\".\"warmth\" between 1 and 5"
+          "value": "\"garment\".\"warmth\" between 1 and 3"
         },
         "garment_formality_range": {
           "name": "garment_formality_range",
-          "value": "\"garment\".\"formality\" between 1 and 5"
+          "value": "\"garment\".\"formality\" between 1 and 3"
         },
         "garment_wear_budget_positive": {
           "name": "garment_wear_budget_positive",
