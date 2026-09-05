@@ -42,6 +42,8 @@ const garment = (
   purchasedOn: null,
   imageChoice: 'studio',
   processingError: null,
+  studioRenderId: null,
+  studioRenderCompletedId: null,
   retiredAt: null,
   createdAt: new Date('2026-01-01T00:00:00Z'),
   images: {},

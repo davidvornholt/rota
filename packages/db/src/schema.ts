@@ -116,6 +116,10 @@ export const garment = pgTable(
     imageChoice: garmentImageChoice('image_choice').notNull().default('studio'),
     extraction: jsonb('extraction'),
     processingError: text('processing_error'),
+    /** The render currently allowed to write the studio image, if any. */
+    studioRenderId: uuid('studio_render_id'),
+    /** The render whose studio image was most recently attached, if any. */
+    studioRenderCompletedId: uuid('studio_render_completed_id'),
     retiredAt: timestamp('retired_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()

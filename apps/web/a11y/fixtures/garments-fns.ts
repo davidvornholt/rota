@@ -30,7 +30,14 @@ export const retryStudioFn = ({
       if (output !== null) {
         output.textContent = JSON.stringify(data);
       }
-      current = { ...current, ...data.edit, processingError: null };
+      const renderId = crypto.randomUUID();
+      current = {
+        ...current,
+        ...data.edit,
+        processingError: null,
+        studioRenderId: renderId,
+        studioRenderCompletedId: null,
+      };
       return current;
     }),
   );

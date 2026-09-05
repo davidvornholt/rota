@@ -3,7 +3,11 @@ import { Effect, Schema } from 'effect';
 
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { notFound, readError, writeError } from './errors/data-errors.ts';
-import { GarmentFromRow, type GarmentImage } from './garment.ts';
+import { GarmentFromRow } from './garment.ts';
+import {
+  makeGarmentRenderRepository,
+  type StoredImage,
+} from './garment-render-repository.ts';
 import type {
   GarmentColor,
   GarmentStatus,
@@ -34,7 +38,7 @@ export type GarmentAttributes = {
   readonly purchasedOn: LocalDate | null;
 };
 
-export type StoredImage = GarmentImage & { readonly bytes: number };
+export type { StoredImage } from './garment-render-repository.ts';
 
 const readGarments = readError('The wardrobe');
 const writeGarment = writeError('The garment');
@@ -65,7 +69,8 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
                g.warmth, g.rain_ok, g.formality, g.wear_budget, g.colors,
                g.pattern, g.material, g.fit, g.sleeve, g.brand, g.seasons,
                g.notes, g.price, g.purchased_on, g.image_choice,
-               g.processing_error, g.retired_at, g.created_at,
+               g.processing_error, g.studio_render_id,
+               g.studio_render_completed_id, g.retired_at, g.created_at,
                ${imagesJson} as images
         from garment g
         ${where}
@@ -159,19 +164,25 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
 
       const update = (id: string, attributes: GarmentAttributes) =>
         sql`
-          update garment ${attributeUpdate(attributes)} where id = ${id}
+          update garment
+          ${attributeUpdate(attributes)},
+              studio_render_id = case
+                when studio_render_id is distinct from studio_render_completed_id
+                  then null
+                else studio_render_id
+              end,
+              studio_render_completed_id = case
+                when studio_render_id is distinct from studio_render_completed_id
+                  then studio_render_id
+                else studio_render_completed_id
+              end
+          where id = ${id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
       const markProcessingError = (id: string, message: string) =>
         sql`
           update garment
           set processing_error = ${message}, status = 'review', updated_at = now()
-          where id = ${id}
-        `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
-
-      const clearProcessingError = (id: string) =>
-        sql`
-          update garment set processing_error = null, updated_at = now()
           where id = ${id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
@@ -196,6 +207,7 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
           Effect.mapError(writeGarment),
         );
 
+      const renderRepository = makeGarmentRenderRepository(sql);
       return {
         list,
         byId,
@@ -204,10 +216,10 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
         applyExtraction,
         update,
         markProcessingError,
-        clearProcessingError,
         setStatus,
         setImageChoice,
         remove,
+        ...renderRepository,
       };
     }),
   },

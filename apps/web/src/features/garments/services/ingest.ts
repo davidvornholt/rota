@@ -30,8 +30,6 @@ import {
   extractionPrompt,
   extractionSystemPrompt,
 } from '../schemas/extraction.ts';
-import { renderDescription } from '../schemas/render-description.ts';
-
 export type Upload = {
   readonly bytes: Uint8Array;
   readonly mime: string;
@@ -186,12 +184,21 @@ const readGarment = (deps: IngestDependencies, garment: Garment) =>
   });
 
 /** GPT-Image-2 renders the flat lay; the result is stored and attached. */
-const renderStudio = (
-  deps: IngestDependencies,
-  garment: Garment,
-  description: string,
-  instructions: string,
-) =>
+type RenderStudioInput = {
+  readonly deps: IngestDependencies;
+  readonly garment: Garment;
+  readonly renderId: string;
+  readonly description: string;
+  readonly instructions: string;
+};
+
+const renderStudio = ({
+  deps,
+  garment,
+  renderId,
+  description,
+  instructions,
+}: RenderStudioInput) =>
   Effect.gen(function* () {
     const photo = yield* originalPhoto(deps, garment);
     const render = yield* deps.studio.render({
@@ -202,18 +209,19 @@ const renderStudio = (
     });
     const stored = yield* deps.media.put(render.bytes, render.mime);
     const dimensions = imageDimensions(render.bytes);
-    yield* deps.garments.attachImage(garment.id, 'studio', {
-      key: stored.key,
-      mime: render.mime,
-      width: dimensions?.width ?? 0,
-      height: dimensions?.height ?? 0,
-      bytes: stored.bytes,
+    yield* deps.garments.attachStudioImage({
+      garmentId: garment.id,
+      renderId,
+      image: {
+        key: stored.key,
+        mime: render.mime,
+        width: dimensions?.width ?? 0,
+        height: dimensions?.height ?? 0,
+        bytes: stored.bytes,
+      },
+      selectStudio: garment.images.studio === undefined,
+      expectedChoice: garment.imageChoice,
     });
-    // A garment that showed its photo only because no render existed now shows
-    // the render; a photo the wearer chose over an earlier render stays.
-    if (garment.images.studio === undefined) {
-      yield* deps.garments.setImageChoice(garment.id, 'studio');
-    }
   });
 
 export class IngestService extends Effect.Service<IngestService>()(
@@ -232,16 +240,23 @@ export class IngestService extends Effect.Service<IngestService>()(
       const start = (upload: Upload) =>
         storeUpload(deps, upload).pipe(Effect.flatMap(garments.create));
 
-      const recordFailure = (id: string, step: string) => (error: unknown) =>
-        Effect.logWarning(`${step} failed for garment ${id}.`, error).pipe(
-          Effect.andThen(
-            garments.markProcessingError(
-              id,
-              `${step}: ${describeFailure(error)}`,
+      const recordFailure =
+        (id: string, step: string, renderId?: string) => (error: unknown) =>
+          Effect.logWarning(`${step} failed for garment ${id}.`, error).pipe(
+            Effect.andThen(
+              renderId === undefined
+                ? garments.markProcessingError(
+                    id,
+                    `${step}: ${describeFailure(error)}`,
+                  )
+                : garments.markStudioRenderError(
+                    id,
+                    renderId,
+                    `${step}: ${describeFailure(error)}`,
+                  ),
             ),
-          ),
-          Effect.catchAll(() => Effect.void),
-        );
+            Effect.catchAll(() => Effect.void),
+          );
 
       /** The whole pipeline for one garment. Never fails; failures land on the row. */
       const process = (id: string): Effect.Effect<void> =>
@@ -249,8 +264,22 @@ export class IngestService extends Effect.Service<IngestService>()(
           const garment = yield* garments.byId(id);
           const extraction = yield* readGarment(deps, garment);
           const read = yield* garments.byId(id);
-          yield* renderStudio(deps, read, extraction.description, '').pipe(
-            Effect.catchAll(recordFailure(id, 'Studio render')),
+          const renderId = crypto.randomUUID();
+          const claimedRenderId = yield* garments.claimInitialStudioRender(
+            id,
+            renderId,
+          );
+          if (claimedRenderId === undefined) {
+            return;
+          }
+          yield* renderStudio({
+            deps,
+            garment: read,
+            renderId: claimedRenderId,
+            description: extraction.description,
+            instructions: '',
+          }).pipe(
+            Effect.catchAll(recordFailure(id, 'Studio render', renderId)),
           );
         }).pipe(
           Effect.catchAll(recordFailure(id, 'Reading the photo')),
@@ -260,19 +289,21 @@ export class IngestService extends Effect.Service<IngestService>()(
       /** Renders the studio image again for a garment whose attributes are already known. */
       const retryStudio = (
         id: string,
+        renderId: string,
+        description: string,
         instructions: string,
       ): Effect.Effect<void> =>
         Effect.gen(function* () {
           const garment = yield* garments.byId(id);
-          yield* garments.clearProcessingError(id);
-          yield* renderStudio(
+          yield* renderStudio({
             deps,
             garment,
-            renderDescription(garment),
+            renderId,
+            description,
             instructions,
-          );
+          });
         }).pipe(
-          Effect.catchAll(recordFailure(id, 'Studio render')),
+          Effect.catchAll(recordFailure(id, 'Studio render', renderId)),
           Effect.catchAllDefect(recordFailure(id, 'Processing')),
         );
 

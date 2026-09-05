@@ -26,10 +26,16 @@ export const isRendering = (garment: {
   readonly status: string;
   readonly studio: GarmentImageView | undefined;
   readonly processingError: string | null;
+  readonly studioRenderId: string | null;
+  readonly studioRenderCompletedId: string | null;
 }): boolean =>
-  garment.status === 'review' &&
-  garment.studio === undefined &&
-  garment.processingError === null;
+  garment.processingError === null &&
+  ((garment.studioRenderId !== null &&
+    garment.studioRenderId !== garment.studioRenderCompletedId) ||
+    (garment.status === 'review' &&
+      garment.studio === undefined &&
+      garment.studioRenderId === null &&
+      garment.studioRenderCompletedId === null));
 
 export type GarmentView = {
   readonly id: string;
@@ -55,6 +61,8 @@ export type GarmentView = {
   readonly purchasedOn: LocalDate | null;
   readonly imageChoice: ImageChoice;
   readonly processingError: string | null;
+  readonly studioRenderId: string | null;
+  readonly studioRenderCompletedId: string | null;
   readonly image: GarmentImageView | undefined;
   readonly original: GarmentImageView | undefined;
   readonly studio: GarmentImageView | undefined;
@@ -144,6 +152,8 @@ export const toGarmentView = ({
     purchasedOn: garment.purchasedOn,
     imageChoice: garment.imageChoice,
     processingError: garment.processingError,
+    studioRenderId: garment.studioRenderId,
+    studioRenderCompletedId: garment.studioRenderCompletedId,
     image:
       chosen === undefined
         ? undefined

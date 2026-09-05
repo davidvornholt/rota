@@ -20,6 +20,7 @@ import {
   decodeUpdateGarmentInput,
   type GarmentEdit,
 } from '../schemas/garment-input.ts';
+import { renderDescription } from '../schemas/render-description.ts';
 import { garmentsRuntime } from './garments-runtime.ts';
 import { IngestService } from './ingest.ts';
 
@@ -187,10 +188,18 @@ export const retryStudioFn = createServerFn({ method: 'POST' })
         Effect.gen(function* () {
           const garments = yield* GarmentRepository;
           const ingest = yield* IngestService;
+          const renderId = crypto.randomUUID();
           yield* garments.update(data.id, attributesOf(data.edit));
-          yield* garments.clearProcessingError(data.id);
+          yield* garments.beginStudioRender(data.id, renderId);
           const before = yield* garmentView(data.id);
-          garmentsRuntime.fork(ingest.retryStudio(data.id, data.instructions));
+          garmentsRuntime.fork(
+            ingest.retryStudio(
+              data.id,
+              renderId,
+              renderDescription(data.edit),
+              data.instructions,
+            ),
+          );
           return before;
         }),
       ),

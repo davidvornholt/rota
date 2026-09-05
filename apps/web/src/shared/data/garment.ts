@@ -92,6 +92,12 @@ export const GarmentFromRow = Schema.Struct({
   processingError: Schema.propertySignature(Schema.NullOr(Schema.String)).pipe(
     Schema.fromKey('processing_error'),
   ),
+  studioRenderId: Schema.propertySignature(Schema.NullOr(Schema.UUID)).pipe(
+    Schema.fromKey('studio_render_id'),
+  ),
+  studioRenderCompletedId: Schema.propertySignature(
+    Schema.NullOr(Schema.UUID),
+  ).pipe(Schema.fromKey('studio_render_completed_id')),
   retiredAt: Schema.propertySignature(
     Schema.NullOr(Schema.ValidDateFromSelf),
   ).pipe(Schema.fromKey('retired_at')),

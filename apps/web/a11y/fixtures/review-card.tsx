@@ -43,6 +43,8 @@ const garment: GarmentView = {
   purchasedOn: null,
   imageChoice: 'original',
   processingError: null,
+  studioRenderId: null,
+  studioRenderCompletedId: null,
   image: photo,
   original: photo,
   studio: undefined,
@@ -71,6 +73,7 @@ export const ReviewFixture = () => {
               ...photo,
               url: `${photo.url}?studio=${crypto.randomUUID()}`,
             },
+            studioRenderCompletedId: fixtureGarment().studioRenderId,
           };
           setFixtureGarment(next);
           setCurrent(next);
