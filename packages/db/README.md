@@ -22,7 +22,7 @@ bun run --cwd ../../apps/web db:migrate  # apply
 
 ## Garment ratings
 
-Warmth uses 1 = Light, 2 = Medium, 3 = Heavy. Formality uses 1 = Casual, 2 = Smart, 3 = Formal. Unread garments default to 2 for both. The generated migration updates defaults and constraints. Start with an empty wardrobe; reset any disposable five-level fixture data before applying it.
+Warmth uses 1 = Light, 2 = Medium, 3 = Heavy. Formality uses 1 = Casual, 2 = Smart, 3 = Formal. Unread garments default to 2 for both. The single generated initial migration creates these defaults and constraints directly. Initialize a fresh database. Any database created from the previous migration history must be recreated first, including its Drizzle migration journal; deleting garment rows alone is insufficient.
 
 ## Environment
 

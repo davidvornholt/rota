@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1788542659938,
-      "tag": "0000_sad_lady_deathstrike",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1788625611504,
-      "tag": "0001_garment_scales",
+      "when": 1788627537334,
+      "tag": "0000_initial",
       "breakpoints": true
     }
   ]
