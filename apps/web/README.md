@@ -79,3 +79,7 @@ bun run lint && bun run check-types && bun test && bun run build && bun run test
 ```
 
 `bun run check:fix` at the repo root runs all of it through Turbo.
+
+## Garment ratings
+
+The review card and garment editor use three choices with visible explanations: Light, Medium, Heavy for insulation and Casual, Smart, Formal for dressiness. The same definitions guide photo extraction and outfit proposals. Weather matching uses 60% of the daily high plus 40% of the low: at least 18 °C favours Light, 12 °C to below 18 °C favours Medium, and below 12 °C favours Heavy. Exact matches rank first; adjacent levels are offered when fewer than three exact matches exist. Light and Heavy never substitute for one another. Layering and the occasion remain part of the outfit proposal.

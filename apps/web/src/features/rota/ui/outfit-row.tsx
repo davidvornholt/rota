@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { type Slot, slotLabel } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
-import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
+import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { Swatches } from '#/shared/ui/swatches.tsx';
 import { Tally } from '#/shared/ui/tally.tsx';
 import { tallyLabel } from '#/shared/ui/tally-label.ts';
@@ -36,8 +36,7 @@ export const OutfitRow = ({
   emphasis = 'proposal',
 }: OutfitRowProps) => (
   <li className="grid grid-cols-[6rem_1fr] gap-4 border-rule border-t py-4 sm:grid-cols-[8rem_1fr] sm:gap-6 sm:py-5">
-    <GarmentFigure
-      alt=""
+    <EnlargeableFigure
       colors={garment.colors}
       image={garment.image}
       loading="eager"

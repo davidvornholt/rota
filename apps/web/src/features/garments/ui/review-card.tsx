@@ -6,9 +6,14 @@ import {
   type ImageChoice,
   isCategory,
 } from '#/shared/data/garment-types.ts';
-import type { GarmentView } from '#/shared/data/garment-view.ts';
-import { linkButtonClass, signalButtonClass } from '#/shared/ui/classes.ts';
+import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
+import {
+  checkClass,
+  linkButtonClass,
+  signalButtonClass,
+} from '#/shared/ui/classes.ts';
 import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
+import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import {
@@ -26,13 +31,24 @@ type ReviewCardProps = {
   readonly onChanged: () => void;
 };
 
-const choiceLabel = (kind: ImageChoice, present: boolean): string => {
+const choiceLabel = (
+  kind: ImageChoice,
+  present: boolean,
+  rendering: boolean,
+): string => {
   if (kind === 'original') {
     return 'Photo';
   }
-  return present ? 'Studio' : 'Studio · not yet';
+  if (present) {
+    return 'Studio';
+  }
+  return rendering ? 'Studio · rendering …' : 'Studio · failed';
 };
 
+/**
+ * The two pictures side by side; pressing one shows it large, the radio under
+ * it says which the wardrobe keeps. The chosen picture wears an ink border.
+ */
 const ImageChoiceControl = ({
   garment,
   choice,
@@ -49,35 +65,36 @@ const ImageChoiceControl = ({
         const image = kind === 'studio' ? garment.studio : garment.original;
         const selected = choice === kind;
         return (
-          <label
-            className={[
-              'block cursor-pointer border p-1 transition-colors',
-              selected
-                ? 'border-ink'
-                : 'border-transparent hover:border-rule-strong',
-              image === undefined ? 'opacity-50' : '',
-            ].join(' ')}
-            key={kind}
-          >
-            <input
-              checked={selected}
-              className="sr-only"
-              disabled={image === undefined}
-              name={`image-choice-${garment.id}`}
-              onChange={() => onChoose(kind)}
-              type="radio"
-              value={kind}
-            />
-            <GarmentFigure
-              alt=""
-              colors={garment.colors}
-              image={image}
-              name={garment.name}
-            />
-            <span className="mt-1 block text-center text-ink-muted text-xs">
-              {choiceLabel(kind, image !== undefined)}
-            </span>
-          </label>
+          <div key={kind}>
+            <div
+              className={[
+                'border p-1 transition-colors',
+                selected ? 'border-ink' : 'border-transparent',
+                image === undefined ? 'opacity-50' : '',
+              ].join(' ')}
+            >
+              <EnlargeableFigure
+                caption={kind === 'studio' ? 'Studio render' : 'Photo'}
+                colors={garment.colors}
+                image={image}
+                name={garment.name}
+              />
+            </div>
+            <label className="mt-1 flex min-h-11 cursor-pointer items-center justify-center gap-2 text-ink-muted text-xs">
+              <input
+                checked={selected}
+                className={checkClass}
+                disabled={image === undefined}
+                name={`image-choice-${garment.id}`}
+                onChange={() => onChoose(kind)}
+                // A click on the already-checked photo is still an explicit choice.
+                onClick={() => onChoose(kind)}
+                type="radio"
+                value={kind}
+              />
+              {choiceLabel(kind, image !== undefined, isRendering(garment))}
+            </label>
+          </div>
         );
       })}
     </div>
@@ -116,9 +133,10 @@ export const ReviewCard = ({
   onChanged,
 }: ReviewCardProps) => {
   const [edit, setEdit] = useState(() => editOf(garment));
-  const [choice, setChoice] = useState<ImageChoice>(
-    garment.studio === undefined ? 'original' : 'studio',
-  );
+  const [selectedImage, setSelectedImage] = useState<ImageChoice | null>(null);
+  // Follow arriving renders until the wearer explicitly chooses a picture.
+  const choice =
+    selectedImage ?? (garment.studio === undefined ? 'original' : 'studio');
   const accept = useMutation({
     mutationFn: () =>
       acceptGarmentFn({ data: { id: garment.id, edit, imageChoice: choice } }),
@@ -151,13 +169,13 @@ export const ReviewCard = ({
         <ImageChoiceControl
           choice={choice}
           garment={garment}
-          onChoose={setChoice}
+          onChoose={setSelectedImage}
         />
         {garment.processingError === null ? null : (
           <Notice>Part of the reading failed: {garment.processingError}</Notice>
         )}
         <div className="flex flex-wrap gap-x-5 gap-y-1">
-          {garment.studio === undefined ? (
+          {garment.studio === undefined && !isRendering(garment) ? (
             <button
               aria-busy={retryStudio.isPending}
               className={linkButtonClass}

@@ -28,3 +28,23 @@ Rota runs at `https://rota.vornholt.online` on `prod-1`, whose configuration liv
 ## Design
 
 `DESIGN.md` states the design intent: paper, ink, hairline rules, square corners, one yellow signal, the garment as the only picture.
+
+## Pull request screenshots
+
+Publish reviewed demo screenshots from the repository root:
+
+```sh
+bun standards screenshots publish /path/to/before.png /path/to/after.png
+```
+
+The command uses `config/screenshots.yaml` and the brokered pair in `secrets/assets.yaml`, then prints Markdown for the pull request. The shared bucket and public domain are managed by [personal-infra](https://github.com/davidvornholt/personal-infra/tree/main/infra/opentofu/cloudflare-dns). Each repository has its own credential; keep this pair in SOPS.
+
+Capture matching base and head revisions with the same route, demo data, UI state, and viewport. Include a phone comparison when responsive behavior changes. Review every image before publishing: the URLs are public and permanent. Add the returned image links as a Before/After table in the pull request's Screenshots section.
+
+Provision or replace the repository's publishing pair through the broker:
+
+```sh
+bun standards creds add cloudflare --dest assets:assets.screenshots_rw --bucket personal-pr-screenshots --jurisdiction eu --s3 --permissions "Workers R2 Storage Bucket Item Write"
+```
+
+Use `bun standards creds plan` and `bun standards creds apply` to inspect and reconcile broker-managed credentials.

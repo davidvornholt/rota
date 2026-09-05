@@ -20,6 +20,10 @@ bun run --cwd ../../apps/web db:migrate  # apply
 
 `.env.local` is composed by `just dev-env-generate`; the dev Postgres container is managed by `just dev-db-start`.
 
+## Garment ratings
+
+Warmth uses 1 = Light, 2 = Medium, 3 = Heavy. Formality uses 1 = Casual, 2 = Smart, 3 = Formal. Unread garments default to 2 for both. The single generated initial migration creates these defaults and constraints directly. Initialize a fresh database. Any database created from the previous migration history must be recreated first, including its Drizzle migration journal; deleting garment rows alone is insufficient.
+
 ## Environment
 
 | Variable       | Purpose                                            | Required                                                                                          | Source                                                                                          |

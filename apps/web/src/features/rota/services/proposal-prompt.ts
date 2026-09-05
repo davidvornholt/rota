@@ -8,6 +8,10 @@
 import type { ImagePart, PromptPart } from '#/shared/ai/gemini.ts';
 import type { Garment } from '#/shared/data/garment.ts';
 import {
+  formalityInstruction,
+  warmthInstruction,
+} from '#/shared/data/garment-scales.ts';
+import {
   type Slot,
   slotLabel,
   slotOrder,
@@ -59,6 +63,8 @@ export type BuiltPrompt = {
 };
 
 export const proposalSystemPrompt = [
+  warmthInstruction,
+  formalityInstruction,
   "You are the valet behind Rota, a one-person wardrobe app. Each morning you decide today's outfit from a short list the wardrobe has already narrowed down.",
   'The wearer rotates clothes: trousers and jumpers for several days in a row, tops for a day or two, and expects to keep wearing what still has days left unless the weather has changed enough to make it wrong.',
   'Rules: keep every continuing garment unless the weather or the occasion makes it a poor choice, and say so in its reason when you drop one. Choose only from the aliases offered; never invent a garment. Dress for 05:00–20:00 in the wardrobe location’s time zone. Forecast highs and lows cover the stated hours; the high matters more than the low. Use an over layer when the day is cool; skip it when the day is warm. Use an under layer only on cold days or under a thin shirt on a cool day. Mind colour harmony and formality, and read the occasion note as an instruction.',
@@ -81,8 +87,8 @@ const describeGarment = (garment: Garment): string =>
   [
     garment.category +
       (garment.subcategory === '' ? '' : `, ${garment.subcategory}`),
-    `warmth ${garment.warmth}/5`,
-    `formality ${garment.formality}/5`,
+    `warmth ${garment.warmth}/3`,
+    `formality ${garment.formality}/3`,
     garment.colors.length === 0
       ? undefined
       : `colours ${garment.colors.map((color) => `${color.name} ${color.hex}`).join(', ')}`,
@@ -107,7 +113,7 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
 
   const band = warmthBand(input.weather);
   say(
-    `Today is ${formatWeekday(input.today)} ${formatDayMonth(input.today)}. Forecast: ${weatherSentence(input.weather)}. Warmth band ${band}/5 (1 hot … 5 cold).`,
+    `Today is ${formatWeekday(input.today)} ${formatDayMonth(input.today)}. Forecast: ${weatherSentence(input.weather)}. Warmth band ${band}/3 (1 light, 2 medium, 3 heavy).`,
   );
   if (input.forecastStale) {
     say("This forecast is from yesterday; today's could not be fetched.");

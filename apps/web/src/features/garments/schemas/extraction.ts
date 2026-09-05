@@ -2,11 +2,15 @@ import { Schema } from 'effect';
 import {
   GarmentCategorySchema,
   GarmentColorSchema,
+  GarmentScaleSchema,
   SlotSchema,
 } from '#/shared/data/garment.ts';
 import {
+  formalityInstruction,
+  warmthInstruction,
+} from '#/shared/data/garment-scales.ts';
+import {
   garmentCategories,
-  scaleMaximum,
   scaleMinimum,
   seasons,
 } from '#/shared/data/garment-types.ts';
@@ -20,9 +24,9 @@ export const ExtractionSchema = Schema.Struct({
   category: GarmentCategorySchema,
   subcategory: Schema.String,
   slots: Schema.Array(SlotSchema).pipe(Schema.minItems(1)),
-  warmth: Schema.Int.pipe(Schema.between(scaleMinimum, scaleMaximum)),
+  warmth: GarmentScaleSchema,
   rainOk: Schema.Boolean,
-  formality: Schema.Int.pipe(Schema.between(scaleMinimum, scaleMaximum)),
+  formality: GarmentScaleSchema,
   wearBudgetDays: Schema.Int.pipe(
     Schema.between(scaleMinimum, longestSuggestedBudget),
   ),
@@ -71,9 +75,8 @@ export const extractionJsonSchema = {
     warmth: {
       type: 'integer',
       minimum: 1,
-      maximum: 5,
-      description:
-        'How warm it wears: 1 = for hot days above 26 °C, 2 = warm 20–25 °C, 3 = mild 14–19 °C, 4 = cool 8–13 °C, 5 = cold below 8 °C.',
+      maximum: 3,
+      description: warmthInstruction,
     },
     rainOk: {
       type: 'boolean',
@@ -83,9 +86,8 @@ export const extractionJsonSchema = {
     formality: {
       type: 'integer',
       minimum: 1,
-      maximum: 5,
-      description:
-        '1 = sport or loungewear, 2 = casual, 3 = smart casual, 4 = business casual, 5 = formal.',
+      maximum: 3,
+      description: formalityInstruction,
     },
     wearBudgetDays: {
       type: 'integer',
