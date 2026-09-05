@@ -1,7 +1,7 @@
 /**
  * The forecast the day is decided on. Fetched once per day and stored; when
- * Open-Meteo cannot be reached the stored forecast from an earlier day is used
- * and marked stale, so a network blip never blanks the morning.
+ * Open-Meteo cannot be reached a stored forecast with matching hours is used
+ * and marked stale. All-day history is retained but cannot decide a new outfit.
  */
 
 import { Effect } from 'effect';
@@ -12,6 +12,7 @@ import {
   WeatherRepository,
 } from '#/shared/data/weather-repository.ts';
 import { addDays, type LocalDate } from '#/shared/time/local-date.ts';
+import { hasForecastHours } from '#/shared/weather/forecast-window.ts';
 import { locationLabel } from '#/shared/weather/location.ts';
 import { WeatherApi } from '#/shared/weather/open-meteo.ts';
 import {
@@ -53,23 +54,26 @@ export class ForecastService extends Effect.Service<ForecastService>()(
         days: ReadonlyArray<WeatherDay>,
         today: LocalDate,
       ): ForecastWindow | undefined => {
-        const forToday = days.find((day) => day.date === today);
+        const usableDays = days.filter(
+          (day) => day.date < today || hasForecastHours(day),
+        );
+        const forToday = usableDays.find((day) => day.date === today);
         if (forToday === undefined) {
           return undefined;
         }
         return {
           today: forToday,
-          yesterday: days.find((day) => day.date === addDays(today, -1)),
-          tomorrow: days.find((day) => day.date === addDays(today, 1)),
-          upcoming: days.filter((day) => day.date > today),
+          yesterday: usableDays.find((day) => day.date === addDays(today, -1)),
+          tomorrow: usableDays.find((day) => day.date === addDays(today, 1)),
+          upcoming: usableDays.filter((day) => day.date > today),
           stale: forToday.issuedOn < today,
         };
       };
 
       /**
        * Today's forecast, fresh if it can be. A fetch is attempted when nothing
-       * fresh is stored; a failed fetch falls back to whatever is stored and
-       * fails only when there is nothing at all.
+       * fresh with matching hours is stored; a failed fetch falls back to an
+       * older forecast with those hours.
        */
       const ensure = (settings: Settings, today: LocalDate) =>
         Effect.gen(function* () {

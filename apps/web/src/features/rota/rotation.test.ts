@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test';
+import { Effect } from 'effect';
 import type { Garment } from '#/shared/data/garment.ts';
 import type { Slot } from '#/shared/data/garment-types.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
+import { decodeForecast } from '#/shared/weather/hourly-forecast.ts';
 import {
   candidatesFor,
   consecutiveWears,
@@ -57,6 +59,8 @@ const mild: WeatherDay = {
   date: localDate('2026-09-04'),
   issuedOn: localDate('2026-09-04'),
   locationLabel: 'Berlin',
+  startHour: 5,
+  endHour: 20,
   high: 19,
   low: 11,
   precipitationProbability: 10,
@@ -228,6 +232,70 @@ describe('candidates', () => {
     expect(daysSinceWorn(log, 'recent', today)).toBe(2);
     expect(daysSinceWorn(log, 'never', today)).toBeNull();
   });
+});
+
+describe('rain during wearing hours', () => {
+  it.each([
+    { rainHour: 5, eligible: true },
+    { rainHour: 6, eligible: false },
+    { rainHour: 20, eligible: false },
+    { rainHour: 21, eligible: true },
+  ])(
+    'keeps rain-sensitive garments only when rain at $rainHour:00 is outside wearing hours',
+    ({ rainHour, eligible }) => {
+      const settings = { cooldownDays: 7, categoryBudgets: {} };
+      const wardrobe = [garment('suede', ['top'], { rainOk: false })];
+      const wetForecast = { probability: 80, amount: 3 };
+      const hoursPerDay = 24;
+      const hours = Array.from({ length: hoursPerDay }, (_, hour) => hour);
+      const [forecast] = Effect.runSync(
+        decodeForecast({
+          hourly: Object.fromEntries([
+            [
+              'time',
+              hours.map(
+                (hour) => `${today}T${String(hour).padStart(2, '0')}:00`,
+              ),
+            ],
+            ['temperature_2m', hours.map(() => mild.high)],
+            [
+              'precipitation_probability',
+              hours.map((hour) =>
+                hour === rainHour
+                  ? wetForecast.probability
+                  : mild.precipitationProbability,
+              ),
+            ],
+            [
+              'precipitation',
+              hours.map((hour) => (hour === rainHour ? wetForecast.amount : 0)),
+            ],
+            ['wind_speed_10m', hours.map(() => mild.windKmh)],
+            ['weather_code', hours.map(() => 1)],
+          ]),
+        }),
+      );
+      expect(forecast).toBeDefined();
+      if (forecast === undefined) {
+        return;
+      }
+      const result = candidatesFor(
+        {
+          today,
+          log: [],
+          garments: wardrobe,
+          settings,
+          weather: { ...mild, ...forecast },
+          excluded: new Set(),
+        },
+        'top',
+        new Set(),
+      );
+      expect(result.some((candidate) => candidate.garment.id === 'suede')).toBe(
+        eligible,
+      );
+    },
+  );
 });
 
 describe('warmth band', () => {

@@ -236,6 +236,9 @@ export const weatherDay = pgTable('weather_day', {
     .notNull()
     .defaultNow(),
   locationLabel: text('location_label').notNull(),
+  // Existing forecasts cover the full calendar day; new fetches supply their hours.
+  startHour: integer('start_hour').notNull().default(0),
+  endHour: integer('end_hour').notNull().default(24),
   high: real('high').notNull(),
   low: real('low').notNull(),
   precipitationProbability: integer('precipitation_probability').notNull(),

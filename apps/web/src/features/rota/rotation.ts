@@ -107,7 +107,7 @@ export const daysSinceWorn = (
   return latest === undefined ? null : daysBetween(latest, date);
 };
 
-/** How much the afternoon high counts against the morning low in the felt temperature. */
+/** How much the forecast-window high counts against its low in the felt temperature. */
 const highWeight = 0.6;
 const lowWeight = 1 - highWeight;
 

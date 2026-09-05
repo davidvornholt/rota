@@ -1,9 +1,12 @@
+/** @jsxImportSource react */
+// Keep React SSR available in Playwright, which otherwise uses its own JSX runtime.
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import {
   formatDayMonth,
   formatWeekday,
   type LocalDate,
 } from '#/shared/time/local-date.ts';
+import { forecastHoursLabel } from '#/shared/weather/forecast-window.ts';
 import { weatherWords } from '../weather-words.ts';
 
 type WeatherStripProps = {
@@ -48,6 +51,7 @@ const factsFor = (
       text: `${degrees(weather.high)} / ${degrees(weather.low)}`,
       tone: 'ink',
     },
+    { key: 'hours', text: forecastHoursLabel(weather), tone: 'muted' },
     { key: 'sky', text: weatherWords(weather.weatherCode), tone: 'muted' },
     {
       key: 'rain',
