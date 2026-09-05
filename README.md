@@ -21,6 +21,10 @@ bun run dev             # http://localhost:3000
 
 `bun run check:fix` runs the whole gate: standards sync check, lint, types, tests, build, and the accessibility scan.
 
+## Deployment
+
+Rota runs at `https://rota.vornholt.online` on `prod-1`, whose configuration lives in [`davidvornholt/personal-infra`](https://github.com/davidvornholt/personal-infra). Every commit on `main` that passes the standards gate is built into `ghcr.io/davidvornholt/rota` and announced to that repository, where a trusted writer opens a promotion pull request pinning the new digest; merging it deploys. Garment images live in the `rota-media` R2 bucket behind `https://img.rota.vornholt.online`. There are no pull request previews, by decision recorded there.
+
 ## Design
 
 `DESIGN.md` states the design intent: paper, ink, hairline rules, square corners, one yellow signal, the garment as the only picture.
