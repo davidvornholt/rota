@@ -1,6 +1,5 @@
-import { useMutation } from '@tanstack/react-query';
-import { Link, useRouter } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { Link } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 
 import {
   categoryDefaults,
@@ -19,18 +18,9 @@ import {
 import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
-import type { GarmentEdit } from '../schemas/garment-input.ts';
-import {
-  deleteGarmentFn,
-  reprocessGarmentFn,
-  restoreGarmentFn,
-  retireGarmentFn,
-  retryStudioFn,
-  setImageChoiceFn,
-  updateGarmentFn,
-} from '../services/garments-fns.ts';
-import { editOf } from './garment-edit.ts';
 import { GarmentForm } from './garment-form.tsx';
+import { StudioRenderControl } from './studio-render-control.tsx';
+import { useGarmentDetail } from './use-garment-detail.ts';
 
 const Fact = ({
   label,
@@ -50,22 +40,11 @@ const failureMessage = (error: unknown) =>
     ? error.message
     : 'That did not go through. Try again.';
 
-const renderLabel = (garment: GarmentView, requested: boolean): string => {
-  if (requested) {
-    return 'Rendering … check back shortly';
-  }
-  return garment.studio === undefined
-    ? 'Render the studio picture'
-    : 'Render again';
-};
-
 type PictureProps = {
   readonly garment: GarmentView;
   readonly onChoose: (choice: ImageChoice) => void;
   readonly choosing: boolean;
-  readonly onRender: () => void;
-  readonly rendering: boolean;
-  readonly renderRequested: boolean;
+  readonly renderControl: ReactNode;
 };
 
 /** The picture and the facts beside it; sticky on wide screens while the form scrolls. */
@@ -73,9 +52,7 @@ const Picture = ({
   garment,
   onChoose,
   choosing,
-  onRender,
-  rendering,
-  renderRequested,
+  renderControl,
 }: PictureProps) => (
   <div className="lg:sticky lg:top-8">
     <EnlargeableFigure
@@ -101,16 +78,8 @@ const Picture = ({
             : 'Show the studio picture'}
         </button>
       ) : null}
-      <button
-        aria-busy={rendering}
-        className={linkButtonClass}
-        disabled={rendering}
-        onClick={onRender}
-        type="button"
-      >
-        {renderLabel(garment, renderRequested)}
-      </button>
     </div>
+    {renderControl}
     <dl className="mt-6 grid grid-cols-2 gap-x-6 border-rule border-b">
       <Fact
         label="Worn"
@@ -139,17 +108,15 @@ type LifecycleProps = {
   readonly garment: GarmentView;
   readonly onRetire: () => void;
   readonly onRestore: () => void;
-  readonly onReprocess: () => void;
   readonly onDelete: () => void;
   readonly pending: boolean;
 };
 
-/** Retire, bring back, re-read, delete: the actions that change what the garment is. */
+/** Retire, bring back, delete: the actions that change what the garment is. */
 const Lifecycle = ({
   garment,
   onRetire,
   onRestore,
-  onReprocess,
   onDelete,
   pending,
 }: LifecycleProps) => (
@@ -176,13 +143,6 @@ const Lifecycle = ({
       </button>
     )}
     <ConfirmButton
-      confirmLabel="Replace the fields with a new reading"
-      label="Read the photo again"
-      onConfirm={onReprocess}
-      pending={pending}
-      tone="link"
-    />
-    <ConfirmButton
       confirmLabel="Delete for good"
       disabled={garment.wears > 0}
       label="Delete"
@@ -206,69 +166,26 @@ export const GarmentDetailPage = ({
   readonly initial: GarmentView;
   readonly categoryBudgets: Readonly<Record<string, number>>;
 }) => {
-  const router = useRouter();
-  const [garment, setGarment] = useState(initial);
-  const [edit, setEdit] = useState<GarmentEdit>(() => editOf(initial));
-  const [saved, setSaved] = useState(false);
-  useEffect(() => {
-    setGarment(initial);
-    setEdit(editOf(initial));
-  }, [initial]);
-
-  const apply = (next: GarmentView) => {
-    setGarment(next);
-    setEdit(editOf(next));
-    router.invalidate().catch(() => undefined);
-  };
-  const { id } = garment;
-  const save = useMutation({
-    mutationFn: () => updateGarmentFn({ data: { id, edit } }),
-    onSuccess: (next) => {
-      setSaved(true);
-      apply(next);
-    },
-  });
-  const choose = useMutation({
-    mutationFn: (imageChoice: ImageChoice) =>
-      setImageChoiceFn({ data: { id, imageChoice } }),
-    onSuccess: apply,
-  });
-  const retire = useMutation({
-    mutationFn: () => retireGarmentFn({ data: { id } }),
-    onSuccess: apply,
-  });
-  const restore = useMutation({
-    mutationFn: () => restoreGarmentFn({ data: { id } }),
-    onSuccess: apply,
-  });
-  const leave = () => router.navigate({ to: '/wardrobe' });
-  const remove = useMutation({
-    mutationFn: () => deleteGarmentFn({ data: { id } }),
-    onSuccess: leave,
-  });
-  const reprocess = useMutation({
-    mutationFn: () => reprocessGarmentFn({ data: { id } }),
-    onSuccess: leave,
-  });
-  const retryStudio = useMutation({
-    mutationFn: () => retryStudioFn({ data: { id } }),
-  });
-
-  const categoryBudget =
-    categoryBudgets[edit.category] ??
-    (isCategory(edit.category) ? categoryDefaults[edit.category].budget : 2);
-  const mutations = [
+  const {
+    garment,
+    edit,
+    setEdit,
+    saved,
+    setSaved,
     save,
     choose,
     retire,
     restore,
     remove,
-    reprocess,
+    instructions,
+    setInstructions,
     retryStudio,
-  ];
-  const failure = mutations.find((mutation) => mutation.isError)?.error;
-  const lifecyclePending = mutations.some((mutation) => mutation.isPending);
-
+    failure,
+    lifecyclePending,
+  } = useGarmentDetail(initial);
+  const categoryBudget =
+    categoryBudgets[edit.category] ??
+    (isCategory(edit.category) ? categoryDefaults[edit.category].budget : 2);
   return (
     <div className={frameClass}>
       <p className="type-eyebrow">
@@ -282,12 +199,29 @@ export const GarmentDetailPage = ({
       <div className="mt-2 grid gap-8 lg:grid-cols-12 lg:gap-12">
         <div className="lg:col-span-5">
           <Picture
-            choosing={choose.isPending}
+            choosing={lifecyclePending}
             garment={garment}
             onChoose={(choice) => choose.mutate(choice)}
-            onRender={() => retryStudio.mutate()}
-            renderRequested={retryStudio.isSuccess}
-            rendering={retryStudio.isPending}
+            renderControl={
+              <StudioRenderControl
+                context="wardrobe"
+                hasStudio={garment.studio !== undefined}
+                instructions={instructions}
+                onInstructionsChange={setInstructions}
+                onRender={() => {
+                  setSaved(false);
+                  retryStudio.mutate();
+                }}
+                pending={retryStudio.isPending}
+                disabled={
+                  lifecyclePending ||
+                  edit.colors.length === 0 ||
+                  edit.slots.length === 0
+                }
+                error={retryStudio.error}
+                complete={retryStudio.isSuccess}
+              />
+            }
           />
         </div>
         <div className="lg:col-span-7">
@@ -299,14 +233,16 @@ export const GarmentDetailPage = ({
               save.mutate();
             }}
           >
-            <GarmentForm
-              categoryBudget={categoryBudget}
-              onChange={(next) => {
-                setSaved(false);
-                setEdit(next);
-              }}
-              value={edit}
-            />
+            <fieldset className="grid gap-6" disabled={retryStudio.isPending}>
+              <GarmentForm
+                categoryBudget={categoryBudget}
+                onChange={(next) => {
+                  setSaved(false);
+                  setEdit(next);
+                }}
+                value={edit}
+              />
+            </fieldset>
             {failure === undefined ? null : (
               <Notice live={true}>{failureMessage(failure)}</Notice>
             )}
@@ -314,7 +250,11 @@ export const GarmentDetailPage = ({
               <button
                 aria-busy={save.isPending}
                 className={inkButtonClass}
-                disabled={save.isPending || edit.slots.length === 0}
+                disabled={
+                  lifecyclePending ||
+                  edit.slots.length === 0 ||
+                  edit.colors.length === 0
+                }
                 type="submit"
               >
                 {save.isPending ? 'Saving …' : 'Save changes'}
@@ -329,7 +269,6 @@ export const GarmentDetailPage = ({
           <Lifecycle
             garment={garment}
             onDelete={() => remove.mutate()}
-            onReprocess={() => reprocess.mutate()}
             onRestore={() => restore.mutate()}
             onRetire={() => retire.mutate()}
             pending={lifecyclePending}

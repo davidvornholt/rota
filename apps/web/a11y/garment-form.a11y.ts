@@ -24,6 +24,10 @@ test.beforeAll(async () => {
         resolve: {
           tsconfigPaths: true,
           alias: {
+            './garments-fns.ts': new URL(
+              './fixtures/garments-fns.ts',
+              import.meta.url,
+            ).pathname,
             '../services/garments-fns.ts': new URL(
               './fixtures/garments-fns.ts',
               import.meta.url,
@@ -48,6 +52,21 @@ for (const mode of ['compact', 'full']) {
     const base = fixtureUrl();
     expect(base).toBeDefined();
     await page.goto(`${base}a11y/fixtures/garment-form.html?${mode}`);
+    const colours = page.getByRole('group', { name: 'Colours', exact: true });
+    await expect(
+      colours.getByRole('button', { name: 'Remove colour 1' }),
+    ).toBeDisabled();
+    await colours.getByRole('button', { name: 'Add a colour' }).click();
+    await expect(
+      colours.getByRole('button', { name: 'Remove colour 1' }),
+    ).toBeEnabled();
+    await colours.getByRole('button', { name: 'Remove colour 1' }).click();
+    await expect(
+      colours.getByRole('button', { name: 'Remove colour 1' }),
+    ).toBeDisabled();
+    await expect(colours.getByLabel('Colour 1', { exact: true })).toHaveCount(
+      1,
+    );
     const warmth = page.getByRole('group', { name: 'Warmth', exact: true });
     const formality = page.getByRole('group', {
       name: 'Formality',
@@ -126,5 +145,65 @@ for (const imageChoice of ['automatic', 'original']) {
     await expect(page.getByLabel('Accepted garment')).toContainText(
       `"imageChoice":"${imageChoice === 'original' ? 'original' : 'studio'}"`,
     );
+  });
+}
+
+for (const mode of ['review', 'detail']) {
+  test(`${mode} rerender uses current colours and instructions and recovers from failure`, async ({
+    page,
+  }) => {
+    await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?${mode}`);
+    if (mode === 'review') {
+      await page
+        .getByRole('button', { name: 'Finish render', exact: true })
+        .click();
+    }
+    const render = page.getByRole('button', {
+      name: 'Regenerate studio image',
+      exact: true,
+    });
+    const colourName = page.getByRole('textbox', {
+      name: 'Colour 1 name',
+      exact: true,
+    });
+    await colourName.fill('Navy');
+    await page.getByLabel('Colour 1', { exact: true }).fill('#112233');
+    await page
+      .getByRole('textbox', { name: 'Image instructions, optional' })
+      .fill('Keep the white buttons.');
+    await render.click();
+    await expect(page.getByLabel('Render request')).toContainText(
+      '"hex":"#112233"',
+    );
+    await expect(page.getByLabel('Render request')).toContainText(
+      '"name":"Navy"',
+    );
+    await expect(page.getByLabel('Render request')).toContainText(
+      'Keep the white buttons.',
+    );
+    await expect(render).toBeDisabled();
+    await expect(colourName).toBeDisabled();
+    expect(await scanWcag22AaViolations(page)).toEqual([]);
+    await page
+      .getByRole('button', { name: 'Fail render', exact: true })
+      .click();
+    await expect(
+      page.getByText('Your changes were saved, but the studio render failed', {
+        exact: false,
+      }),
+    ).toBeVisible();
+    await expect(render).toBeEnabled();
+    await expect(colourName).toHaveValue('Navy');
+    await render.click();
+    await expect(render).toBeDisabled();
+    await page
+      .getByRole('button', { name: 'Finish render', exact: true })
+      .click();
+    await expect(
+      page.getByText('Studio picture updated.', { exact: true }),
+    ).toBeVisible();
+    await expect(render).toBeEnabled();
+    await expect(colourName).toHaveValue('Navy');
+    expect(await scanWcag22AaViolations(page)).toEqual([]);
   });
 }

@@ -30,6 +30,7 @@ export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
   return (
     <fieldset>
       <legend className={labelClass}>Colours</legend>
+      <p className="mt-1 text-ink-muted text-sm">Choose at least one colour.</p>
       <ul className="mt-2 grid gap-2">
         {rows.map((row) => (
           <li className="flex items-center gap-3" key={row.position}>
@@ -52,7 +53,12 @@ export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
               value={row.name}
             />
             <button
-              className={[linkButtonClass, 'whitespace-nowrap'].join(' ')}
+              aria-label={`Remove colour ${row.position + 1}`}
+              className={[
+                linkButtonClass,
+                'whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50',
+              ].join(' ')}
+              disabled={colors.length === 1}
               onClick={() =>
                 onChange(colors.filter((_, at) => at !== row.position))
               }

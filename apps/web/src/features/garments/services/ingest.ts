@@ -30,6 +30,7 @@ import {
   extractionPrompt,
   extractionSystemPrompt,
 } from '../schemas/extraction.ts';
+import { renderDescription } from '../schemas/render-description.ts';
 
 export type Upload = {
   readonly bytes: Uint8Array;
@@ -120,21 +121,6 @@ const describeFailure = (error: unknown): string => {
     : detail;
 };
 
-/** A garment's description for the render prompt, from its accepted or extracted fields. */
-export const renderDescription = (garment: Garment): string =>
-  [
-    garment.name,
-    garment.material === '' ? undefined : `made of ${garment.material}`,
-    garment.pattern === '' || garment.pattern === 'solid'
-      ? undefined
-      : `with a ${garment.pattern} pattern`,
-    garment.colors.length === 0
-      ? undefined
-      : `in ${garment.colors.map((color) => color.name).join(' and ')}`,
-  ]
-    .filter((part) => part !== undefined)
-    .join(', ');
-
 type IngestDependencies = {
   readonly garments: GarmentRepository;
   readonly media: MediaStore;
@@ -204,6 +190,7 @@ const renderStudio = (
   deps: IngestDependencies,
   garment: Garment,
   description: string,
+  instructions: string,
 ) =>
   Effect.gen(function* () {
     const photo = yield* originalPhoto(deps, garment);
@@ -211,6 +198,7 @@ const renderStudio = (
       photo: photo.bytes,
       mime: photo.mime,
       description,
+      instructions,
     });
     const stored = yield* deps.media.put(render.bytes, render.mime);
     const dimensions = imageDimensions(render.bytes);
@@ -261,7 +249,7 @@ export class IngestService extends Effect.Service<IngestService>()(
           const garment = yield* garments.byId(id);
           const extraction = yield* readGarment(deps, garment);
           const read = yield* garments.byId(id);
-          yield* renderStudio(deps, read, extraction.description).pipe(
+          yield* renderStudio(deps, read, extraction.description, '').pipe(
             Effect.catchAll(recordFailure(id, 'Studio render')),
           );
         }).pipe(
@@ -270,11 +258,19 @@ export class IngestService extends Effect.Service<IngestService>()(
         );
 
       /** Renders the studio image again for a garment whose attributes are already known. */
-      const retryStudio = (id: string): Effect.Effect<void> =>
+      const retryStudio = (
+        id: string,
+        instructions: string,
+      ): Effect.Effect<void> =>
         Effect.gen(function* () {
           const garment = yield* garments.byId(id);
           yield* garments.clearProcessingError(id);
-          yield* renderStudio(deps, garment, renderDescription(garment));
+          yield* renderStudio(
+            deps,
+            garment,
+            renderDescription(garment),
+            instructions,
+          );
         }).pipe(
           Effect.catchAll(recordFailure(id, 'Studio render')),
           Effect.catchAllDefect(recordFailure(id, 'Processing')),

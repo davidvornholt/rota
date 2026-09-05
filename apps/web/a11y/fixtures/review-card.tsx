@@ -7,9 +7,11 @@ import {
 } from '@tanstack/react-router';
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { GarmentDetailPage } from '#/features/garments/ui/garment-detail-page.tsx';
 import { WardrobePage } from '#/features/garments/ui/wardrobe-page.tsx';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import { localDate } from '#/shared/time/local-date.ts';
+import { fixtureGarment, setFixtureGarment } from './garments-fns.ts';
 
 const photo = {
   url: '/a11y/fixtures/shirt.svg',
@@ -29,7 +31,7 @@ const garment: GarmentView = {
   formality: 2,
   wearBudget: null,
   effectiveBudget: 2,
-  colors: [],
+  colors: [{ name: 'Blue', hex: '#336699' }],
   pattern: '',
   material: 'Cotton',
   fit: '',
@@ -50,31 +52,61 @@ const garment: GarmentView = {
   costPerWear: null,
 };
 
+const detail = new URLSearchParams(location.search).has('detail');
+if (detail) {
+  Object.assign(garment, { status: 'active', studio: photo });
+}
+setFixtureGarment(garment);
+
 export const ReviewFixture = () => {
   const [current, setCurrent] = useState(garment);
   return (
     <main>
       <button
         type="button"
-        onClick={() =>
-          setCurrent({
-            ...current,
-            studio: { ...photo, url: `${photo.url}?studio` },
-          })
-        }
+        onClick={() => {
+          const next = {
+            ...fixtureGarment(),
+            studio: {
+              ...photo,
+              url: `${photo.url}?studio=${crypto.randomUUID()}`,
+            },
+          };
+          setFixtureGarment(next);
+          setCurrent(next);
+        }}
       >
         Finish render
       </button>
-      <WardrobePage
-        categoryBudgets={{}}
-        view={{
-          today: localDate('2026-09-05'),
-          queue: [current],
-          active: [],
-          retired: [],
-        }}
-      />
+      <button
+        type="button"
+        onClick={() =>
+          setFixtureGarment({
+            ...fixtureGarment(),
+            processingError: 'Image provider unavailable',
+          })
+        }
+      >
+        Fail render
+      </button>
+      {detail ? (
+        <>
+          <h1>Garment details</h1>
+          <GarmentDetailPage initial={current} categoryBudgets={{}} />
+        </>
+      ) : (
+        <WardrobePage
+          categoryBudgets={{}}
+          view={{
+            today: localDate('2026-09-05'),
+            queue: [current],
+            active: [],
+            retired: [],
+          }}
+        />
+      )}
       <output aria-label="Accepted garment" />
+      <output aria-label="Render request" />
     </main>
   );
 };

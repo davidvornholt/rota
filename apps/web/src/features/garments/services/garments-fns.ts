@@ -16,6 +16,7 @@ import {
   decodeAcceptGarmentInput,
   decodeGarmentId,
   decodeImageChoiceInput,
+  decodeRetryStudioInput,
   decodeUpdateGarmentInput,
   type GarmentEdit,
 } from '../schemas/garment-input.ts';
@@ -177,23 +178,20 @@ export const deleteGarmentFn = createServerFn({ method: 'POST' })
       ),
   );
 
-/** Starts the pipeline again from the photo; the answer does not wait for it. */
-export const reprocessGarmentFn = createServerFn({ method: 'POST' })
-  .middleware([sessionRequired])
-  .validator((input: unknown) => decodeGarmentId(input))
-  .handler(({ data }): Promise<void> => {
-    garmentsRuntime.fork(
-      Effect.flatMap(IngestService, (ingest) => ingest.process(data.id)),
-    );
-    return Promise.resolve();
-  });
-
 export const retryStudioFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
-  .validator((input: unknown) => decodeGarmentId(input))
-  .handler(({ data }): Promise<void> => {
-    garmentsRuntime.fork(
-      Effect.flatMap(IngestService, (ingest) => ingest.retryStudio(data.id)),
-    );
-    return Promise.resolve();
-  });
+  .validator((input: unknown) => decodeRetryStudioInput(input))
+  .handler(
+    ({ data }): Promise<GarmentView> =>
+      garmentsRuntime.run(
+        Effect.gen(function* () {
+          const garments = yield* GarmentRepository;
+          const ingest = yield* IngestService;
+          yield* garments.update(data.id, attributesOf(data.edit));
+          yield* garments.clearProcessingError(data.id);
+          const before = yield* garmentView(data.id);
+          garmentsRuntime.fork(ingest.retryStudio(data.id, data.instructions));
+          return before;
+        }),
+      ),
+  );
