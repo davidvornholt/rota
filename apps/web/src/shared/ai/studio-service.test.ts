@@ -29,6 +29,13 @@ const input = {
 const validPng =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 const truncatedPng = 'iVBORw0KGgoAAAANSUhEUgAABAAAAAZA';
+const invalidIdatPng =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABElEQVQBAgMEfVvD1gAAAABJRU5ErkJggg==';
+const corruptCrcPng = (() => {
+  const bytes = new Uint8Array(Buffer.from(validPng, 'base64'));
+  bytes.fill(0, bytes.length - 1);
+  return Buffer.from(bytes).toString('base64');
+})();
 const success = (encoded = validPng) =>
   Response.json({
     data: [{ ...Object.fromEntries([['b64_json', encoded]]) }],
@@ -111,7 +118,14 @@ describe('studio image requests', () => {
     },
   );
 
-  it.each(['', '!!!', 'bm90LWltYWdl', truncatedPng])(
+  it.each([
+    '',
+    '!!!',
+    'bm90LWltYWdl',
+    truncatedPng,
+    invalidIdatPng,
+    corruptCrcPng,
+  ])(
     'rejects an empty or malformed base64 image response: %s',
     async (encoded) => {
       fetchSpy.mockResolvedValueOnce(success(encoded));

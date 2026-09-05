@@ -54,11 +54,22 @@ const pngSignature = [
 const pngChunkOverhead = 12;
 const pngChunkTypeOffset = 4;
 const pngChunkTypeLength = 4;
+const pngDataOffset = 8;
+const pngCrcBytes = 4;
 const pngHeaderChunkLength = 13;
 const pngHeaderChunk = 'IHDR';
 const pngDataChunk = 'IDAT';
 const pngEndChunk = 'IEND';
 const minimumImageDimension = 0;
+const minimumImageDataLength = 0;
+const crcPolynomial = 0xed_b8_83_20;
+const crcInitial = 0xff_ff_ff_ff;
+const crcFinalXor = 0xff_ff_ff_ff;
+const crcBitsPerByte = 8;
+const binaryRadix = 2;
+const crcLowBit = 1;
+const crcTableLength = 256;
+const nextByte = 1;
 
 const pngChunkType = (view: DataView, offset: number): string =>
   String.fromCharCode(
@@ -67,44 +78,152 @@ const pngChunkType = (view: DataView, offset: number): string =>
     ),
   );
 
+const xorByte = (left: number, right: number): number => {
+  let result = 0;
+  let leftPart = left;
+  let rightPart = right;
+  let place = nextByte;
+  for (let bit = 0; bit < crcBitsPerByte; bit += nextByte) {
+    if (leftPart % binaryRadix !== rightPart % binaryRadix) {
+      result += place;
+    }
+    leftPart = Math.floor(leftPart / binaryRadix);
+    rightPart = Math.floor(rightPart / binaryRadix);
+    place *= binaryRadix;
+  }
+  return result;
+};
+
+const makeXorByteRow = (firstByte: number): Array<number> =>
+  Array.from({ length: crcTableLength }, (_, secondByte) =>
+    xorByte(firstByte, secondByte),
+  );
+
+const xorByteTable = Array.from({ length: crcTableLength }, (_, firstByte) =>
+  makeXorByteRow(firstByte),
+);
+
+const xor32 = (left: number, right: number): number => {
+  let result = 0;
+  let leftPart = left;
+  let rightPart = right;
+  let place = nextByte;
+  for (let byte = 0; byte < pngCrcBytes; byte += nextByte) {
+    const leftByte = leftPart % crcTableLength;
+    const rightByte = rightPart % crcTableLength;
+    result += (xorByteTable[leftByte]?.[rightByte] ?? 0) * place;
+    leftPart = Math.floor(leftPart / crcTableLength);
+    rightPart = Math.floor(rightPart / crcTableLength);
+    place *= crcTableLength;
+  }
+  return result;
+};
+
+const crcTable = Array.from({ length: crcTableLength }, (_, value) => {
+  let crc = value;
+  for (let bit = 0; bit < crcBitsPerByte; bit += nextByte) {
+    const lowBit = crc % binaryRadix;
+    crc = Math.floor(crc / binaryRadix);
+    if (lowBit === crcLowBit) {
+      crc = xor32(crc, crcPolynomial);
+    }
+  }
+  return crc;
+});
+
+const crc32 = (view: DataView, start: number, end: number): number => {
+  let crc = crcInitial;
+  for (let index = start; index < end; index += nextByte) {
+    const tableIndex = xor32(crc % crcTableLength, view.getUint8(index));
+    crc = xor32(Math.floor(crc / crcTableLength), crcTable[tableIndex] ?? 0);
+  }
+  return xor32(crc, crcFinalXor);
+};
+
+const isValidPngChunk = (
+  view: DataView,
+  offset: number,
+  end: number,
+): boolean =>
+  crc32(view, offset + pngChunkTypeOffset, end - pngCrcBytes) ===
+  view.getUint32(end - pngCrcBytes);
+
+const isPngSignature = (view: DataView): boolean =>
+  pngSignature.every((byte, index) => view.getUint8(index) === byte);
+
+const isPngHeaderChunk = (
+  type: string,
+  offset: number,
+  length: number,
+): boolean =>
+  type === pngHeaderChunk &&
+  offset === pngSignature.length &&
+  length === pngHeaderChunkLength;
+
+const isPngDataChunk = (type: string, length: number): boolean =>
+  type === pngDataChunk && length > minimumImageDataLength;
+
+const isDecodablePngData = async (
+  chunks: ReadonlyArray<Uint8Array>,
+): Promise<boolean> => {
+  try {
+    const stream = new Blob(chunks.map((chunk) => chunk as BlobPart)).stream();
+    const decompressed = await new Response(
+      stream.pipeThrough(new DecompressionStream('deflate')),
+    ).arrayBuffer();
+    return decompressed.byteLength > minimumImageDimension;
+  } catch {
+    return false;
+  }
+};
+
 /** Provider output is only successful once its PNG chunk stream reaches IEND. */
-const isCompletePng = (bytes: Uint8Array): boolean => {
+const isCompletePng = async (bytes: Uint8Array): Promise<boolean> => {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (view.byteLength < pngSignature.length + pngChunkOverhead) {
     return false;
   }
-  if (!pngSignature.every((byte, index) => view.getUint8(index) === byte)) {
+  if (!isPngSignature(view)) {
     return false;
   }
   let offset = pngSignature.length;
   let hasHeader = false;
   let hasData = false;
+  let hasEnd = false;
+  const dataChunks: Array<Uint8Array> = [];
   while (offset + pngChunkOverhead <= view.byteLength) {
     const length = view.getUint32(offset);
     const end = offset + pngChunkOverhead + length;
     if (end > view.byteLength) {
       return false;
     }
+    if (!isValidPngChunk(view, offset, end)) {
+      return false;
+    }
     const type = pngChunkType(view, offset);
-    if (
-      type === pngHeaderChunk &&
-      offset === pngSignature.length &&
-      length === pngHeaderChunkLength
-    ) {
+    if (isPngHeaderChunk(type, offset, length)) {
       hasHeader = true;
     }
-    if (type === pngDataChunk && length > 0) {
+    if (isPngDataChunk(type, length)) {
       hasData = true;
+      dataChunks.push(
+        bytes.subarray(offset + pngDataOffset, end - pngCrcBytes),
+      );
     }
     if (type === pngEndChunk) {
-      return hasHeader && hasData && length === 0 && end === view.byteLength;
+      hasEnd = length === 0 && end === view.byteLength;
+      break;
     }
     offset = end;
   }
-  return false;
+  return (
+    hasHeader && hasData && hasEnd && (await isDecodablePngData(dataChunks))
+  );
 };
 
-const decodeImage = (encoded: string | undefined): Uint8Array | undefined => {
+const decodeImage = async (
+  encoded: string | undefined,
+): Promise<Uint8Array | undefined> => {
   if (
     encoded === undefined ||
     encoded.length === 0 ||
@@ -114,7 +233,7 @@ const decodeImage = (encoded: string | undefined): Uint8Array | undefined => {
   }
   const bytes = new Uint8Array(Buffer.from(encoded, 'base64'));
   const dimensions = imageDimensions(bytes);
-  if (!isCompletePng(bytes) || dimensions === undefined) {
+  if (!(await isCompletePng(bytes)) || dimensions === undefined) {
     return;
   }
   if (
@@ -237,7 +356,7 @@ export const requestEdit = (
         });
       }
       const parsed = decodeEditResponse(JSON.parse(body));
-      const bytes = decodeImage(parsed.data?.[0]?.image);
+      const bytes = await decodeImage(parsed.data?.[0]?.image);
       if (bytes === undefined) {
         return new StudioRenderError({
           message:
