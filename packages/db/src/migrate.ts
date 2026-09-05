@@ -1,7 +1,9 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { readMigrationFiles } from 'drizzle-orm/migrator';
+import { NodePgSession } from 'drizzle-orm/node-postgres';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { Data, Effect } from 'effect';
 import type { Pool } from 'pg';
+import { withGarmentScaleBackfill } from './garment-scale-migration.ts';
 
 export class DatabaseMigrationError extends Data.TaggedError(
   'DatabaseMigrationError',
@@ -14,7 +16,16 @@ export const migrationFolder = decodeURIComponent(
 /** Applies every generated Drizzle migration that the database has not seen. */
 export const migrateDatabase = (pool: Pool) =>
   Effect.tryPromise({
-    try: () => migrate(drizzle(pool), { migrationsFolder: migrationFolder }),
+    try: () => {
+      const config = { migrationsFolder: migrationFolder };
+      const migrations = withGarmentScaleBackfill(readMigrationFiles(config));
+      const dialect = new PgDialect();
+      return dialect.migrate(
+        migrations,
+        new NodePgSession(pool, dialect, undefined),
+        config,
+      );
+    },
     catch: (cause) =>
       new DatabaseMigrationError({
         message: 'The generated Drizzle migrations failed.',

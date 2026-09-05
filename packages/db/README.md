@@ -7,7 +7,7 @@ Drizzle schema, generated migrations, and the shared Postgres pool factory.
 - `src/pool.ts` — `createPool(connectionString)`; one shared pool per process with an `error` listener so a dropped idle connection is logged instead of crashing the process.
 - `src/postgres-date.ts` — `preservePostgresDates()`; installs pg's DATE parser so a calendar date never passes through a time zone. Wear-log dates are calendar days, not instants.
 - `src/effect-client.ts` — `pgClientLayer(pool)`; the Effect SQL client over a pool this package created.
-- `src/migrate.ts` — the Drizzle migration runner the web app's `db:migrate` script calls.
+- `src/migrate.ts` — the Drizzle migration runner the web app's `db:migrate` script calls. `src/garment-scale-migration.ts` adds the data conversion for `0001_garment_scales` before its generated constraints, inside the same transaction and migration journal entry. Use this runner to apply migrations; invoking Drizzle Kit migrate directly would skip that conversion.
 
 ## Workflow
 
@@ -19,6 +19,10 @@ bun run --cwd ../../apps/web db:migrate  # apply
 ```
 
 `.env.local` is composed by `just dev-env-generate`; the dev Postgres container is managed by `just dev-db-start`.
+
+## Garment ratings
+
+Warmth uses 1 = Light, 2 = Medium, 3 = Heavy. Formality uses 1 = Casual, 2 = Smart, 3 = Formal. Unread garments default to 2 for both. The migration converts every existing garment, including processing and retired rows. Old warmth levels 1–2 become 1, level 3 becomes 2, and levels 4–5 become 3. Old formality levels 1–2 become 1, levels 3–4 become 2, and level 5 becomes 3. Raw extraction JSON remains the historical model response and is not used as a current rating.
 
 ## Environment
 
