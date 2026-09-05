@@ -47,8 +47,6 @@ describe('hourly forecast summary', () => {
     expect(Effect.runSync(decode(input))).toEqual([
       {
         date,
-        startHour: 5,
-        endHour: 20,
         high: 23,
         low: 11,
         precipitationProbability: 10,

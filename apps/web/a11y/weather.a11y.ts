@@ -27,8 +27,6 @@ test('forecast hours stay visible and accessible at the configured viewport', as
         date,
         issuedOn: date,
         locationLabel: 'Berlin',
-        startHour: 5,
-        endHour: 20,
         high: 20,
         low: 12,
         precipitationProbability: 10,

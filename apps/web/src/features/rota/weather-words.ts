@@ -24,7 +24,7 @@ const degrees = (value: number): string => `${Math.round(value)}°`;
 
 export const weatherLine = (day: WeatherDay): string =>
   [
-    forecastHoursLabel(day),
+    forecastHoursLabel,
     `${degrees(day.high)} / ${degrees(day.low)}`,
     weatherWords(day.weatherCode),
     `${Math.round(day.precipitationProbability)}% rain`,
@@ -32,4 +32,4 @@ export const weatherLine = (day: WeatherDay): string =>
 
 /** The fuller sentence the model reads. */
 export const weatherSentence = (day: WeatherDay): string =>
-  `${forecastHoursLabel(day)}: high ${degrees(day.high)}C, low ${degrees(day.low)}C, ${weatherWords(day.weatherCode)}, ${Math.round(day.precipitationProbability)}% chance of rain (${day.precipitationMm.toFixed(1)} mm), wind up to ${Math.round(day.windKmh)} km/h`;
+  `${forecastHoursLabel}: high ${degrees(day.high)}C, low ${degrees(day.low)}C, ${weatherWords(day.weatherCode)}, ${Math.round(day.precipitationProbability)}% chance of rain (${day.precipitationMm.toFixed(1)} mm), wind up to ${Math.round(day.windKmh)} km/h`;

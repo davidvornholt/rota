@@ -16,8 +16,6 @@ const day: WeatherDay = {
   date: today,
   issuedOn: today,
   locationLabel: 'Berlin',
-  startHour: 5,
-  endHour: 20,
   high: 20,
   low: 12,
   precipitationProbability: 10,
@@ -88,26 +86,21 @@ const setup = (
   return { result, forecast, store };
 };
 
-describe('forecast cache hours', () => {
-  it('refreshes an all-day forecast even when fetched today', async () => {
-    const { result, forecast, store } = setup([
-      { ...day, startHour: 0, endHour: 24 },
-    ]);
-    expect((await Effect.runPromise(result)).today).toMatchObject({
-      startHour: 5,
-      endHour: 20,
-    });
+describe('forecast cache', () => {
+  it('fetches and stores a forecast when the cache is empty', async () => {
+    const { result, forecast, store } = setup([]);
+    expect((await Effect.runPromise(result)).today).toEqual(day);
     expect(forecast).toHaveBeenCalledTimes(1);
     expect(store).toHaveBeenCalledTimes(1);
   });
 
-  it('reuses a fresh forecast with matching hours', async () => {
+  it('reuses a fresh forecast', async () => {
     const { result, forecast } = setup([day]);
     expect((await Effect.runPromise(result)).stale).toBeFalse();
     expect(forecast).not.toHaveBeenCalled();
   });
 
-  it('falls back to an older forecast with matching hours when fetching fails', async () => {
+  it('falls back to an older forecast when fetching fails', async () => {
     const { result } = setup(
       [{ ...day, issuedOn: localDate('2026-09-04') }],
       Effect.fail(unavailable),
@@ -115,11 +108,8 @@ describe('forecast cache hours', () => {
     expect((await Effect.runPromise(result)).stale).toBeTrue();
   });
 
-  it('does not use an all-day forecast as fallback for a new outfit', async () => {
-    const { result } = setup(
-      [{ ...day, startHour: 0, endHour: 24 }],
-      Effect.fail(unavailable),
-    );
+  it('reports an unavailable forecast when fetching fails with an empty cache', async () => {
+    const { result } = setup([], Effect.fail(unavailable));
     const outcome = await Effect.runPromise(Effect.either(result));
     expect(outcome).toMatchObject({
       _tag: 'Left',

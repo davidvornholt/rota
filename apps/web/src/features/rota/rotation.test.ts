@@ -59,8 +59,6 @@ const mild: WeatherDay = {
   date: localDate('2026-09-04'),
   issuedOn: localDate('2026-09-04'),
   locationLabel: 'Berlin',
-  startHour: 5,
-  endHour: 20,
   high: 19,
   low: 11,
   precipitationProbability: 10,

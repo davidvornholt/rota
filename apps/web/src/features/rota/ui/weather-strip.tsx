@@ -51,7 +51,7 @@ const factsFor = (
       text: `${degrees(weather.high)} / ${degrees(weather.low)}`,
       tone: 'ink',
     },
-    { key: 'hours', text: forecastHoursLabel(weather), tone: 'muted' },
+    { key: 'hours', text: forecastHoursLabel, tone: 'muted' },
     { key: 'sky', text: weatherWords(weather.weatherCode), tone: 'muted' },
     {
       key: 'rain',

@@ -56,7 +56,7 @@ const sameChoice = (left: Choice, right: Choice) =>
 const weatherLine = (weather: DayView['weather']) =>
   weather === null
     ? 'No forecast stored'
-    : `${forecastHoursLabel(weather)} · ${degrees(weather.high)} / ${degrees(weather.low)} · ${Math.round(weather.precipitationProbability)}% rain`;
+    : `${forecastHoursLabel} · ${degrees(weather.high)} / ${degrees(weather.low)} · ${Math.round(weather.precipitationProbability)}% rain`;
 
 const SlotRow = ({
   slot,

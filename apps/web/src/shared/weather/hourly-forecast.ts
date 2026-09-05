@@ -6,8 +6,6 @@ import { forecastEndHour, forecastStartHour } from './forecast-window.ts';
 
 export const DailyForecastSchema = Schema.Struct({
   date: LocalDateSchema,
-  startHour: Schema.Number,
-  endHour: Schema.Number,
   high: Schema.Number,
   low: Schema.Number,
   precipitationProbability: Schema.Number,
@@ -92,8 +90,6 @@ const summarizeDay = (
   }
   return {
     date,
-    startHour: forecastStartHour,
-    endHour: forecastEndHour,
     high: Math.max(...temperatures),
     low: Math.min(...temperatures),
     precipitationProbability: Math.max(...chances),
