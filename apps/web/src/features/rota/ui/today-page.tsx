@@ -69,6 +69,10 @@ export const TodayPage = ({ initial }: { readonly initial: TodayView }) => {
   const { view } = today;
   const [dismissedBackfill, setDismissedBackfill] = useState(false);
   const noteBelow = view.worn !== null || view.problem !== null;
+  const wardrobeActionShown =
+    view.worn === null &&
+    (view.problem?.kind === 'wardrobe-empty' ||
+      view.problem?.kind === 'slot-empty');
 
   return (
     <div className={frameClass}>
@@ -109,11 +113,13 @@ export const TodayPage = ({ initial }: { readonly initial: TodayView }) => {
         </div>
       ) : null}
 
-      <p className="mt-8">
-        <Link className={quietButtonClass} to="/wardrobe">
-          Add clothes
-        </Link>
-      </p>
+      {wardrobeActionShown ? null : (
+        <p className="mt-8">
+          <Link className={quietButtonClass} to="/wardrobe">
+            Add clothes
+          </Link>
+        </p>
+      )}
     </div>
   );
 };
