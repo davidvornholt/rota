@@ -25,7 +25,7 @@ export const Scale = ({ label, value, words, onChange }: ScaleProps) => {
           return (
             <label
               className={[
-                'flex min-h-11 cursor-pointer flex-col items-center justify-center border-rule-strong px-1 py-2 text-center text-xs leading-tight',
+                'flex h-14 cursor-pointer flex-col items-center justify-center border-rule-strong px-1 text-center text-xs leading-tight',
                 index > 0 ? 'border-l' : '',
                 checked ? 'bg-ink text-paper' : 'text-ink-muted hover:text-ink',
               ].join(' ')}

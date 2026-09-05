@@ -6,7 +6,7 @@ import {
   type ImageChoice,
   isCategory,
 } from '#/shared/data/garment-types.ts';
-import type { GarmentView } from '#/shared/data/garment-view.ts';
+import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
 import { linkButtonClass, signalButtonClass } from '#/shared/ui/classes.ts';
 import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
@@ -26,11 +26,18 @@ type ReviewCardProps = {
   readonly onChanged: () => void;
 };
 
-const choiceLabel = (kind: ImageChoice, present: boolean): string => {
+const choiceLabel = (
+  kind: ImageChoice,
+  present: boolean,
+  rendering: boolean,
+): string => {
   if (kind === 'original') {
     return 'Photo';
   }
-  return present ? 'Studio' : 'Studio · not yet';
+  if (present) {
+    return 'Studio';
+  }
+  return rendering ? 'Studio · rendering …' : 'Studio · failed';
 };
 
 const ImageChoiceControl = ({
@@ -75,7 +82,7 @@ const ImageChoiceControl = ({
               name={garment.name}
             />
             <span className="mt-1 block text-center text-ink-muted text-xs">
-              {choiceLabel(kind, image !== undefined)}
+              {choiceLabel(kind, image !== undefined, isRendering(garment))}
             </span>
           </label>
         );
@@ -157,7 +164,7 @@ export const ReviewCard = ({
           <Notice>Part of the reading failed: {garment.processingError}</Notice>
         )}
         <div className="flex flex-wrap gap-x-5 gap-y-1">
-          {garment.studio === undefined ? (
+          {garment.studio === undefined && !isRendering(garment) ? (
             <button
               aria-busy={retryStudio.isPending}
               className={linkButtonClass}

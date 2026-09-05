@@ -25,12 +25,12 @@ type FieldsProps = {
   ) => void;
 };
 
-const warmthWords = ['Hot days', 'Warm', 'Mild', 'Cool', 'Cold'] as const;
+const warmthWords = ['Hot', 'Warm', 'Mild', 'Cool', 'Cold'] as const;
 const formalityWords = [
   'Sport',
   'Casual',
-  'Smart casual',
-  'Business',
+  'Smart',
+  'Office',
   'Formal',
 ] as const;
 
@@ -109,26 +109,28 @@ const RotationFields = ({
   set,
   categoryBudget,
 }: FieldsProps & { readonly categoryBudget: number }) => (
-  <div className="grid gap-6 sm:grid-cols-3">
-    <NumberField
-      inputMode="numeric"
-      label="Days in a row"
-      max={longestWearBudget}
-      min={1}
-      onChange={(next) => set('wearBudget', next)}
-      placeholder={`Category default: ${categoryBudget}`}
-      value={value.wearBudget}
-    />
-    <label className="inline-flex min-h-11 items-center gap-2 self-end text-ink text-sm">
-      <input
-        checked={value.rainOk}
-        className={checkClass}
-        onChange={(event) => set('rainOk', event.target.checked)}
-        type="checkbox"
+  <div className="grid gap-6 sm:grid-cols-2">
+    <div>
+      <NumberField
+        inputMode="numeric"
+        label="Days in a row"
+        max={longestWearBudget}
+        min={1}
+        onChange={(next) => set('wearBudget', next)}
+        placeholder={`Category default: ${categoryBudget}`}
+        value={value.wearBudget}
       />
-      Fine in rain
-    </label>
-    <fieldset className="self-end">
+      <label className="mt-3 inline-flex min-h-11 items-center gap-2 text-ink text-sm">
+        <input
+          checked={value.rainOk}
+          className={checkClass}
+          onChange={(event) => set('rainOk', event.target.checked)}
+          type="checkbox"
+        />
+        Fine in rain
+      </label>
+    </div>
+    <fieldset>
       <legend className={labelClass}>Seasons</legend>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
         {seasons.map((season) => (
