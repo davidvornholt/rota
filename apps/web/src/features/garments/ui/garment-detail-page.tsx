@@ -8,7 +8,7 @@ import {
   isCategory,
   slotLabel,
 } from '#/shared/data/garment-types.ts';
-import type { GarmentView } from '#/shared/data/garment-view.ts';
+import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
 import { formatDayMonth } from '#/shared/time/local-date.ts';
 import {
   frameClass,
@@ -31,6 +31,8 @@ import {
 } from '../services/garments-fns.ts';
 import { editOf } from './garment-edit.ts';
 import { GarmentForm } from './garment-form.tsx';
+import { StudioControl } from './studio-control.tsx';
+import { useGarmentPolling } from './use-garment-polling.ts';
 
 const Fact = ({
   label,
@@ -50,22 +52,12 @@ const failureMessage = (error: unknown) =>
     ? error.message
     : 'That did not go through. Try again.';
 
-const renderLabel = (garment: GarmentView, requested: boolean): string => {
-  if (requested) {
-    return 'Rendering … check back shortly';
-  }
-  return garment.studio === undefined
-    ? 'Render the studio picture'
-    : 'Render again';
-};
-
 type PictureProps = {
   readonly garment: GarmentView;
   readonly onChoose: (choice: ImageChoice) => void;
   readonly choosing: boolean;
   readonly onRender: () => void;
   readonly rendering: boolean;
-  readonly renderRequested: boolean;
 };
 
 /** The picture and the facts beside it; sticky on wide screens while the form scrolls. */
@@ -75,7 +67,6 @@ const Picture = ({
   choosing,
   onRender,
   rendering,
-  renderRequested,
 }: PictureProps) => (
   <div className="lg:sticky lg:top-8">
     <EnlargeableFigure
@@ -101,15 +92,11 @@ const Picture = ({
             : 'Show the studio picture'}
         </button>
       ) : null}
-      <button
-        aria-busy={rendering}
-        className={linkButtonClass}
-        disabled={rendering}
-        onClick={onRender}
-        type="button"
-      >
-        {renderLabel(garment, renderRequested)}
-      </button>
+      <StudioControl
+        garment={garment}
+        pending={rendering}
+        onRender={onRender}
+      />
     </div>
     <dl className="mt-6 grid grid-cols-2 gap-x-6 border-rule border-b">
       <Fact
@@ -210,9 +197,9 @@ export const GarmentDetailPage = ({
   const [garment, setGarment] = useState(initial);
   const [edit, setEdit] = useState<GarmentEdit>(() => editOf(initial));
   const [saved, setSaved] = useState(false);
+  useGarmentPolling(isRendering(garment));
   useEffect(() => {
     setGarment(initial);
-    setEdit(editOf(initial));
   }, [initial]);
 
   const apply = (next: GarmentView) => {
@@ -252,6 +239,7 @@ export const GarmentDetailPage = ({
   });
   const retryStudio = useMutation({
     mutationFn: () => retryStudioFn({ data: { id } }),
+    onSuccess: () => router.invalidate(),
   });
 
   const categoryBudget =
@@ -286,7 +274,6 @@ export const GarmentDetailPage = ({
             garment={garment}
             onChoose={(choice) => choose.mutate(choice)}
             onRender={() => retryStudio.mutate()}
-            renderRequested={retryStudio.isSuccess}
             rendering={retryStudio.isPending}
           />
         </div>
@@ -332,7 +319,7 @@ export const GarmentDetailPage = ({
             onReprocess={() => reprocess.mutate()}
             onRestore={() => restore.mutate()}
             onRetire={() => retire.mutate()}
-            pending={lifecyclePending}
+            pending={lifecyclePending || isRendering(garment)}
           />
         </div>
       </div>

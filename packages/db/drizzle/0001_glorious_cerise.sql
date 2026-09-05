@@ -1,0 +1,1 @@
+ALTER TABLE "garment" ADD COLUMN "studio_error" text;

@@ -1,5 +1,5 @@
 import { Link, useRouter } from '@tanstack/react-router';
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import {
   type Slot,
   slotLabel,
@@ -12,6 +12,7 @@ import { Swatches } from '#/shared/ui/swatches.tsx';
 import type { WardrobeView } from '../services/garments-fns.ts';
 import { ReviewCard } from './review-card.tsx';
 import { UploadControl } from './upload-control.tsx';
+import { useGarmentPolling } from './use-garment-polling.ts';
 
 type Filter = 'all' | Slot;
 
@@ -58,8 +59,6 @@ const GarmentCell = ({ garment }: { readonly garment: GarmentView }) => (
   </li>
 );
 
-const pollInterval = 4000;
-
 /**
  * The wardrobe: a contact sheet of every garment, with the ingest queue above
  * it while anything is still being read. Uploads land in the queue at once;
@@ -78,18 +77,10 @@ export const WardrobePage = ({
   const queueHeadingId = useId();
   const [filter, setFilter] = useState<Filter>('all');
   const [showRetired, setShowRetired] = useState(false);
-  const processing = view.queue.some(
+  const processing = [...view.queue, ...view.active, ...view.retired].some(
     (garment) => garment.status === 'processing' || isRendering(garment),
   );
-  useEffect(() => {
-    if (!processing) {
-      return;
-    }
-    const timer = setInterval(() => {
-      router.invalidate().catch(() => undefined);
-    }, pollInterval);
-    return () => clearInterval(timer);
-  }, [processing, router]);
+  useGarmentPolling(processing);
 
   const refresh = () => router.invalidate().catch(() => undefined);
   const shown = (showRetired ? view.retired : view.active).filter(

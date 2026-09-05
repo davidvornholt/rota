@@ -11,4 +11,13 @@ export const acceptGarmentFn = ({ data }: { readonly data: unknown }) =>
   );
 export const deleteGarmentFn = () => Effect.runPromise(Effect.void);
 export const reprocessGarmentFn = () => Effect.runPromise(Effect.void);
-export const retryStudioFn = () => Effect.runPromise(Effect.void);
+export const retryStudioFn = () =>
+  Effect.runPromise(
+    Effect.sync(() => {
+      document.dispatchEvent(new Event('studio-retry'));
+    }),
+  );
+export const retireGarmentFn = () => Effect.runPromise(Effect.void);
+export const restoreGarmentFn = () => Effect.runPromise(Effect.void);
+export const setImageChoiceFn = () => Effect.runPromise(Effect.void);
+export const updateGarmentFn = () => Effect.runPromise(Effect.void);

@@ -116,6 +116,7 @@ export const garment = pgTable(
     imageChoice: garmentImageChoice('image_choice').notNull().default('studio'),
     extraction: jsonb('extraction'),
     processingError: text('processing_error'),
+    studioError: text('studio_error'),
     retiredAt: timestamp('retired_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()

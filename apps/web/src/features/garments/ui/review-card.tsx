@@ -24,6 +24,7 @@ import {
 } from '../services/garments-fns.ts';
 import { editOf } from './garment-edit.ts';
 import { GarmentForm } from './garment-form.tsx';
+import { StudioControl } from './studio-control.tsx';
 
 type ReviewCardProps = {
   readonly garment: GarmentView;
@@ -42,7 +43,7 @@ const choiceLabel = (
   if (present) {
     return 'Studio';
   }
-  return rendering ? 'Studio · rendering …' : 'Studio · failed';
+  return rendering ? 'Studio · in progress' : 'Studio · unavailable';
 };
 
 /**
@@ -165,7 +166,7 @@ export const ReviewCard = ({
 
   return (
     <li className="grid gap-6 border-rule border-t py-6 lg:grid-cols-[18rem_1fr] lg:gap-10">
-      <div className="grid gap-4">
+      <div className="grid content-start gap-4">
         <ImageChoiceControl
           choice={choice}
           garment={garment}
@@ -174,22 +175,19 @@ export const ReviewCard = ({
         {garment.processingError === null ? null : (
           <Notice>Part of the reading failed: {garment.processingError}</Notice>
         )}
-        <div className="flex flex-wrap gap-x-5 gap-y-1">
-          {garment.studio === undefined && !isRendering(garment) ? (
-            <button
-              aria-busy={retryStudio.isPending}
-              className={linkButtonClass}
-              disabled={retryStudio.isPending}
-              onClick={() => retryStudio.mutate()}
-              type="button"
-            >
-              Render the studio picture
-            </button>
+        <div className="flex flex-wrap items-start gap-x-5 gap-y-1">
+          <StudioControl
+            garment={garment}
+            pending={retryStudio.isPending}
+            onRender={() => retryStudio.mutate()}
+          />
+          {retryStudio.isError ? (
+            <Notice live={true}>{failureMessage(retryStudio.error)}</Notice>
           ) : null}
           <button
             aria-busy={reprocess.isPending}
             className={linkButtonClass}
-            disabled={reprocess.isPending}
+            disabled={reprocess.isPending || isRendering(garment)}
             onClick={() => reprocess.mutate()}
             type="button"
           >

@@ -2,11 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createMemoryHistory,
   createRootRoute,
+  createRoute,
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { GarmentDetailPage } from '#/features/garments/ui/garment-detail-page.tsx';
 import { WardrobePage } from '#/features/garments/ui/wardrobe-page.tsx';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import { localDate } from '#/shared/time/local-date.ts';
@@ -41,6 +43,8 @@ const garment: GarmentView = {
   purchasedOn: null,
   imageChoice: 'original',
   processingError: null,
+  studioError: null,
+  studioState: { status: 'rendering' },
   image: photo,
   original: photo,
   studio: undefined,
@@ -50,36 +54,92 @@ const garment: GarmentView = {
   costPerWear: null,
 };
 
+const cooldownMs = 60_000;
+const query = new URLSearchParams(globalThis.location.search);
+const detail = query.has('detail');
+let current: GarmentView = {
+  ...garment,
+  status: detail ? 'active' : 'review',
+  studioState: query.has('waiting')
+    ? { status: 'waiting', retryAt: Date.now() + cooldownMs }
+    : garment.studioState,
+};
+
+const finish = () => {
+  current = {
+    ...current,
+    studioState: { status: 'succeeded' },
+    studioError: null,
+    studio: { ...photo, url: `${photo.url}?studio` },
+  };
+};
+const wait = () => {
+  current = {
+    ...current,
+    studioState: { status: 'waiting', retryAt: Date.now() + cooldownMs },
+  };
+};
+const fail = () => {
+  current = {
+    ...current,
+    studioState: { status: 'failed' },
+    studioError:
+      'The image service is busy. Try the studio picture again later.',
+  };
+};
+const enqueue = () => {
+  current = {
+    ...current,
+    studioState: { status: 'queued' },
+    studioError: null,
+  };
+};
+
 export const ReviewFixture = () => {
-  const [current, setCurrent] = useState(garment);
+  const loaded = route.useLoaderData();
+  useEffect(() => {
+    document.addEventListener('studio-retry', enqueue);
+    return () => document.removeEventListener('studio-retry', enqueue);
+  }, []);
   return (
     <main>
-      <button
-        type="button"
-        onClick={() =>
-          setCurrent({
-            ...current,
-            studio: { ...photo, url: `${photo.url}?studio` },
-          })
-        }
-      >
-        Finish render
-      </button>
-      <WardrobePage
-        categoryBudgets={{}}
-        view={{
-          today: localDate('2026-09-05'),
-          queue: [current],
-          active: [],
-          retired: [],
-        }}
-      />
+      <fieldset aria-label="Fixture controls">
+        <button type="button" onClick={finish}>
+          Finish render
+        </button>
+        <button type="button" onClick={wait}>
+          Rate limit
+        </button>
+        <button type="button" onClick={fail}>
+          Fail render
+        </button>
+      </fieldset>
+      {detail ? (
+        <GarmentDetailPage categoryBudgets={{}} initial={loaded} />
+      ) : (
+        <WardrobePage
+          categoryBudgets={{}}
+          view={{
+            today: localDate('2026-09-05'),
+            queue: [loaded],
+            active: [],
+            retired: [],
+          }}
+        />
+      )}
       <output aria-label="Accepted garment" />
     </main>
   );
 };
+const rootRoute = createRootRoute();
+const route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: ReviewFixture,
+  loader: () => ({ ...current }),
+});
 const router = createRouter({
-  routeTree: createRootRoute({ component: ReviewFixture }),
+  routeTree: rootRoute.addChildren([route]),
   history: createMemoryHistory({ initialEntries: ['/'] }),
 });
 const root = document.querySelector('#root');

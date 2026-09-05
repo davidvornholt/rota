@@ -14,6 +14,7 @@ const GarmentRoute = () => {
     <GarmentDetailPage
       categoryBudgets={settings.categoryBudgets}
       initial={garment}
+      key={garment.id}
     />
   );
 };

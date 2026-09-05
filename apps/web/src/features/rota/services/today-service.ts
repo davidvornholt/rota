@@ -116,6 +116,7 @@ export class TodayService extends Effect.Service<TodayService>()(
           all.map((garment) => [
             garment.id,
             toGarmentView({
+              studioProgress: undefined,
               garment,
               facts: facts.get(garment.id),
               categoryBudgets: clock.settings.categoryBudgets,

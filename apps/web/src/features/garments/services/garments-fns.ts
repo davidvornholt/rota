@@ -38,6 +38,9 @@ const garmentViews = () =>
     const wearLog = yield* WearLogRepository;
     const media = yield* MediaStore;
     const clock = yield* readWardrobeClock();
+    const ingest = yield* IngestService;
+    // Capture before reading rows so a completing job cannot hide the next poll.
+    const studioProgress = ingest.studioProgress();
     const [rows, log] = yield* Effect.all([garments.list(), wearLog.history()]);
     const facts = wearFactsByGarment(log, clock.today);
     return {
@@ -49,6 +52,7 @@ const garmentViews = () =>
           categoryBudgets: clock.settings.categoryBudgets,
           today: clock.today,
           urlFor: media.urlFor,
+          studioProgress: studioProgress.get(row.id),
         }),
       ),
     };
@@ -181,19 +185,19 @@ export const deleteGarmentFn = createServerFn({ method: 'POST' })
 export const reprocessGarmentFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
   .validator((input: unknown) => decodeGarmentId(input))
-  .handler(({ data }): Promise<void> => {
-    garmentsRuntime.fork(
-      Effect.flatMap(IngestService, (ingest) => ingest.process(data.id)),
-    );
-    return Promise.resolve();
-  });
+  .handler(
+    ({ data }): Promise<void> =>
+      garmentsRuntime.run(
+        Effect.flatMap(IngestService, (ingest) => ingest.process(data.id)),
+      ),
+  );
 
 export const retryStudioFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
   .validator((input: unknown) => decodeGarmentId(input))
-  .handler(({ data }): Promise<void> => {
-    garmentsRuntime.fork(
-      Effect.flatMap(IngestService, (ingest) => ingest.retryStudio(data.id)),
-    );
-    return Promise.resolve();
-  });
+  .handler(
+    ({ data }): Promise<void> =>
+      garmentsRuntime.run(
+        Effect.flatMap(IngestService, (ingest) => ingest.retryStudio(data.id)),
+      ),
+  );

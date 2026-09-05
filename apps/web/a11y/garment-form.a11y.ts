@@ -128,3 +128,51 @@ for (const imageChoice of ['automatic', 'original']) {
     );
   });
 }
+
+for (const mode of ['review', 'detail']) {
+  test(`${mode} studio progress polls through rate limits, failure, and retry without losing edits`, async ({
+    page,
+  }, testInfo) => {
+    await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?${mode}`);
+    const name = page.getByRole('textbox', { name: 'Name', exact: true });
+    await name.fill('My corrected shirt');
+    const render = page.getByRole('button', {
+      name: 'Render the studio picture',
+      exact: true,
+    });
+    await expect(render).toBeDisabled();
+    await page.getByRole('button', { name: 'Rate limit', exact: true }).click();
+    await expect(
+      page
+        .getByRole('status')
+        .filter({ hasText: 'Image service is busy. Retrying shortly.' }),
+    ).toBeVisible();
+    await expect(name).toHaveValue('My corrected shirt');
+    expect(await scanWcag22AaViolations(page)).toEqual([]);
+    await page.screenshot({
+      path: testInfo.outputPath(`${mode}-studio-waiting.png`),
+      fullPage: true,
+    });
+    await page
+      .getByRole('button', { name: 'Fail render', exact: true })
+      .click();
+    const retry = page.getByRole('button', {
+      name: 'Retry studio picture',
+      exact: true,
+    });
+    await expect(retry).toBeEnabled();
+    await retry.click();
+    await expect(render).toBeDisabled();
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Studio picture is queued.' }),
+    ).toBeVisible();
+    await page
+      .getByRole('button', { name: 'Finish render', exact: true })
+      .click();
+    await expect(
+      page.getByRole('button', { name: 'Render again', exact: true }),
+    ).toBeEnabled();
+    await expect(name).toHaveValue('My corrected shirt');
+    expect(await scanWcag22AaViolations(page)).toEqual([]);
+  });
+}
