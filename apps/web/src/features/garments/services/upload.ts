@@ -68,10 +68,13 @@ export const handleUpload = async (request: Request): Promise<Response> => {
     }),
   );
 
-  for (const id of ids) {
-    garmentsRuntime.fork(
-      Effect.flatMap(IngestService, (ingest) => ingest.process(id)),
-    );
-  }
+  await garmentsRuntime.run(
+    Effect.gen(function* () {
+      const ingest = yield* IngestService;
+      for (const id of ids) {
+        yield* ingest.process(id);
+      }
+    }),
+  );
   return jsonResponse({ ids }, accepted);
 };

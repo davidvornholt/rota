@@ -13,7 +13,7 @@ const sample: GarmentEdit = {
   rainOk: true,
   formality: 2,
   wearBudget: null,
-  colors: [],
+  colors: [{ name: 'Blue', hex: '#336699' }],
   pattern: '',
   material: 'Cotton',
   fit: '',

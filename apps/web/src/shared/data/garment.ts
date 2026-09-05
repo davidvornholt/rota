@@ -92,6 +92,9 @@ export const GarmentFromRow = Schema.Struct({
   processingError: Schema.propertySignature(Schema.NullOr(Schema.String)).pipe(
     Schema.fromKey('processing_error'),
   ),
+  studioError: Schema.propertySignature(Schema.NullOr(Schema.String)).pipe(
+    Schema.fromKey('studio_error'),
+  ),
   retiredAt: Schema.propertySignature(
     Schema.NullOr(Schema.ValidDateFromSelf),
   ).pipe(Schema.fromKey('retired_at')),

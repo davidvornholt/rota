@@ -10,7 +10,7 @@
  */
 
 import { Effect } from 'effect';
-
+import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
 import { Gemini } from '#/shared/ai/gemini.ts';
 import { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
 import type { Garment } from '#/shared/data/garment.ts';
@@ -30,6 +30,10 @@ import {
   extractionPrompt,
   extractionSystemPrompt,
 } from '../schemas/extraction.ts';
+import type { GarmentEdit } from '../schemas/garment-input.ts';
+import { renderDescription } from '../schemas/render-description.ts';
+import { makeStudioJobs } from './studio-jobs.ts';
+import { makeStudioWork, renderStudio } from './studio-render-job.ts';
 
 export type Upload = {
   readonly bytes: Uint8Array;
@@ -120,21 +124,6 @@ const describeFailure = (error: unknown): string => {
     : detail;
 };
 
-/** A garment's description for the render prompt, from its accepted or extracted fields. */
-export const renderDescription = (garment: Garment): string =>
-  [
-    garment.name,
-    garment.material === '' ? undefined : `made of ${garment.material}`,
-    garment.pattern === '' || garment.pattern === 'solid'
-      ? undefined
-      : `with a ${garment.pattern} pattern`,
-    garment.colors.length === 0
-      ? undefined
-      : `in ${garment.colors.map((color) => color.name).join(' and ')}`,
-  ]
-    .filter((part) => part !== undefined)
-    .join(', ');
-
 type IngestDependencies = {
   readonly garments: GarmentRepository;
   readonly media: MediaStore;
@@ -199,35 +188,6 @@ const readGarment = (deps: IngestDependencies, garment: Garment) =>
     return extraction;
   });
 
-/** GPT-Image-2 renders the flat lay; the result is stored and attached. */
-const renderStudio = (
-  deps: IngestDependencies,
-  garment: Garment,
-  description: string,
-) =>
-  Effect.gen(function* () {
-    const photo = yield* originalPhoto(deps, garment);
-    const render = yield* deps.studio.render({
-      photo: photo.bytes,
-      mime: photo.mime,
-      description,
-    });
-    const stored = yield* deps.media.put(render.bytes, render.mime);
-    const dimensions = imageDimensions(render.bytes);
-    yield* deps.garments.attachImage(garment.id, 'studio', {
-      key: stored.key,
-      mime: render.mime,
-      width: dimensions?.width ?? 0,
-      height: dimensions?.height ?? 0,
-      bytes: stored.bytes,
-    });
-    // A garment that showed its photo only because no render existed now shows
-    // the render; a photo the wearer chose over an earlier render stays.
-    if (garment.images.studio === undefined) {
-      yield* deps.garments.setImageChoice(garment.id, 'studio');
-    }
-  });
-
 export class IngestService extends Effect.Service<IngestService>()(
   'garments/IngestService',
   {
@@ -239,8 +199,9 @@ export class IngestService extends Effect.Service<IngestService>()(
         studio: yield* StudioRenderer,
       };
       const { garments } = deps;
+      const jobs = makeStudioJobs();
 
-      /** Stores the photo and opens the garment; the caller forks `process`. */
+      /** Stores the photo and opens the garment; the caller starts `process`. */
       const start = (upload: Upload) =>
         storeUpload(deps, upload).pipe(Effect.flatMap(garments.create));
 
@@ -255,32 +216,71 @@ export class IngestService extends Effect.Service<IngestService>()(
           Effect.catchAll(() => Effect.void),
         );
 
+      const studioWork = makeStudioWork(garments);
+
       /** The whole pipeline for one garment. Never fails; failures land on the row. */
       const process = (id: string): Effect.Effect<void> =>
-        Effect.gen(function* () {
-          const garment = yield* garments.byId(id);
-          const extraction = yield* readGarment(deps, garment);
-          const read = yield* garments.byId(id);
-          yield* renderStudio(deps, read, extraction.description).pipe(
-            Effect.catchAll(recordFailure(id, 'Studio render')),
-          );
-        }).pipe(
-          Effect.catchAll(recordFailure(id, 'Reading the photo')),
-          Effect.catchAllDefect(recordFailure(id, 'Processing')),
-        );
+        jobs
+          .start(id, (report) =>
+            Effect.gen(function* () {
+              const garment = yield* garments.byId(id);
+              const extraction = yield* readGarment(deps, garment);
+              const read = yield* garments.byId(id);
+              yield* studioWork(
+                id,
+                renderStudio(deps, {
+                  garment: read,
+                  description: extraction.description,
+                  instructions: '',
+                  photoEffect: originalPhoto(deps, read),
+                  report,
+                }),
+              );
+            }).pipe(
+              Effect.catchAll(recordFailure(id, 'Reading the photo')),
+              Effect.catchAllDefect(recordFailure(id, 'Processing')),
+            ),
+          )
+          .pipe(Effect.asVoid);
 
       /** Renders the studio image again for a garment whose attributes are already known. */
-      const retryStudio = (id: string): Effect.Effect<void> =>
-        Effect.gen(function* () {
-          const garment = yield* garments.byId(id);
-          yield* garments.clearProcessingError(id);
-          yield* renderStudio(deps, garment, renderDescription(garment));
-        }).pipe(
-          Effect.catchAll(recordFailure(id, 'Studio render')),
-          Effect.catchAllDefect(recordFailure(id, 'Processing')),
-        );
+      const retryStudio = (
+        id: string,
+        edit: GarmentEdit,
+        instructions: string,
+      ) =>
+        jobs
+          .start(id, (report) =>
+            studioWork(
+              id,
+              Effect.gen(function* () {
+                yield* garments.update(id, edit);
+                const garment = yield* garments.byId(id);
+                yield* renderStudio(deps, {
+                  garment,
+                  description: renderDescription(edit),
+                  instructions,
+                  photoEffect: originalPhoto(deps, garment),
+                  report,
+                });
+              }),
+            ),
+          )
+          .pipe(
+            Effect.flatMap((started) =>
+              started
+                ? Effect.void
+                : Effect.fail(
+                    new StudioRenderError({
+                      message:
+                        'A studio picture is already in progress. Wait for it to finish before changing the render.',
+                      cause: undefined,
+                    }),
+                  ),
+            ),
+          );
 
-      return { start, process, retryStudio };
+      return { start, process, retryStudio, studioProgress: jobs.progress };
     }),
   },
 ) {}

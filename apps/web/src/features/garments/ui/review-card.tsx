@@ -7,23 +7,17 @@ import {
   isCategory,
 } from '#/shared/data/garment-types.ts';
 import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
-import {
-  checkClass,
-  linkButtonClass,
-  signalButtonClass,
-} from '#/shared/ui/classes.ts';
+import { checkClass, signalButtonClass } from '#/shared/ui/classes.ts';
 import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
-import {
-  acceptGarmentFn,
-  deleteGarmentFn,
-  reprocessGarmentFn,
-  retryStudioFn,
-} from '../services/garments-fns.ts';
+import { acceptGarmentFn, deleteGarmentFn } from '../services/garments-fns.ts';
+import { requestStudioRender } from '../services/studio-request.ts';
 import { editOf } from './garment-edit.ts';
 import { GarmentForm } from './garment-form.tsx';
+import { StudioRenderControl } from './studio-render-control.tsx';
+import { useGarmentPolling } from './use-garment-polling.ts';
 
 type ReviewCardProps = {
   readonly garment: GarmentView;
@@ -146,14 +140,14 @@ export const ReviewCard = ({
     mutationFn: () => deleteGarmentFn({ data: { id: garment.id } }),
     onSuccess: onChanged,
   });
-  const reprocess = useMutation({
-    mutationFn: () => reprocessGarmentFn({ data: { id: garment.id } }),
-    onSuccess: onChanged,
-  });
+  const [instructions, setInstructions] = useState('');
   const retryStudio = useMutation({
-    mutationFn: () => retryStudioFn({ data: { id: garment.id } }),
+    mutationFn: () =>
+      requestStudioRender({ id: garment.id, edit, instructions }),
     onSuccess: onChanged,
   });
+
+  useGarmentPolling(retryStudio.isPending);
 
   if (garment.status === 'processing') {
     return <ProcessingCard garment={garment} />;
@@ -165,7 +159,7 @@ export const ReviewCard = ({
 
   return (
     <li className="grid gap-6 border-rule border-t py-6 lg:grid-cols-[18rem_1fr] lg:gap-10">
-      <div className="grid gap-4">
+      <div className="grid content-start gap-4">
         <ImageChoiceControl
           choice={choice}
           garment={garment}
@@ -174,28 +168,22 @@ export const ReviewCard = ({
         {garment.processingError === null ? null : (
           <Notice>Part of the reading failed: {garment.processingError}</Notice>
         )}
-        <div className="flex flex-wrap gap-x-5 gap-y-1">
-          {garment.studio === undefined && !isRendering(garment) ? (
-            <button
-              aria-busy={retryStudio.isPending}
-              className={linkButtonClass}
-              disabled={retryStudio.isPending}
-              onClick={() => retryStudio.mutate()}
-              type="button"
-            >
-              Render the studio picture
-            </button>
-          ) : null}
-          <button
-            aria-busy={reprocess.isPending}
-            className={linkButtonClass}
-            disabled={reprocess.isPending}
-            onClick={() => reprocess.mutate()}
-            type="button"
-          >
-            Read the photo again
-          </button>
-        </div>
+        <StudioRenderControl
+          context="review"
+          garment={garment}
+          instructions={instructions}
+          onInstructionsChange={setInstructions}
+          onRender={() => retryStudio.mutate()}
+          pending={retryStudio.isPending}
+          disabled={
+            isRendering(garment) ||
+            accept.isPending ||
+            edit.colors.length === 0 ||
+            edit.slots.length === 0
+          }
+          error={retryStudio.error}
+          complete={retryStudio.isSuccess}
+        />
       </div>
       <form
         className="grid gap-6"
@@ -204,12 +192,14 @@ export const ReviewCard = ({
           accept.mutate();
         }}
       >
-        <GarmentForm
-          categoryBudget={categoryBudget}
-          compact={true}
-          onChange={setEdit}
-          value={edit}
-        />
+        <fieldset className="grid gap-6" disabled={retryStudio.isPending}>
+          <GarmentForm
+            categoryBudget={categoryBudget}
+            compact={true}
+            onChange={setEdit}
+            value={edit}
+          />
+        </fieldset>
         {accept.isError ? (
           <Notice live={true}>{failureMessage(accept.error)}</Notice>
         ) : null}
@@ -217,12 +207,18 @@ export const ReviewCard = ({
           <button
             aria-busy={accept.isPending}
             className={signalButtonClass}
-            disabled={accept.isPending || edit.slots.length === 0}
+            disabled={
+              retryStudio.isPending ||
+              accept.isPending ||
+              edit.slots.length === 0 ||
+              edit.colors.length === 0
+            }
             type="submit"
           >
             {accept.isPending ? 'Adding …' : 'Add to wardrobe'}
           </button>
           <ConfirmButton
+            disabled={retryStudio.isPending}
             confirmLabel="Discard photo and reading"
             label="Discard"
             onConfirm={() => remove.mutate()}

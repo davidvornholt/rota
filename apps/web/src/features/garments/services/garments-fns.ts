@@ -16,6 +16,7 @@ import {
   decodeAcceptGarmentInput,
   decodeGarmentId,
   decodeImageChoiceInput,
+  decodeRetryStudioInput,
   decodeUpdateGarmentInput,
   type GarmentEdit,
 } from '../schemas/garment-input.ts';
@@ -38,6 +39,8 @@ const garmentViews = () =>
     const wearLog = yield* WearLogRepository;
     const media = yield* MediaStore;
     const clock = yield* readWardrobeClock();
+    const ingest = yield* IngestService;
+    const studioProgress = ingest.studioProgress();
     const [rows, log] = yield* Effect.all([garments.list(), wearLog.history()]);
     const facts = wearFactsByGarment(log, clock.today);
     return {
@@ -49,6 +52,7 @@ const garmentViews = () =>
           categoryBudgets: clock.settings.categoryBudgets,
           today: clock.today,
           urlFor: media.urlFor,
+          studioProgress: studioProgress.get(row.id),
         }),
       ),
     };
@@ -177,23 +181,16 @@ export const deleteGarmentFn = createServerFn({ method: 'POST' })
       ),
   );
 
-/** Starts the pipeline again from the photo; the answer does not wait for it. */
-export const reprocessGarmentFn = createServerFn({ method: 'POST' })
-  .middleware([sessionRequired])
-  .validator((input: unknown) => decodeGarmentId(input))
-  .handler(({ data }): Promise<void> => {
-    garmentsRuntime.fork(
-      Effect.flatMap(IngestService, (ingest) => ingest.process(data.id)),
-    );
-    return Promise.resolve();
-  });
-
 export const retryStudioFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
-  .validator((input: unknown) => decodeGarmentId(input))
-  .handler(({ data }): Promise<void> => {
-    garmentsRuntime.fork(
-      Effect.flatMap(IngestService, (ingest) => ingest.retryStudio(data.id)),
-    );
-    return Promise.resolve();
-  });
+  .validator((input: unknown) => decodeRetryStudioInput(input))
+  .handler(
+    ({ data }): Promise<GarmentView> =>
+      garmentsRuntime.run(
+        Effect.gen(function* () {
+          const ingest = yield* IngestService;
+          yield* ingest.retryStudio(data.id, data.edit, data.instructions);
+          return yield* garmentView(data.id);
+        }),
+      ),
+  );

@@ -14,3 +14,10 @@ export class StudioRenderError extends Data.TaggedError('StudioRenderError')<{
 export class TransparencyRefusal extends Data.TaggedError(
   'TransparencyRefusal',
 )<{ readonly body: string }> {}
+
+export class StudioRateLimit extends Data.TaggedError('StudioRateLimit')<{
+  readonly message: string;
+  readonly retryAfter: string | null;
+  readonly retryAfterSeconds: string | null;
+  readonly cause: unknown;
+}> {}
