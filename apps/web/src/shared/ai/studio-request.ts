@@ -1,4 +1,5 @@
 import { Duration, Effect, Schema } from 'effect';
+import { imageDimensions } from '#/shared/media/image-dimensions.ts';
 import {
   StudioRateLimit,
   StudioRenderError,
@@ -33,6 +34,97 @@ const errorBodyLimit = 500;
 const transparencyTransparencyRefusal = /background|transparen/iu;
 const base64Pattern =
   /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}(?:==)?|[A-Za-z0-9+/]{3}=?)?$/u;
+const pngHighBitByte = 137;
+const capitalP = 80;
+const capitalN = 78;
+const capitalG = 71;
+const carriageReturn = 13;
+const lineFeed = 10;
+const substitute = 26;
+const pngSignature = [
+  pngHighBitByte,
+  capitalP,
+  capitalN,
+  capitalG,
+  carriageReturn,
+  lineFeed,
+  substitute,
+  lineFeed,
+];
+const pngChunkOverhead = 12;
+const pngChunkTypeOffset = 4;
+const pngChunkTypeLength = 4;
+const pngHeaderChunkLength = 13;
+const pngHeaderChunk = 'IHDR';
+const pngDataChunk = 'IDAT';
+const pngEndChunk = 'IEND';
+const minimumImageDimension = 0;
+
+const pngChunkType = (view: DataView, offset: number): string =>
+  String.fromCharCode(
+    ...Array.from({ length: pngChunkTypeLength }, (_, index) =>
+      view.getUint8(offset + pngChunkTypeOffset + index),
+    ),
+  );
+
+/** Provider output is only successful once its PNG chunk stream reaches IEND. */
+const isCompletePng = (bytes: Uint8Array): boolean => {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (view.byteLength < pngSignature.length + pngChunkOverhead) {
+    return false;
+  }
+  if (!pngSignature.every((byte, index) => view.getUint8(index) === byte)) {
+    return false;
+  }
+  let offset = pngSignature.length;
+  let hasHeader = false;
+  let hasData = false;
+  while (offset + pngChunkOverhead <= view.byteLength) {
+    const length = view.getUint32(offset);
+    const end = offset + pngChunkOverhead + length;
+    if (end > view.byteLength) {
+      return false;
+    }
+    const type = pngChunkType(view, offset);
+    if (
+      type === pngHeaderChunk &&
+      offset === pngSignature.length &&
+      length === pngHeaderChunkLength
+    ) {
+      hasHeader = true;
+    }
+    if (type === pngDataChunk && length > 0) {
+      hasData = true;
+    }
+    if (type === pngEndChunk) {
+      return hasHeader && hasData && length === 0 && end === view.byteLength;
+    }
+    offset = end;
+  }
+  return false;
+};
+
+const decodeImage = (encoded: string | undefined): Uint8Array | undefined => {
+  if (
+    encoded === undefined ||
+    encoded.length === 0 ||
+    !base64Pattern.test(encoded)
+  ) {
+    return;
+  }
+  const bytes = new Uint8Array(Buffer.from(encoded, 'base64'));
+  const dimensions = imageDimensions(bytes);
+  if (!isCompletePng(bytes) || dimensions === undefined) {
+    return;
+  }
+  if (
+    dimensions.width <= minimumImageDimension ||
+    dimensions.height <= minimumImageDimension
+  ) {
+    return;
+  }
+  return bytes;
+};
 
 const basePrompt = (description: string) =>
   [
@@ -145,12 +237,8 @@ export const requestEdit = (
         });
       }
       const parsed = decodeEditResponse(JSON.parse(body));
-      const encoded = parsed.data?.[0]?.image;
-      if (
-        encoded === undefined ||
-        encoded.length === 0 ||
-        !base64Pattern.test(encoded)
-      ) {
+      const bytes = decodeImage(parsed.data?.[0]?.image);
+      if (bytes === undefined) {
         return new StudioRenderError({
           message:
             'The image service returned an unreadable picture. Try again.',
@@ -158,7 +246,7 @@ export const requestEdit = (
         });
       }
       return {
-        bytes: new Uint8Array(Buffer.from(encoded, 'base64')),
+        bytes,
         mime: 'image/png' as const,
         transparent: attempt.transparent,
       };

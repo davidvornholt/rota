@@ -26,7 +26,10 @@ const input = {
   mime: 'image/png',
   description: 'A shirt',
 };
-const success = (encoded = 'cGljdHVyZQ==') =>
+const validPng =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+const truncatedPng = 'iVBORw0KGgoAAAANSUhEUgAABAAAAAZA';
+const success = (encoded = validPng) =>
   Response.json({
     data: [{ ...Object.fromEntries([['b64_json', encoded]]) }],
   });
@@ -79,7 +82,9 @@ describe('studio image requests', () => {
       }),
     );
     expect(result.transparent).toBe(false);
-    expect(new TextDecoder().decode(result.bytes)).toBe('picture');
+    expect(result.bytes).toEqual(
+      new Uint8Array(Buffer.from(validPng, 'base64')),
+    );
     expect(fetchSpy).toHaveBeenCalledTimes(fallbackAndRetryCalls);
     const bodies = fetchSpy.mock.calls.map((call) => call[1]?.body);
     expect(bodies[0]).toBeInstanceOf(FormData);
@@ -106,7 +111,7 @@ describe('studio image requests', () => {
     },
   );
 
-  it.each(['', '!!!', 'not-an-image'])(
+  it.each(['', '!!!', 'bm90LWltYWdl', truncatedPng])(
     'rejects an empty or malformed base64 image response: %s',
     async (encoded) => {
       fetchSpy.mockResolvedValueOnce(success(encoded));

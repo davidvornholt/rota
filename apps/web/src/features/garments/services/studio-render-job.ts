@@ -8,6 +8,11 @@ import { imageDimensions } from '#/shared/media/image-dimensions.ts';
 import type { MediaStore } from '#/shared/media/media-store.ts';
 
 const renderJobTimeout = Duration.minutes(10);
+const studioErrorTimeoutSeconds = 30;
+const studioErrorTimeout = Duration.seconds(studioErrorTimeoutSeconds);
+const timeoutMessage = 'The studio picture took too long. Try again later.';
+const saveErrorMessage =
+  'The studio picture could not be saved. Try again later.';
 
 type StudioDependencies = {
   readonly garments: Pick<GarmentRepository, 'attachImage' | 'setImageChoice'>;
@@ -67,33 +72,54 @@ export const renderStudio = <E>(
 
 export const makeStudioWork =
   (garments: Pick<GarmentRepository, 'setStudioError'>) =>
-  <E>(id: string, render: Effect.Effect<void, E>) =>
-    garments.setStudioError(id, null).pipe(
+  <E>(id: string, render: Effect.Effect<void, E>) => {
+    const setStudioError = (message: string | null) =>
+      garments.setStudioError(id, message).pipe(
+        Effect.timeoutFail({
+          duration: studioErrorTimeout,
+          onTimeout: () =>
+            new StudioRenderError({
+              message: saveErrorMessage,
+              cause: undefined,
+            }),
+        }),
+      );
+    const recordStudioError = (message: string) =>
+      setStudioError(message).pipe(
+        Effect.catchAllCause((cause) =>
+          Effect.logWarning('Could not record the studio error.', cause).pipe(
+            Effect.asVoid,
+          ),
+        ),
+      );
+    return setStudioError(null).pipe(
       Effect.andThen(render),
+      Effect.timeoutFail({
+        duration: renderJobTimeout,
+        onTimeout: () =>
+          new StudioRenderError({
+            message: timeoutMessage,
+            cause: undefined,
+          }),
+      }),
       Effect.catchAll((error) =>
         Effect.logWarning(
           `Studio render failed for garment ${id}.`,
           error,
         ).pipe(
           Effect.andThen(
-            garments.setStudioError(
-              id,
+            recordStudioError(
               error instanceof StudioRenderError
                 ? error.message
-                : 'The studio picture could not be saved. Try again later.',
+                : saveErrorMessage,
             ),
           ),
         ),
       ),
       Effect.catchAllCause((cause) =>
         Effect.logWarning('Could not finish the studio job.', cause).pipe(
-          Effect.andThen(
-            garments.setStudioError(
-              id,
-              'The studio picture could not be saved. Try again later.',
-            ),
-          ),
-          Effect.catchAll(() => Effect.void),
+          Effect.andThen(recordStudioError(saveErrorMessage)),
         ),
       ),
     );
+  };

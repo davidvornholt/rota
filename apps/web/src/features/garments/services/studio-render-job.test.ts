@@ -1,7 +1,15 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { Deferred, Effect, Fiber, TestClock, TestContext } from 'effect';
+import {
+  Deferred,
+  Duration,
+  Effect,
+  Fiber,
+  TestClock,
+  TestContext,
+} from 'effect';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
 import type { Garment } from '#/shared/data/garment.ts';
+import { makeStudioJobs } from './studio-jobs.ts';
 import { makeStudioWork, renderStudio } from './studio-render-job.ts';
 
 const image = { key: 'existing', mime: 'image/png', width: 300, height: 400 };
@@ -37,6 +45,7 @@ const unavailable = new StudioRenderError({
   message: 'Image service is busy. Try again later.',
   cause: 'provider detail',
 });
+const studioErrorTimeoutSeconds = 30;
 
 type StoredMedia = { readonly key: string; readonly bytes: number };
 
@@ -162,5 +171,32 @@ describe('studio render persistence', () => {
     );
     expect(job.attachImage).not.toHaveBeenCalled();
     expect(job.setStudioError).toHaveBeenNthCalledWith(2, row.id, job.error());
+  });
+
+  it('bounds a stalled studio-error write so the job can be retried', async () => {
+    const row = garment('active', true);
+    const job = setup(row);
+    const jobs = makeStudioJobs();
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const errorWriteStarted = yield* Deferred.make<void>();
+        let writes = 0;
+        job.setStudioError.mockImplementation(() => {
+          writes += 1;
+          return writes === 1
+            ? Effect.void
+            : Deferred.succeed(errorWriteStarted, undefined).pipe(
+                Effect.andThen(Effect.never),
+              );
+        });
+        yield* jobs.start(row.id, () => job.render(Effect.fail(unavailable)));
+        yield* Deferred.await(errorWriteStarted);
+        expect(jobs.progress().has(row.id)).toBe(true);
+        yield* TestClock.adjust(Duration.seconds(studioErrorTimeoutSeconds));
+        expect(jobs.progress().has(row.id)).toBe(false);
+        yield* jobs.start(row.id, () => Effect.void);
+        expect(jobs.progress().has(row.id)).toBe(true);
+      }).pipe(Effect.provide(TestContext.TestContext)),
+    );
   });
 });
