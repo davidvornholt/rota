@@ -30,7 +30,12 @@ export const retryStudioFn = ({
       if (output !== null) {
         output.textContent = JSON.stringify(data);
       }
-      current = { ...current, ...data.edit, processingError: null };
+      current = {
+        ...current,
+        ...data.edit,
+        studioError: null,
+        studioState: { status: 'queued' },
+      };
       return current;
     }),
   );

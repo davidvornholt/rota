@@ -153,11 +153,18 @@ for (const mode of ['review', 'detail']) {
     page,
   }) => {
     await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?${mode}`);
-    if (mode === 'review') {
-      await page
-        .getByRole('button', { name: 'Finish render', exact: true })
-        .click();
-    }
+    const name = page.getByRole('textbox', { name: 'Name', exact: true });
+    await name.fill('My corrected shirt');
+    await page.getByRole('button', { name: 'Rate limit', exact: true }).click();
+    await expect(
+      page
+        .getByRole('status')
+        .filter({ hasText: 'Image service is busy. Retrying shortly.' }),
+    ).toBeVisible();
+    await expect(name).toHaveValue('My corrected shirt');
+    await page
+      .getByRole('button', { name: 'Finish render', exact: true })
+      .click();
     const render = page.getByRole('button', {
       name: 'Regenerate studio image',
       exact: true,
@@ -166,6 +173,7 @@ for (const mode of ['review', 'detail']) {
       name: 'Colour 1 name',
       exact: true,
     });
+    await expect(render).toBeEnabled();
     await colourName.fill('Navy');
     await page.getByLabel('Colour 1', { exact: true }).fill('#112233');
     await page
@@ -183,12 +191,18 @@ for (const mode of ['review', 'detail']) {
     );
     await expect(render).toBeDisabled();
     await expect(colourName).toBeDisabled();
+    await page.getByRole('button', { name: 'Rate limit', exact: true }).click();
+    await expect(
+      page
+        .getByRole('status')
+        .filter({ hasText: 'Image service is busy. Retrying shortly.' }),
+    ).toBeVisible();
     expect(await scanWcag22AaViolations(page)).toEqual([]);
     await page
       .getByRole('button', { name: 'Fail render', exact: true })
       .click();
     await expect(
-      page.getByText('Your changes were saved, but the studio render failed', {
+      page.getByText('The studio render failed', {
         exact: false,
       }),
     ).toBeVisible();
@@ -205,5 +219,6 @@ for (const mode of ['review', 'detail']) {
     await expect(render).toBeEnabled();
     await expect(colourName).toHaveValue('Navy');
     expect(await scanWcag22AaViolations(page)).toEqual([]);
+    await expect(name).toHaveValue('My corrected shirt');
   });
 }

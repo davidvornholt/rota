@@ -1,3 +1,8 @@
+import {
+  type StudioProgress,
+  type StudioState,
+  studioIsBusy,
+} from '#/shared/ai/studio-progress.ts';
 import { displayImage, type Garment } from '#/shared/data/garment.ts';
 import {
   effectiveWearBudget,
@@ -17,19 +22,9 @@ export type GarmentImageView = {
   readonly fit: 'contain' | 'cover';
 };
 
-/** A garment as every page shows it: the row plus its image URLs and wear facts. */
-/**
- * A garment in review whose studio render has neither landed nor failed: the
- * reading came back first and the render is still being made.
- */
 export const isRendering = (garment: {
-  readonly status: string;
-  readonly studio: GarmentImageView | undefined;
-  readonly processingError: string | null;
-}): boolean =>
-  garment.status === 'review' &&
-  garment.studio === undefined &&
-  garment.processingError === null;
+  readonly studioState: StudioState;
+}): boolean => studioIsBusy(garment.studioState);
 
 export type GarmentView = {
   readonly id: string;
@@ -55,6 +50,8 @@ export type GarmentView = {
   readonly purchasedOn: LocalDate | null;
   readonly imageChoice: ImageChoice;
   readonly processingError: string | null;
+  readonly studioError: string | null;
+  readonly studioState: StudioState;
   readonly image: GarmentImageView | undefined;
   readonly original: GarmentImageView | undefined;
   readonly studio: GarmentImageView | undefined;
@@ -104,14 +101,23 @@ const imageView = (
 
 export type GarmentViewInput = {
   readonly garment: Garment;
+  readonly studioProgress: StudioProgress | undefined;
   readonly facts: WearFacts | undefined;
   readonly categoryBudgets: Readonly<Record<string, number>>;
   readonly today: LocalDate;
   readonly urlFor: (key: string) => string;
 };
 
+const settledStudioState = (garment: Garment): StudioState => {
+  if (garment.studioError !== null) {
+    return { status: 'failed' };
+  }
+  return { status: garment.images.studio === undefined ? 'idle' : 'succeeded' };
+};
+
 export const toGarmentView = ({
   garment,
+  studioProgress,
   facts,
   categoryBudgets,
   today,
@@ -144,6 +150,8 @@ export const toGarmentView = ({
     purchasedOn: garment.purchasedOn,
     imageChoice: garment.imageChoice,
     processingError: garment.processingError,
+    studioError: garment.studioError,
+    studioState: studioProgress ?? settledStudioState(garment),
     image:
       chosen === undefined
         ? undefined

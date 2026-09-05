@@ -205,7 +205,7 @@ export const GarmentDetailPage = ({
             renderControl={
               <StudioRenderControl
                 context="wardrobe"
-                hasStudio={garment.studio !== undefined}
+                garment={garment}
                 instructions={instructions}
                 onInstructionsChange={setInstructions}
                 onRender={() => {

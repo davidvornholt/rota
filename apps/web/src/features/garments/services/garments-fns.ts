@@ -39,6 +39,8 @@ const garmentViews = () =>
     const wearLog = yield* WearLogRepository;
     const media = yield* MediaStore;
     const clock = yield* readWardrobeClock();
+    const ingest = yield* IngestService;
+    const studioProgress = ingest.studioProgress();
     const [rows, log] = yield* Effect.all([garments.list(), wearLog.history()]);
     const facts = wearFactsByGarment(log, clock.today);
     return {
@@ -50,6 +52,7 @@ const garmentViews = () =>
           categoryBudgets: clock.settings.categoryBudgets,
           today: clock.today,
           urlFor: media.urlFor,
+          studioProgress: studioProgress.get(row.id),
         }),
       ),
     };
@@ -185,13 +188,9 @@ export const retryStudioFn = createServerFn({ method: 'POST' })
     ({ data }): Promise<GarmentView> =>
       garmentsRuntime.run(
         Effect.gen(function* () {
-          const garments = yield* GarmentRepository;
           const ingest = yield* IngestService;
-          yield* garments.update(data.id, attributesOf(data.edit));
-          yield* garments.clearProcessingError(data.id);
-          const before = yield* garmentView(data.id);
-          garmentsRuntime.fork(ingest.retryStudio(data.id, data.instructions));
-          return before;
+          yield* ingest.retryStudio(data.id, data.edit, data.instructions);
+          return yield* garmentView(data.id);
         }),
       ),
   );

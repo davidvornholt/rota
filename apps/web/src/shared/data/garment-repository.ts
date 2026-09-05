@@ -65,7 +65,7 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
                g.warmth, g.rain_ok, g.formality, g.wear_budget, g.colors,
                g.pattern, g.material, g.fit, g.sleeve, g.brand, g.seasons,
                g.notes, g.price, g.purchased_on, g.image_choice,
-               g.processing_error, g.retired_at, g.created_at,
+               g.processing_error, g.studio_error, g.retired_at, g.created_at,
                ${imagesJson} as images
         from garment g
         ${where}
@@ -169,9 +169,9 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
           where id = ${id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
-      const clearProcessingError = (id: string) =>
+      const setStudioError = (id: string, message: string | null) =>
         sql`
-          update garment set processing_error = null, updated_at = now()
+          update garment set studio_error = ${message}, updated_at = now()
           where id = ${id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
@@ -204,7 +204,7 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
         applyExtraction,
         update,
         markProcessingError,
-        clearProcessingError,
+        setStudioError,
         setStatus,
         setImageChoice,
         remove,

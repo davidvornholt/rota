@@ -93,8 +93,8 @@ export const UploadControl = ({ onUploaded }: UploadControlProps) => {
         <input
           accept="image/*"
           className="sr-only"
-          id={libraryId}
           aria-label="Choose photos"
+          id={libraryId}
           multiple={true}
           onChange={onChange}
           ref={libraryInput}

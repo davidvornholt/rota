@@ -2,10 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createMemoryHistory,
   createRootRoute,
+  createRoute,
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GarmentDetailPage } from '#/features/garments/ui/garment-detail-page.tsx';
 import { WardrobePage } from '#/features/garments/ui/wardrobe-page.tsx';
@@ -43,6 +43,8 @@ const garment: GarmentView = {
   purchasedOn: null,
   imageChoice: 'original',
   processingError: null,
+  studioError: null,
+  studioState: { status: 'rendering' },
   image: photo,
   original: photo,
   studio: undefined,
@@ -52,54 +54,73 @@ const garment: GarmentView = {
   costPerWear: null,
 };
 
-const detail = new URLSearchParams(location.search).has('detail');
-if (detail) {
-  Object.assign(garment, { status: 'active', studio: photo });
-}
-setFixtureGarment(garment);
+const cooldownMs = 60_000;
+const query = new URLSearchParams(globalThis.location.search);
+const detail = query.has('detail');
+setFixtureGarment({
+  ...garment,
+  status: detail ? 'active' : 'review',
+  studioState: query.has('waiting')
+    ? { status: 'waiting', retryAt: Date.now() + cooldownMs }
+    : garment.studioState,
+});
 
+if (query.has('completed')) {
+  setFixtureGarment({
+    ...fixtureGarment(),
+    studioState: { status: 'succeeded' },
+    studio: { ...photo, url: `${photo.url}?studio` },
+  });
+}
+
+const finish = () => {
+  setFixtureGarment({
+    ...fixtureGarment(),
+    studioState: { status: 'succeeded' },
+    studioError: null,
+    studio: { ...photo, url: `${photo.url}?studio` },
+  });
+};
+const wait = () => {
+  setFixtureGarment({
+    ...fixtureGarment(),
+    studioState: { status: 'waiting', retryAt: Date.now() + cooldownMs },
+  });
+};
+const fail = () => {
+  setFixtureGarment({
+    ...fixtureGarment(),
+    studioState: { status: 'failed' },
+    studioError:
+      'The image service is busy. Try the studio picture again later.',
+  });
+};
 export const ReviewFixture = () => {
-  const [current, setCurrent] = useState(garment);
+  const loaded = route.useLoaderData();
   return (
     <main>
-      <button
-        type="button"
-        onClick={() => {
-          const next = {
-            ...fixtureGarment(),
-            studio: {
-              ...photo,
-              url: `${photo.url}?studio=${crypto.randomUUID()}`,
-            },
-          };
-          setFixtureGarment(next);
-          setCurrent(next);
-        }}
-      >
-        Finish render
-      </button>
-      <button
-        type="button"
-        onClick={() =>
-          setFixtureGarment({
-            ...fixtureGarment(),
-            processingError: 'Image provider unavailable',
-          })
-        }
-      >
-        Fail render
-      </button>
+      <fieldset aria-label="Fixture controls">
+        <button type="button" onClick={finish}>
+          Finish render
+        </button>
+        <button type="button" onClick={wait}>
+          Rate limit
+        </button>
+        <button type="button" onClick={fail}>
+          Fail render
+        </button>
+      </fieldset>
       {detail ? (
         <>
           <h1>Garment details</h1>
-          <GarmentDetailPage initial={current} categoryBudgets={{}} />
+          <GarmentDetailPage categoryBudgets={{}} initial={loaded} />
         </>
       ) : (
         <WardrobePage
           categoryBudgets={{}}
           view={{
             today: localDate('2026-09-05'),
-            queue: [current],
+            queue: [loaded],
             active: [],
             retired: [],
           }}
@@ -110,8 +131,15 @@ export const ReviewFixture = () => {
     </main>
   );
 };
+const rootRoute = createRootRoute();
+const route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: ReviewFixture,
+  loader: () => ({ ...fixtureGarment() }),
+});
 const router = createRouter({
-  routeTree: createRootRoute({ component: ReviewFixture }),
+  routeTree: rootRoute.addChildren([route]),
   history: createMemoryHistory({ initialEntries: ['/'] }),
 });
 const root = document.querySelector('#root');

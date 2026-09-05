@@ -83,3 +83,13 @@ bun run lint && bun run check-types && bun test && bun run build && bun run test
 ## Garment ratings
 
 The review card and garment editor use three choices with visible explanations: Light, Medium, Heavy for insulation and Casual, Smart, Formal for dressiness. The same definitions guide photo extraction and outfit proposals. Weather matching uses 60% of the daily high plus 40% of the low: at least 18 °C favours Light, 12 °C to below 18 °C favours Medium, and below 12 °C favours Heavy. Exact matches rank first; adjacent levels are offered when fewer than three exact matches exist. Light and Heavy never substitute for one another. Layering and the occasion remain part of the outfit proposal.
+
+## Studio image recovery
+
+Studio renders share one deployment permit per server process. HTTP 429 responses wait for `retry-after-ms` or `Retry-After`, including HTTP dates, with a maximum ten-minute cooldown. Missing or invalid delays use exponential backoff starting at two seconds with jitter. Each background variant allows three retries. A ten-minute job deadline bounds loading, queueing, cooldowns, transparency fallback, and image storage. Recording a failure has its own thirty-second limit so a stalled write cannot prevent another attempt. Each individual image request has a four-minute timeout that aborts its fetch. Other failures are not automatically resubmitted.
+
+A garment has at most one extraction/render/storage job in the garments runtime. A duplicate studio request is rejected before saving its edits. Regeneration saves the submitted fields inside the registered job and renders from that snapshot, including colour hex values and optional instructions. Forms and server validation require at least one colour. The full photo reanalysis action is removed.
+
+The wardrobe and detail page poll queued, rendering, and waiting states without resetting unsaved form edits. Completion uses the job state rather than comparing image URLs. Render errors are stored separately in `garment.studio_error`; they preserve the garment's lifecycle status and existing images. Provider diagnostics stay in server logs, while the interface offers a manual retry after failure.
+
+Jobs and cooldowns are process-local. They do not survive restarts or coordinate multiple server replicas. After a restart, an unfinished render no longer shows as running and can be requested again. Persisted studio images and errors remain available. Apply the generated database migration before running this version.

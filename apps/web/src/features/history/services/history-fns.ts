@@ -96,6 +96,7 @@ const loadAll = () =>
     const facts = wearFactsByGarment(log, clock.today);
     const views = garments.map((garment) =>
       toGarmentView({
+        studioProgress: undefined,
         garment,
         facts: facts.get(garment.id),
         categoryBudgets: clock.settings.categoryBudgets,

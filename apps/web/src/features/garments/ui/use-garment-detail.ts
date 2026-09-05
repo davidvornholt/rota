@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import type { ImageChoice } from '#/shared/data/garment-types.ts';
-import type { GarmentView } from '#/shared/data/garment-view.ts';
+import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
 import type { GarmentEdit } from '../schemas/garment-input.ts';
 import {
   deleteGarmentFn,
@@ -13,6 +13,7 @@ import {
 } from '../services/garments-fns.ts';
 import { requestStudioRender } from '../services/studio-request.ts';
 import { editOf } from './garment-edit.ts';
+import { useGarmentPolling } from './use-garment-polling.ts';
 
 export const useGarmentDetail = (initial: GarmentView) => {
   const router = useRouter();
@@ -21,7 +22,6 @@ export const useGarmentDetail = (initial: GarmentView) => {
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     setGarment(initial);
-    setEdit(editOf(initial));
   }, [initial]);
 
   const apply = (next: GarmentView) => {
@@ -61,10 +61,14 @@ export const useGarmentDetail = (initial: GarmentView) => {
     onSuccess: apply,
   });
 
+  useGarmentPolling(isRendering(garment) || retryStudio.isPending);
+
   const mutations = [save, choose, retire, restore, remove];
   const failure = mutations.find((mutation) => mutation.isError)?.error;
   const lifecyclePending =
-    retryStudio.isPending || mutations.some((mutation) => mutation.isPending);
+    retryStudio.isPending ||
+    isRendering(garment) ||
+    mutations.some((mutation) => mutation.isPending);
 
   return {
     garment,

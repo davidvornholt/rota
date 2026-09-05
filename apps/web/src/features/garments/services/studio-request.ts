@@ -1,4 +1,5 @@
 import { Data, Duration, Effect } from 'effect';
+import { isRendering } from '#/shared/data/garment-view.ts';
 import type { GarmentEdit } from '../schemas/garment-input.ts';
 import { garmentFn, retryStudioFn } from './garments-fns.ts';
 
@@ -27,19 +28,19 @@ export const requestStudioRender = (data: {
 }) =>
   Effect.runPromise(
     Effect.gen(function* () {
-      const before = yield* request(() => retryStudioFn({ data }));
+      yield* request(() => retryStudioFn({ data }));
       return yield* Effect.gen(function* () {
         yield* Effect.sleep(Duration.seconds(2));
         const next = yield* request(() => garmentFn({ data: { id: data.id } }));
-        if (next.processingError !== null) {
+        if (next.studioError !== null) {
           return yield* new StudioRequestError({
-            message: `Your changes were saved, but the studio render failed: ${next.processingError}`,
+            message: `The studio render failed: ${next.studioError}`,
           });
         }
         return next;
       }).pipe(
         Effect.repeat({
-          until: (next) => next.studio?.url !== before.studio?.url,
+          until: (next) => !isRendering(next),
         }),
         Effect.timeoutFail({
           duration: Duration.minutes(10),

@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
 import {
   fieldClass,
   labelClass,
@@ -8,7 +9,7 @@ import { Notice } from '#/shared/ui/notice.tsx';
 import { renderInstructionsLength } from '../schemas/garment-input.ts';
 
 type StudioRenderControlProps = {
-  readonly hasStudio: boolean;
+  readonly garment: GarmentView;
   readonly context: 'review' | 'wardrobe';
   readonly instructions: string;
   readonly onInstructionsChange: (value: string) => void;
@@ -19,8 +20,19 @@ type StudioRenderControlProps = {
   readonly complete: boolean;
 };
 
+const progressMessage = (garment: GarmentView): string => {
+  switch (garment.studioState.status) {
+    case 'waiting':
+      return 'Image service is busy. Retrying shortly.';
+    case 'queued':
+      return 'Studio picture is queued.';
+    default:
+      return 'Rendering … this may take a few minutes.';
+  }
+};
+
 export const StudioRenderControl = ({
-  hasStudio,
+  garment,
   context,
   instructions,
   onInstructionsChange,
@@ -31,6 +43,8 @@ export const StudioRenderControl = ({
   complete,
 }: StudioRenderControlProps) => {
   const id = useId();
+  const busy = pending || isRendering(garment);
+  const failure = error instanceof Error ? error.message : garment.studioError;
   return (
     <div className="mt-3 grid gap-2">
       <label className={labelClass} htmlFor={id}>
@@ -39,7 +53,7 @@ export const StudioRenderControl = ({
       <textarea
         id={id}
         className={fieldClass}
-        disabled={pending}
+        disabled={busy}
         maxLength={renderInstructionsLength}
         rows={2}
         placeholder="For example, make the blue darker and keep the white buttons."
@@ -53,31 +67,27 @@ export const StudioRenderControl = ({
         The current picture stays until the new one is ready.
       </p>
       <button
-        aria-busy={pending}
+        aria-busy={busy}
         className={`${linkButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
-        disabled={disabled || pending}
+        disabled={disabled || busy}
         onClick={onRender}
         type="button"
       >
-        {hasStudio ? 'Regenerate studio image' : 'Generate studio image'}
+        {garment.studio === undefined
+          ? 'Generate studio image'
+          : 'Regenerate studio image'}
       </button>
-      {pending ? (
+      {busy ? (
         <p className="text-ink-muted text-sm" role="status">
-          Rendering … this may take a few minutes.
+          {progressMessage(garment)}
         </p>
       ) : null}
-      {complete && !pending ? (
+      {complete && !busy && failure === null ? (
         <p className="text-ink-muted text-sm" role="status">
           Studio picture updated.
         </p>
       ) : null}
-      {error === null ? null : (
-        <Notice live={true}>
-          {error instanceof Error
-            ? error.message
-            : 'The studio picture could not be rendered. Try again.'}
-        </Notice>
-      )}
+      {failure === null || busy ? null : <Notice live={true}>{failure}</Notice>}
     </div>
   );
 };

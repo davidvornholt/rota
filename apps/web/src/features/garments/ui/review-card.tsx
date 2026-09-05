@@ -17,6 +17,7 @@ import { requestStudioRender } from '../services/studio-request.ts';
 import { editOf } from './garment-edit.ts';
 import { GarmentForm } from './garment-form.tsx';
 import { StudioRenderControl } from './studio-render-control.tsx';
+import { useGarmentPolling } from './use-garment-polling.ts';
 
 type ReviewCardProps = {
   readonly garment: GarmentView;
@@ -146,6 +147,8 @@ export const ReviewCard = ({
     onSuccess: onChanged,
   });
 
+  useGarmentPolling(retryStudio.isPending);
+
   if (garment.status === 'processing') {
     return <ProcessingCard garment={garment} />;
   }
@@ -167,7 +170,7 @@ export const ReviewCard = ({
         )}
         <StudioRenderControl
           context="review"
-          hasStudio={garment.studio !== undefined}
+          garment={garment}
           instructions={instructions}
           onInstructionsChange={setInstructions}
           onRender={() => retryStudio.mutate()}
