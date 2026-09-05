@@ -17,6 +17,7 @@ const shortTextLength = 120;
 const nameLength = 80;
 const notesLength = 2000;
 const mostColors = 5;
+export const renderInstructionsLength = 1000;
 const highestPrice = 100_000;
 
 const shortText = Schema.String.pipe(Schema.maxLength(shortTextLength));
@@ -33,7 +34,10 @@ export const GarmentEditSchema = Schema.Struct({
   wearBudget: Schema.NullOr(
     Schema.Int.pipe(Schema.between(scaleMinimum, longestWearBudget)),
   ),
-  colors: Schema.Array(GarmentColorSchema).pipe(Schema.maxItems(mostColors)),
+  colors: Schema.Array(GarmentColorSchema).pipe(
+    Schema.minItems(1),
+    Schema.maxItems(mostColors),
+  ),
   pattern: shortText,
   material: shortText,
   fit: shortText,
@@ -59,6 +63,16 @@ export const AcceptGarmentInputSchema = Schema.Struct({
   edit: GarmentEditSchema,
   imageChoice: ImageChoiceSchema,
 });
+
+export const RetryStudioInputSchema = Schema.Struct({
+  id: Schema.UUID,
+  edit: GarmentEditSchema,
+  instructions: Schema.String.pipe(Schema.maxLength(renderInstructionsLength)),
+});
+
+export const decodeRetryStudioInput = Schema.decodeUnknownSync(
+  RetryStudioInputSchema,
+);
 
 export const ImageChoiceInputSchema = Schema.Struct({
   id: Schema.UUID,

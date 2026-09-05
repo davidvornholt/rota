@@ -20,10 +20,11 @@ import {
   acceptGarmentFn,
   deleteGarmentFn,
   reprocessGarmentFn,
-  retryStudioFn,
 } from '../services/garments-fns.ts';
+import { requestStudioRender } from '../services/studio-request.ts';
 import { editOf } from './garment-edit.ts';
 import { GarmentForm } from './garment-form.tsx';
+import { StudioRenderControl } from './studio-render-control.tsx';
 
 type ReviewCardProps = {
   readonly garment: GarmentView;
@@ -150,8 +151,10 @@ export const ReviewCard = ({
     mutationFn: () => reprocessGarmentFn({ data: { id: garment.id } }),
     onSuccess: onChanged,
   });
+  const [instructions, setInstructions] = useState('');
   const retryStudio = useMutation({
-    mutationFn: () => retryStudioFn({ data: { id: garment.id } }),
+    mutationFn: () =>
+      requestStudioRender({ id: garment.id, edit, instructions }),
     onSuccess: onChanged,
   });
 
@@ -174,22 +177,27 @@ export const ReviewCard = ({
         {garment.processingError === null ? null : (
           <Notice>Part of the reading failed: {garment.processingError}</Notice>
         )}
+        <StudioRenderControl
+          hasStudio={garment.studio !== undefined}
+          instructions={instructions}
+          onInstructionsChange={setInstructions}
+          onRender={() => retryStudio.mutate()}
+          pending={retryStudio.isPending}
+          disabled={
+            isRendering(garment) ||
+            reprocess.isPending ||
+            accept.isPending ||
+            edit.colors.length === 0 ||
+            edit.slots.length === 0
+          }
+          error={retryStudio.error}
+          complete={retryStudio.isSuccess}
+        />
         <div className="flex flex-wrap gap-x-5 gap-y-1">
-          {garment.studio === undefined && !isRendering(garment) ? (
-            <button
-              aria-busy={retryStudio.isPending}
-              className={linkButtonClass}
-              disabled={retryStudio.isPending}
-              onClick={() => retryStudio.mutate()}
-              type="button"
-            >
-              Render the studio picture
-            </button>
-          ) : null}
           <button
             aria-busy={reprocess.isPending}
             className={linkButtonClass}
-            disabled={reprocess.isPending}
+            disabled={reprocess.isPending || retryStudio.isPending}
             onClick={() => reprocess.mutate()}
             type="button"
           >
@@ -204,12 +212,14 @@ export const ReviewCard = ({
           accept.mutate();
         }}
       >
-        <GarmentForm
-          categoryBudget={categoryBudget}
-          compact={true}
-          onChange={setEdit}
-          value={edit}
-        />
+        <fieldset className="grid gap-6" disabled={retryStudio.isPending}>
+          <GarmentForm
+            categoryBudget={categoryBudget}
+            compact={true}
+            onChange={setEdit}
+            value={edit}
+          />
+        </fieldset>
         {accept.isError ? (
           <Notice live={true}>{failureMessage(accept.error)}</Notice>
         ) : null}
@@ -217,12 +227,18 @@ export const ReviewCard = ({
           <button
             aria-busy={accept.isPending}
             className={signalButtonClass}
-            disabled={accept.isPending || edit.slots.length === 0}
+            disabled={
+              retryStudio.isPending ||
+              accept.isPending ||
+              edit.slots.length === 0 ||
+              edit.colors.length === 0
+            }
             type="submit"
           >
             {accept.isPending ? 'Adding …' : 'Add to wardrobe'}
           </button>
           <ConfirmButton
+            disabled={retryStudio.isPending}
             confirmLabel="Discard photo and reading"
             label="Discard"
             onConfirm={() => remove.mutate()}
