@@ -31,6 +31,8 @@ const validPng =
 const truncatedPng = 'iVBORw0KGgoAAAANSUhEUgAABAAAAAZA';
 const invalidIdatPng =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABElEQVQBAgMEfVvD1gAAAABJRU5ErkJggg==';
+const shortScanlinePng =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACUlEQVR4nGMAAAABAAFe/335AAAAAElFTkSuQmCC';
 const corruptCrcPng = (() => {
   const bytes = new Uint8Array(Buffer.from(validPng, 'base64'));
   bytes.fill(0, bytes.length - 1);
@@ -124,6 +126,7 @@ describe('studio image requests', () => {
     'bm90LWltYWdl',
     truncatedPng,
     invalidIdatPng,
+    shortScanlinePng,
     corruptCrcPng,
   ])(
     'rejects an empty or malformed base64 image response: %s',
