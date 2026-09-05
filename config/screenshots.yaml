@@ -1,0 +1,9 @@
+# Required publishing settings; none have defaults. Credentials are resolved
+# from the SOPS pair at publish time and never enter application environments.
+pair: assets:assets.screenshots_rw
+# Shared public evidence bucket owned by ~/dev/personal-infra.
+bucket: personal-pr-screenshots
+# EU-jurisdiction S3 endpoint for uploads.
+endpoint: https://831f91724ea62b0cb0215829eb001f66.eu.r2.cloudflarestorage.com
+# Permanent public image URLs returned by the publishing command.
+publicBaseUrl: https://screenshots.vornholt.online
