@@ -7,11 +7,7 @@ import {
   isCategory,
 } from '#/shared/data/garment-types.ts';
 import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
-import {
-  checkClass,
-  linkButtonClass,
-  signalButtonClass,
-} from '#/shared/ui/classes.ts';
+import { checkClass, signalButtonClass } from '#/shared/ui/classes.ts';
 import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
@@ -24,6 +20,7 @@ import {
 import { requestStudioRender } from '../services/studio-request.ts';
 import { editOf } from './garment-edit.ts';
 import { GarmentForm } from './garment-form.tsx';
+import { ResetPhotoControl } from './reset-photo-control.tsx';
 import { StudioRenderControl } from './studio-render-control.tsx';
 
 type ReviewCardProps = {
@@ -178,6 +175,7 @@ export const ReviewCard = ({
           <Notice>Part of the reading failed: {garment.processingError}</Notice>
         )}
         <StudioRenderControl
+          context="review"
           hasStudio={garment.studio !== undefined}
           instructions={instructions}
           onInstructionsChange={setInstructions}
@@ -193,17 +191,12 @@ export const ReviewCard = ({
           error={retryStudio.error}
           complete={retryStudio.isSuccess}
         />
-        <div className="flex flex-wrap gap-x-5 gap-y-1">
-          <button
-            aria-busy={reprocess.isPending}
-            className={linkButtonClass}
-            disabled={reprocess.isPending || retryStudio.isPending}
-            onClick={() => reprocess.mutate()}
-            type="button"
-          >
-            Read the photo again
-          </button>
-        </div>
+        <ResetPhotoControl
+          onReset={() => reprocess.mutate()}
+          pending={
+            reprocess.isPending || retryStudio.isPending || accept.isPending
+          }
+        />
       </div>
       <form
         className="grid gap-6"

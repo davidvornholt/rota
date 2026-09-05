@@ -159,7 +159,7 @@ for (const mode of ['review', 'detail']) {
         .click();
     }
     const render = page.getByRole('button', {
-      name: 'Save changes and render again',
+      name: 'Regenerate studio image',
       exact: true,
     });
     const colourName = page.getByRole('textbox', {
@@ -169,7 +169,7 @@ for (const mode of ['review', 'detail']) {
     await colourName.fill('Navy');
     await page.getByLabel('Colour 1', { exact: true }).fill('#112233');
     await page
-      .getByRole('textbox', { name: 'Render instructions, optional' })
+      .getByRole('textbox', { name: 'Image instructions, optional' })
       .fill('Keep the white buttons.');
     await render.click();
     await expect(page.getByLabel('Render request')).toContainText(
@@ -205,5 +205,29 @@ for (const mode of ['review', 'detail']) {
     await expect(render).toBeEnabled();
     await expect(colourName).toHaveValue('Navy');
     expect(await scanWcag22AaViolations(page)).toEqual([]);
+  });
+}
+
+for (const mode of ['review', 'detail']) {
+  test(`${mode} keeps photo reset secondary and confirms replacement`, async ({
+    page,
+  }) => {
+    await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?${mode}`);
+    const reset = page.getByRole('button', {
+      name: 'Reset details from photo',
+      exact: true,
+    });
+    await expect(reset).toBeHidden();
+    await page.getByText('More options', { exact: true }).click();
+    await reset.click();
+    await expect(page.getByLabel('Reset request')).toBeEmpty();
+    expect(await scanWcag22AaViolations(page)).toEqual([]);
+    await page
+      .getByRole('button', {
+        name: 'Replace edits and regenerate image',
+        exact: true,
+      })
+      .click();
+    await expect(page.getByLabel('Reset request')).toHaveText('requested');
   });
 }

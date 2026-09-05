@@ -19,6 +19,7 @@ import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { GarmentForm } from './garment-form.tsx';
+import { ResetPhotoControl } from './reset-photo-control.tsx';
 import { StudioRenderControl } from './studio-render-control.tsx';
 import { useGarmentDetail } from './use-garment-detail.ts';
 
@@ -144,13 +145,7 @@ const Lifecycle = ({
         Retire from rotation
       </button>
     )}
-    <ConfirmButton
-      confirmLabel="Replace the fields with a new reading"
-      label="Read the photo again"
-      onConfirm={onReprocess}
-      pending={pending}
-      tone="link"
-    />
+    <ResetPhotoControl onReset={onReprocess} pending={pending} />
     <ConfirmButton
       confirmLabel="Delete for good"
       disabled={garment.wears > 0}
@@ -214,6 +209,7 @@ export const GarmentDetailPage = ({
             onChoose={(choice) => choose.mutate(choice)}
             renderControl={
               <StudioRenderControl
+                context="wardrobe"
                 hasStudio={garment.studio !== undefined}
                 instructions={instructions}
                 onInstructionsChange={setInstructions}

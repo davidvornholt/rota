@@ -9,6 +9,7 @@ import { renderInstructionsLength } from '../schemas/garment-input.ts';
 
 type StudioRenderControlProps = {
   readonly hasStudio: boolean;
+  readonly context: 'review' | 'wardrobe';
   readonly instructions: string;
   readonly onInstructionsChange: (value: string) => void;
   readonly onRender: () => void;
@@ -20,6 +21,7 @@ type StudioRenderControlProps = {
 
 export const StudioRenderControl = ({
   hasStudio,
+  context,
   instructions,
   onInstructionsChange,
   onRender,
@@ -32,7 +34,7 @@ export const StudioRenderControl = ({
   return (
     <div className="mt-3 grid gap-2">
       <label className={labelClass} htmlFor={id}>
-        Render instructions, optional
+        Image instructions, optional
       </label>
       <textarea
         id={id}
@@ -45,7 +47,9 @@ export const StudioRenderControl = ({
         onChange={(event) => onInstructionsChange(event.target.value)}
       />
       <p className="text-ink-muted text-sm">
-        Saves the current fields and makes a new studio picture from your photo.
+        {context === 'review'
+          ? 'Uses your current edits. Add to wardrobe saves the details and your chosen picture when you are ready.'
+          : 'Uses and saves your current edits.'}{' '}
         The current picture stays until the new one is ready.
       </p>
       <button
@@ -55,9 +59,7 @@ export const StudioRenderControl = ({
         onClick={onRender}
         type="button"
       >
-        {hasStudio
-          ? 'Save changes and render again'
-          : 'Save changes and render studio picture'}
+        {hasStudio ? 'Regenerate studio image' : 'Generate studio image'}
       </button>
       {pending ? (
         <p className="text-ink-muted text-sm" role="status">
