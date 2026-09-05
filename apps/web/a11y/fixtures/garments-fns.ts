@@ -18,15 +18,6 @@ export const acceptGarmentFn = ({ data }: { readonly data: unknown }) =>
     }),
   );
 export const deleteGarmentFn = () => Effect.runPromise(Effect.void);
-export const reprocessGarmentFn = () =>
-  Effect.runPromise(
-    Effect.sync(() => {
-      const output = document.querySelector('[aria-label="Reset request"]');
-      if (output !== null) {
-        output.textContent = 'requested';
-      }
-    }),
-  );
 export const garmentFn = () => Effect.runPromise(Effect.sync(() => current));
 export const retryStudioFn = ({
   data,

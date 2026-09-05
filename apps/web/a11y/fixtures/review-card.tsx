@@ -107,7 +107,6 @@ export const ReviewFixture = () => {
       )}
       <output aria-label="Accepted garment" />
       <output aria-label="Render request" />
-      <output aria-label="Reset request" />
     </main>
   );
 };

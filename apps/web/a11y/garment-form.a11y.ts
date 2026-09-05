@@ -207,27 +207,3 @@ for (const mode of ['review', 'detail']) {
     expect(await scanWcag22AaViolations(page)).toEqual([]);
   });
 }
-
-for (const mode of ['review', 'detail']) {
-  test(`${mode} keeps photo reset secondary and confirms replacement`, async ({
-    page,
-  }) => {
-    await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?${mode}`);
-    const reset = page.getByRole('button', {
-      name: 'Reset details from photo',
-      exact: true,
-    });
-    await expect(reset).toBeHidden();
-    await page.getByText('More options', { exact: true }).click();
-    await reset.click();
-    await expect(page.getByLabel('Reset request')).toBeEmpty();
-    expect(await scanWcag22AaViolations(page)).toEqual([]);
-    await page
-      .getByRole('button', {
-        name: 'Replace edits and regenerate image',
-        exact: true,
-      })
-      .click();
-    await expect(page.getByLabel('Reset request')).toHaveText('requested');
-  });
-}

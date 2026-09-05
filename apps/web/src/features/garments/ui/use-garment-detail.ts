@@ -6,7 +6,6 @@ import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { GarmentEdit } from '../schemas/garment-input.ts';
 import {
   deleteGarmentFn,
-  reprocessGarmentFn,
   restoreGarmentFn,
   retireGarmentFn,
   setImageChoiceFn,
@@ -56,17 +55,13 @@ export const useGarmentDetail = (initial: GarmentView) => {
     mutationFn: () => deleteGarmentFn({ data: { id } }),
     onSuccess: leave,
   });
-  const reprocess = useMutation({
-    mutationFn: () => reprocessGarmentFn({ data: { id } }),
-    onSuccess: leave,
-  });
   const [instructions, setInstructions] = useState('');
   const retryStudio = useMutation({
     mutationFn: () => requestStudioRender({ id, edit, instructions }),
     onSuccess: apply,
   });
 
-  const mutations = [save, choose, retire, restore, remove, reprocess];
+  const mutations = [save, choose, retire, restore, remove];
   const failure = mutations.find((mutation) => mutation.isError)?.error;
   const lifecyclePending =
     retryStudio.isPending || mutations.some((mutation) => mutation.isPending);
@@ -82,7 +77,6 @@ export const useGarmentDetail = (initial: GarmentView) => {
     retire,
     restore,
     remove,
-    reprocess,
     instructions,
     setInstructions,
     retryStudio,

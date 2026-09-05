@@ -12,15 +12,10 @@ import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
-import {
-  acceptGarmentFn,
-  deleteGarmentFn,
-  reprocessGarmentFn,
-} from '../services/garments-fns.ts';
+import { acceptGarmentFn, deleteGarmentFn } from '../services/garments-fns.ts';
 import { requestStudioRender } from '../services/studio-request.ts';
 import { editOf } from './garment-edit.ts';
 import { GarmentForm } from './garment-form.tsx';
-import { ResetPhotoControl } from './reset-photo-control.tsx';
 import { StudioRenderControl } from './studio-render-control.tsx';
 
 type ReviewCardProps = {
@@ -144,10 +139,6 @@ export const ReviewCard = ({
     mutationFn: () => deleteGarmentFn({ data: { id: garment.id } }),
     onSuccess: onChanged,
   });
-  const reprocess = useMutation({
-    mutationFn: () => reprocessGarmentFn({ data: { id: garment.id } }),
-    onSuccess: onChanged,
-  });
   const [instructions, setInstructions] = useState('');
   const retryStudio = useMutation({
     mutationFn: () =>
@@ -165,7 +156,7 @@ export const ReviewCard = ({
 
   return (
     <li className="grid gap-6 border-rule border-t py-6 lg:grid-cols-[18rem_1fr] lg:gap-10">
-      <div className="grid gap-4">
+      <div className="grid content-start gap-4">
         <ImageChoiceControl
           choice={choice}
           garment={garment}
@@ -183,19 +174,12 @@ export const ReviewCard = ({
           pending={retryStudio.isPending}
           disabled={
             isRendering(garment) ||
-            reprocess.isPending ||
             accept.isPending ||
             edit.colors.length === 0 ||
             edit.slots.length === 0
           }
           error={retryStudio.error}
           complete={retryStudio.isSuccess}
-        />
-        <ResetPhotoControl
-          onReset={() => reprocess.mutate()}
-          pending={
-            reprocess.isPending || retryStudio.isPending || accept.isPending
-          }
         />
       </div>
       <form

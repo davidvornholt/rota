@@ -19,7 +19,6 @@ import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { GarmentForm } from './garment-form.tsx';
-import { ResetPhotoControl } from './reset-photo-control.tsx';
 import { StudioRenderControl } from './studio-render-control.tsx';
 import { useGarmentDetail } from './use-garment-detail.ts';
 
@@ -109,17 +108,15 @@ type LifecycleProps = {
   readonly garment: GarmentView;
   readonly onRetire: () => void;
   readonly onRestore: () => void;
-  readonly onReprocess: () => void;
   readonly onDelete: () => void;
   readonly pending: boolean;
 };
 
-/** Retire, bring back, re-read, delete: the actions that change what the garment is. */
+/** Retire, bring back, delete: the actions that change what the garment is. */
 const Lifecycle = ({
   garment,
   onRetire,
   onRestore,
-  onReprocess,
   onDelete,
   pending,
 }: LifecycleProps) => (
@@ -145,7 +142,6 @@ const Lifecycle = ({
         Retire from rotation
       </button>
     )}
-    <ResetPhotoControl onReset={onReprocess} pending={pending} />
     <ConfirmButton
       confirmLabel="Delete for good"
       disabled={garment.wears > 0}
@@ -181,7 +177,6 @@ export const GarmentDetailPage = ({
     retire,
     restore,
     remove,
-    reprocess,
     instructions,
     setInstructions,
     retryStudio,
@@ -274,7 +269,6 @@ export const GarmentDetailPage = ({
           <Lifecycle
             garment={garment}
             onDelete={() => remove.mutate()}
-            onReprocess={() => reprocess.mutate()}
             onRestore={() => restore.mutate()}
             onRetire={() => retire.mutate()}
             pending={lifecyclePending}

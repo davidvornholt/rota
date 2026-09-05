@@ -178,17 +178,6 @@ export const deleteGarmentFn = createServerFn({ method: 'POST' })
       ),
   );
 
-/** Starts the pipeline again from the photo; the answer does not wait for it. */
-export const reprocessGarmentFn = createServerFn({ method: 'POST' })
-  .middleware([sessionRequired])
-  .validator((input: unknown) => decodeGarmentId(input))
-  .handler(({ data }): Promise<void> => {
-    garmentsRuntime.fork(
-      Effect.flatMap(IngestService, (ingest) => ingest.process(data.id)),
-    );
-    return Promise.resolve();
-  });
-
 export const retryStudioFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
   .validator((input: unknown) => decodeRetryStudioInput(input))
