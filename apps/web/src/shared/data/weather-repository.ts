@@ -2,7 +2,7 @@ import { SqlClient } from '@effect/sql';
 import { Effect, Schema } from 'effect';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
-import type { DailyForecast } from '#/shared/weather/open-meteo.ts';
+import type { DailyForecast } from '#/shared/weather/hourly-forecast.ts';
 import { readError, writeError } from './errors/data-errors.ts';
 
 export const WeatherDayFromRow = Schema.Struct({

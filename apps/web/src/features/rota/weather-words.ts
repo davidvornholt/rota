@@ -1,4 +1,5 @@
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
+import { forecastHoursLabel } from '#/shared/weather/forecast-window.ts';
 
 /** WMO weather interpretation codes, as Open-Meteo reports them: the last code of each group. */
 const weatherGroups: ReadonlyArray<{
@@ -21,9 +22,9 @@ export const weatherWords = (code: number): string =>
 
 const degrees = (value: number): string => `${Math.round(value)}°`;
 
-/** "21° / 12° · mostly clear · 10% rain" — the strip under the date. */
 export const weatherLine = (day: WeatherDay): string =>
   [
+    forecastHoursLabel,
     `${degrees(day.high)} / ${degrees(day.low)}`,
     weatherWords(day.weatherCode),
     `${Math.round(day.precipitationProbability)}% rain`,
@@ -31,4 +32,4 @@ export const weatherLine = (day: WeatherDay): string =>
 
 /** The fuller sentence the model reads. */
 export const weatherSentence = (day: WeatherDay): string =>
-  `high ${degrees(day.high)}C, low ${degrees(day.low)}C, ${weatherWords(day.weatherCode)}, ${Math.round(day.precipitationProbability)}% chance of rain (${day.precipitationMm.toFixed(1)} mm), wind up to ${Math.round(day.windKmh)} km/h`;
+  `${forecastHoursLabel}: high ${degrees(day.high)}C, low ${degrees(day.low)}C, ${weatherWords(day.weatherCode)}, ${Math.round(day.precipitationProbability)}% chance of rain (${day.precipitationMm.toFixed(1)} mm), wind up to ${Math.round(day.windKmh)} km/h`;

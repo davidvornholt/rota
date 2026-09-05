@@ -146,7 +146,7 @@ const median = (values: ReadonlyArray<number>): number => {
 /** Fewer wears than this and a temperature range would be noise. */
 const minimumWearsForTemperature = 3;
 
-/** The afternoon highs each garment was actually worn at; only garments worn often enough. */
+/** The forecast highs on the days each garment was worn; only garments worn often enough. */
 export const temperatureByGarment = (
   log: ReadonlyArray<WearEntry>,
   weather: ReadonlyArray<WeatherDay>,

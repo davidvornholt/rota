@@ -22,6 +22,7 @@ import {
 } from '#/shared/ui/classes.ts';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
+import { forecastHoursLabel } from '#/shared/weather/forecast-window.ts';
 import type { DayView } from '../services/history-fns.ts';
 
 type DayEntries = ReadonlyArray<{
@@ -55,7 +56,7 @@ const sameChoice = (left: Choice, right: Choice) =>
 const weatherLine = (weather: DayView['weather']) =>
   weather === null
     ? 'No forecast stored'
-    : `${degrees(weather.high)} / ${degrees(weather.low)} · ${Math.round(weather.precipitationProbability)}% rain`;
+    : `${forecastHoursLabel} · ${degrees(weather.high)} / ${degrees(weather.low)} · ${Math.round(weather.precipitationProbability)}% rain`;
 
 const SlotRow = ({
   slot,

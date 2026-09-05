@@ -1,13 +1,13 @@
 /**
  * Open-Meteo: free, keyless, and good enough to decide between a shirt and a
  * jumper. Geocoding turns a typed place name into candidates with a time zone;
- * the forecast is the daily high, low, rain, and wind for the coming week.
+ * hourly forecasts are summarized over the hours the outfit is worn.
  */
 
 import { Duration, Effect, Schedule, Schema } from 'effect';
 
-import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import { WeatherError } from './errors/weather-errors.ts';
+import { type DailyForecast, decodeForecast } from './hourly-forecast.ts';
 import type { Location } from './location.ts';
 
 export const LocationSchema: Schema.Schema<Location> = Schema.Struct({
@@ -32,38 +32,6 @@ const GeocodingResponse = Schema.Struct({
       }),
     ),
   ),
-});
-
-export const DailyForecastSchema = Schema.Struct({
-  date: LocalDateSchema,
-  high: Schema.Number,
-  low: Schema.Number,
-  precipitationProbability: Schema.Number,
-  precipitationMm: Schema.Number,
-  windKmh: Schema.Number,
-  weatherCode: Schema.Number,
-});
-
-export type DailyForecast = Schema.Schema.Type<typeof DailyForecastSchema>;
-
-const nullableNumber = Schema.NullOr(Schema.Number);
-
-const dailyField = (wireKey: string) =>
-  Schema.propertySignature(Schema.Array(nullableNumber)).pipe(
-    Schema.fromKey(wireKey),
-  );
-
-/** Open-Meteo's daily arrays, one value per day, renamed off the wire. */
-const ForecastResponse = Schema.Struct({
-  daily: Schema.Struct({
-    time: Schema.Array(LocalDateSchema),
-    highs: dailyField('temperature_2m_max'),
-    lows: dailyField('temperature_2m_min'),
-    rainChances: dailyField('precipitation_probability_max'),
-    rainSums: dailyField('precipitation_sum'),
-    windPeaks: dailyField('wind_speed_10m_max'),
-    weatherCodes: dailyField('weather_code'),
-  }),
 });
 
 const requestTimeoutSeconds = 20;
@@ -151,44 +119,16 @@ export class WeatherApi extends Effect.Service<WeatherApi>()(
         url.searchParams.set('timezone', location.timezone);
         url.searchParams.set('forecast_days', String(forecastDays));
         url.searchParams.set(
-          'daily',
+          'hourly',
           [
-            'temperature_2m_max',
-            'temperature_2m_min',
-            'precipitation_probability_max',
-            'precipitation_sum',
-            'wind_speed_10m_max',
+            'temperature_2m',
+            'precipitation_probability',
+            'precipitation',
+            'wind_speed_10m',
             'weather_code',
           ].join(','),
         );
-        return fetchJson(url).pipe(
-          Effect.flatMap(decodeWith(ForecastResponse)),
-          Effect.map(({ daily }) =>
-            daily.time.flatMap((date, index) => {
-              const high = daily.highs[index];
-              const low = daily.lows[index];
-              if (
-                high === null ||
-                high === undefined ||
-                low === null ||
-                low === undefined
-              ) {
-                return [];
-              }
-              return [
-                {
-                  date,
-                  high,
-                  low,
-                  precipitationProbability: daily.rainChances[index] ?? 0,
-                  precipitationMm: daily.rainSums[index] ?? 0,
-                  windKmh: daily.windPeaks[index] ?? 0,
-                  weatherCode: daily.weatherCodes[index] ?? 0,
-                },
-              ];
-            }),
-          ),
-        );
+        return fetchJson(url).pipe(Effect.flatMap(decodeForecast));
       };
 
       return { searchLocations, forecast };
