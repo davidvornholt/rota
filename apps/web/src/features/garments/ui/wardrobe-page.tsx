@@ -125,7 +125,7 @@ export const WardrobePage = ({
               <ReviewCard
                 categoryBudgets={categoryBudgets}
                 garment={garment}
-                key={`${garment.id}-${garment.status}-${garment.studio?.url ?? ''}`}
+                key={`${garment.id}-${garment.status}`}
                 onChanged={refresh}
               />
             ))}

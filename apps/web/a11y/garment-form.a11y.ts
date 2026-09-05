@@ -21,7 +21,15 @@ test.beforeAll(async () => {
       createServer({
         configFile: false,
         root: new URL('..', import.meta.url).pathname,
-        resolve: { tsconfigPaths: true },
+        resolve: {
+          tsconfigPaths: true,
+          alias: {
+            '../services/garments-fns.ts': new URL(
+              './fixtures/garments-fns.ts',
+              import.meta.url,
+            ).pathname,
+          },
+        },
         plugins: [tailwindcss(), viteReact()],
         server: { host: '127.0.0.1', port: 0 },
       }),
@@ -80,5 +88,43 @@ for (const mode of ['compact', 'full']) {
       path: testInfo.outputPath('garment-ratings.png'),
       fullPage: true,
     });
+  });
+}
+
+for (const imageChoice of ['automatic', 'original']) {
+  test(`render completion preserves edits and ${imageChoice} picture selection`, async ({
+    page,
+  }) => {
+    await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html`);
+    const name = page.getByRole('textbox', { name: 'Name', exact: true });
+    await name.fill('My corrected shirt');
+    const warmth = page.getByRole('group', { name: 'Warmth', exact: true });
+    await warmth.getByText('Heavy', { exact: true }).click();
+    if (imageChoice === 'original') {
+      await page.getByRole('radio', { name: 'Photo', exact: true }).click();
+    }
+    await page
+      .getByRole('button', { name: 'Finish render', exact: true })
+      .click();
+    await expect(
+      page.getByRole('radio', { name: 'Studio', exact: true }),
+    ).toBeEnabled();
+    await expect(name).toHaveValue('My corrected shirt');
+    await expect(
+      warmth.getByRole('radio', { name: 'Heavy', exact: true }),
+    ).toBeChecked();
+    const selected = imageChoice === 'original' ? 'Photo' : 'Studio';
+    await expect(
+      page.getByRole('radio', { name: selected, exact: true }),
+    ).toBeChecked();
+    await page
+      .getByRole('button', { name: 'Add to wardrobe', exact: true })
+      .click();
+    await expect(page.getByLabel('Accepted garment')).toContainText(
+      'My corrected shirt',
+    );
+    await expect(page.getByLabel('Accepted garment')).toContainText(
+      `"imageChoice":"${imageChoice === 'original' ? 'original' : 'studio'}"`,
+    );
   });
 }

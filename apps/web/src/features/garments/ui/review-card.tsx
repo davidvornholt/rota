@@ -87,6 +87,8 @@ const ImageChoiceControl = ({
                 disabled={image === undefined}
                 name={`image-choice-${garment.id}`}
                 onChange={() => onChoose(kind)}
+                // A click on the already-checked photo is still an explicit choice.
+                onClick={() => onChoose(kind)}
                 type="radio"
                 value={kind}
               />
@@ -131,9 +133,10 @@ export const ReviewCard = ({
   onChanged,
 }: ReviewCardProps) => {
   const [edit, setEdit] = useState(() => editOf(garment));
-  const [choice, setChoice] = useState<ImageChoice>(
-    garment.studio === undefined ? 'original' : 'studio',
-  );
+  const [selectedImage, setSelectedImage] = useState<ImageChoice | null>(null);
+  // Follow arriving renders until the wearer explicitly chooses a picture.
+  const choice =
+    selectedImage ?? (garment.studio === undefined ? 'original' : 'studio');
   const accept = useMutation({
     mutationFn: () =>
       acceptGarmentFn({ data: { id: garment.id, edit, imageChoice: choice } }),
@@ -166,7 +169,7 @@ export const ReviewCard = ({
         <ImageChoiceControl
           choice={choice}
           garment={garment}
-          onChoose={setChoice}
+          onChoose={setSelectedImage}
         />
         {garment.processingError === null ? null : (
           <Notice>Part of the reading failed: {garment.processingError}</Notice>
