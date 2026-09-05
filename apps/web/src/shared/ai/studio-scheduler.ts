@@ -6,6 +6,13 @@ const maxRetries = 3;
 const baseDelayMs = 2000;
 const maxDelayMs = 30_000;
 const millisecondsPerSecond = 1000;
+/** A provider hint cannot hold the process-wide permit past one job budget. */
+const maxCooldownMs = Duration.toMillis(Duration.minutes(10));
+const cooldownTimeoutMessage =
+  'The studio picture took too long. Try again later.';
+
+const capCooldown = (milliseconds: number): number =>
+  Math.min(maxCooldownMs, milliseconds);
 
 export const retryDelay = (
   error: StudioRateLimit,
@@ -18,7 +25,7 @@ export const retryDelay = (
     Number.isFinite(milliseconds) &&
     milliseconds >= 0
   ) {
-    return milliseconds;
+    return capCooldown(milliseconds);
   }
   const seconds =
     error.retryAfterSeconds === null
@@ -29,7 +36,7 @@ export const retryDelay = (
     Number.isFinite(seconds) &&
     seconds >= 0
   ) {
-    return seconds * millisecondsPerSecond;
+    return capCooldown(seconds * millisecondsPerSecond);
   }
   if (Number.isFinite(seconds) && seconds < 0) {
     return undefined;
@@ -38,7 +45,9 @@ export const retryDelay = (
     error.retryAfterSeconds === null
       ? Number.NaN
       : Date.parse(error.retryAfterSeconds);
-  return Number.isFinite(date) ? Math.max(0, date - now) : undefined;
+  return Number.isFinite(date)
+    ? capCooldown(Math.max(0, date - now))
+    : undefined;
 };
 
 const delayFor = (
@@ -66,6 +75,40 @@ export const makeStudioScheduler = Effect.gen(function* () {
         yield* Effect.sleep(Duration.millis(cooldownUntil - now));
       }
     });
+  const handleRateLimit = (
+    error: StudioRateLimit,
+    retries: number,
+    report: ReportStudioProgress,
+  ) =>
+    Effect.gen(function* () {
+      const failedAt = yield* Clock.currentTimeMillis;
+      const jitter = yield* Random.next;
+      const delay = delayFor(error, failedAt, retries, jitter);
+      cooldownUntil = Math.max(cooldownUntil, failedAt + delay);
+      yield* Effect.logWarning('Studio image request rate limited.', {
+        retries,
+        retryAt: cooldownUntil,
+        cause: error.cause,
+      });
+      // A capped provider delay consumes this job's budget, so do not retry at
+      // the deadline. The cooldown remains available to the next job.
+      if (delay >= maxCooldownMs) {
+        yield* report({ status: 'waiting', retryAt: cooldownUntil });
+        yield* Effect.sleep(Duration.millis(maxCooldownMs));
+        return yield* Effect.fail(
+          new StudioRenderError({
+            message: cooldownTimeoutMessage,
+            cause: error,
+          }),
+        );
+      }
+      if (retries >= maxRetries) {
+        return yield* Effect.fail(
+          new StudioRenderError({ message: error.message, cause: error }),
+        );
+      }
+      return retries + 1;
+    });
   const schedule = <A, E>(
     request: Effect.Effect<A, E | StudioRateLimit>,
     report: ReportStudioProgress,
@@ -80,24 +123,11 @@ export const makeStudioScheduler = Effect.gen(function* () {
           return result.right;
         }
         const error = result.left;
-        if (!(error instanceof StudioRateLimit)) {
+        if (error instanceof StudioRateLimit) {
+          retries = yield* handleRateLimit(error, retries, report);
+        } else {
           return yield* Effect.fail(error);
         }
-        const failedAt = yield* Clock.currentTimeMillis;
-        const jitter = yield* Random.next;
-        const delay = delayFor(error, failedAt, retries, jitter);
-        cooldownUntil = Math.max(cooldownUntil, failedAt + delay);
-        yield* Effect.logWarning('Studio image request rate limited.', {
-          retries,
-          retryAt: cooldownUntil,
-          cause: error.cause,
-        });
-        if (retries >= maxRetries) {
-          return yield* Effect.fail(
-            new StudioRenderError({ message: error.message, cause: error }),
-          );
-        }
-        retries += 1;
       }
     }).pipe(permit.withPermits(1));
   return { schedule };

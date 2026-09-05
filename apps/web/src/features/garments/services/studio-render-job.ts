@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Duration, Effect } from 'effect';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
 import type { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
 import type { ReportStudioProgress } from '#/shared/ai/studio-scheduler.ts';
@@ -6,6 +6,8 @@ import type { Garment } from '#/shared/data/garment.ts';
 import type { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import { imageDimensions } from '#/shared/media/image-dimensions.ts';
 import type { MediaStore } from '#/shared/media/media-store.ts';
+
+const renderJobTimeout = Duration.minutes(10);
 
 type StudioDependencies = {
   readonly garments: Pick<GarmentRepository, 'attachImage' | 'setImageChoice'>;
@@ -52,7 +54,16 @@ export const renderStudio = <E>(
     if (garment.images.studio === undefined) {
       yield* deps.garments.setImageChoice(garment.id, 'studio');
     }
-  });
+  }).pipe(
+    Effect.timeoutFail({
+      duration: renderJobTimeout,
+      onTimeout: () =>
+        new StudioRenderError({
+          message: 'The studio picture took too long. Try again later.',
+          cause: undefined,
+        }),
+    }),
+  );
 
 export const makeStudioWork =
   (garments: Pick<GarmentRepository, 'setStudioError'>) =>

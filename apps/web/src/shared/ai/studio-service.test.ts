@@ -26,9 +26,9 @@ const input = {
   mime: 'image/png',
   description: 'A shirt',
 };
-const success = () =>
+const success = (encoded = 'cGljdHVyZQ==') =>
   Response.json({
-    data: [{ ...Object.fromEntries([['b64_json', 'cGljdHVyZQ==']]) }],
+    data: [{ ...Object.fromEntries([['b64_json', encoded]]) }],
   });
 const fetchSpy = spyOn(globalThis, 'fetch');
 afterEach(() => {
@@ -92,6 +92,24 @@ describe('studio image requests', () => {
     'does not automatically resubmit an HTTP %s failure',
     async (status) => {
       fetchSpy.mockResolvedValue(new Response('rejected', { status }));
+      const result = await run(
+        Effect.gen(function* () {
+          const studio = yield* makeStudioRenderer(connection);
+          return yield* Effect.either(studio.render(input, () => Effect.void));
+        }),
+      );
+      expect(result).toMatchObject({
+        _tag: 'Left',
+        left: { _tag: 'StudioRenderError' },
+      });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(['', '!!!', 'not-an-image'])(
+    'rejects an empty or malformed base64 image response: %s',
+    async (encoded) => {
+      fetchSpy.mockResolvedValueOnce(success(encoded));
       const result = await run(
         Effect.gen(function* () {
           const studio = yield* makeStudioRenderer(connection);

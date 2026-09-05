@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { Effect } from 'effect';
+import { Deferred, Effect, Fiber, TestClock, TestContext } from 'effect';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
 import type { Garment } from '#/shared/data/garment.ts';
 import { makeStudioWork, renderStudio } from './studio-render-job.ts';
@@ -38,7 +38,15 @@ const unavailable = new StudioRenderError({
   cause: 'provider detail',
 });
 
-const setup = (row: Garment) => {
+type StoredMedia = { readonly key: string; readonly bytes: number };
+
+const setup = (
+  row: Garment,
+  putEffect: Effect.Effect<StoredMedia> = Effect.succeed({
+    key: 'new',
+    bytes: 1,
+  }),
+) => {
   let studioError: string | null = 'Previous error';
   const setStudioError = mock((_id: string, message: string | null) =>
     Effect.sync(() => {
@@ -47,7 +55,7 @@ const setup = (row: Garment) => {
   );
   const attachImage = mock(() => Effect.void);
   const setImageChoice = mock(() => Effect.void);
-  const put = mock(() => Effect.succeed({ key: 'new', bytes: 1 }));
+  const put = mock(() => putEffect);
   const work = makeStudioWork({ setStudioError });
   const render = (
     response: Effect.Effect<
@@ -121,5 +129,38 @@ describe('studio render persistence', () => {
     expect(job.attachImage).toHaveBeenCalledTimes(1);
     expect(job.setImageChoice).not.toHaveBeenCalled();
     expect(row.status).toBe('active');
+  });
+
+  it('times out storage and records a failure instead of leaving the job active', async () => {
+    const row = garment('active', true);
+    const job = setup(row, Effect.never);
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const storageStarted = yield* Deferred.make<void>();
+        job.put.mockImplementation(() =>
+          Deferred.succeed(storageStarted, undefined).pipe(
+            Effect.andThen(Effect.never),
+          ),
+        );
+        const fiber = yield* Effect.fork(
+          job.render(
+            Effect.succeed({
+              bytes: new Uint8Array([1]),
+              mime: 'image/png',
+              transparent: true,
+            }),
+          ),
+        );
+        yield* Deferred.await(storageStarted);
+        expect(job.put).toHaveBeenCalledTimes(1);
+        yield* TestClock.adjust('10 minutes');
+        yield* Fiber.join(fiber);
+      }).pipe(Effect.provide(TestContext.TestContext)),
+    );
+    expect(job.error()).toBe(
+      'The studio picture took too long. Try again later.',
+    );
+    expect(job.attachImage).not.toHaveBeenCalled();
+    expect(job.setStudioError).toHaveBeenNthCalledWith(2, row.id, job.error());
   });
 });

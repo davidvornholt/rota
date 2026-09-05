@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import {
   Clock,
+  Duration,
   Effect,
   Fiber,
   type Layer,
@@ -30,6 +31,7 @@ const expectedAttempts = 4;
 const firstBackoffMinimum = 2000;
 const firstBackoffMaximum = 4000;
 const nextJobTime = 4000;
+const maximumCooldown = Duration.toMillis(Duration.minutes(10));
 const now = Date.parse('2026-09-05T12:00:00Z');
 
 describe('studio rate limits', () => {
@@ -49,6 +51,16 @@ describe('studio rate limits', () => {
     { milliseconds: 'invalid', seconds: '4', expected: 4000 },
     { milliseconds: '-1', seconds: null, expected: undefined },
     { milliseconds: null, seconds: '-1', expected: undefined },
+    {
+      milliseconds: '999999999999999',
+      seconds: null,
+      expected: maximumCooldown,
+    },
+    {
+      milliseconds: null,
+      seconds: 'Sat, 01 Jan 2050 00:00:00 GMT',
+      expected: maximumCooldown,
+    },
     { milliseconds: '', seconds: '', expected: undefined },
     { milliseconds: null, seconds: null, expected: undefined },
   ])(
@@ -110,6 +122,34 @@ describe('studio rate limits', () => {
           .pipe(Effect.fork);
         yield* TestClock.adjust('1 second');
         expect(yield* Fiber.join(second)).toBe(nextJobTime);
+      }),
+    );
+  });
+
+  it('bounds a far-future provider cooldown before the next job runs', async () => {
+    await run(
+      Effect.gen(function* () {
+        const scheduler = yield* makeStudioScheduler;
+        let calls = 0;
+        const request = Effect.suspend(() => {
+          calls += 1;
+          return calls === 1
+            ? Effect.fail(limited(null, 'Sat, 01 Jan 2050 00:00:00 GMT'))
+            : Effect.succeed('picture');
+        });
+        const first = yield* scheduler
+          .schedule(request, () => Effect.void)
+          .pipe(Effect.either, Effect.fork);
+        yield* TestClock.adjust(Duration.millis(maximumCooldown));
+        expect(yield* Fiber.join(first)).toMatchObject({
+          _tag: 'Left',
+          left: {
+            message: 'The studio picture took too long. Try again later.',
+          },
+        });
+        expect(
+          yield* scheduler.schedule(Clock.currentTimeMillis, () => Effect.void),
+        ).toBe(maximumCooldown);
       }),
     );
   });

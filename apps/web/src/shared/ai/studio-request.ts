@@ -31,6 +31,8 @@ const tooManyRequests = 429;
 const trailingSlash = /\/$/u;
 const errorBodyLimit = 500;
 const transparencyTransparencyRefusal = /background|transparen/iu;
+const base64Pattern =
+  /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}(?:==)?|[A-Za-z0-9+/]{3}=?)?$/u;
 
 const basePrompt = (description: string) =>
   [
@@ -144,9 +146,14 @@ export const requestEdit = (
       }
       const parsed = decodeEditResponse(JSON.parse(body));
       const encoded = parsed.data?.[0]?.image;
-      if (encoded === undefined) {
+      if (
+        encoded === undefined ||
+        encoded.length === 0 ||
+        !base64Pattern.test(encoded)
+      ) {
         return new StudioRenderError({
-          message: 'The image service returned no picture. Try again.',
+          message:
+            'The image service returned an unreadable picture. Try again.',
           cause: undefined,
         });
       }
