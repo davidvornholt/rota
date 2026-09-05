@@ -7,8 +7,13 @@ import {
   isCategory,
 } from '#/shared/data/garment-types.ts';
 import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
-import { linkButtonClass, signalButtonClass } from '#/shared/ui/classes.ts';
+import {
+  checkClass,
+  linkButtonClass,
+  signalButtonClass,
+} from '#/shared/ui/classes.ts';
 import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
+import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import {
@@ -40,6 +45,10 @@ const choiceLabel = (
   return rendering ? 'Studio · rendering …' : 'Studio · failed';
 };
 
+/**
+ * The two pictures side by side; pressing one shows it large, the radio under
+ * it says which the wardrobe keeps. The chosen picture wears an ink border.
+ */
 const ImageChoiceControl = ({
   garment,
   choice,
@@ -56,35 +65,34 @@ const ImageChoiceControl = ({
         const image = kind === 'studio' ? garment.studio : garment.original;
         const selected = choice === kind;
         return (
-          <label
-            className={[
-              'block cursor-pointer border p-1 transition-colors',
-              selected
-                ? 'border-ink'
-                : 'border-transparent hover:border-rule-strong',
-              image === undefined ? 'opacity-50' : '',
-            ].join(' ')}
-            key={kind}
-          >
-            <input
-              checked={selected}
-              className="sr-only"
-              disabled={image === undefined}
-              name={`image-choice-${garment.id}`}
-              onChange={() => onChoose(kind)}
-              type="radio"
-              value={kind}
-            />
-            <GarmentFigure
-              alt=""
-              colors={garment.colors}
-              image={image}
-              name={garment.name}
-            />
-            <span className="mt-1 block text-center text-ink-muted text-xs">
+          <div key={kind}>
+            <div
+              className={[
+                'border p-1 transition-colors',
+                selected ? 'border-ink' : 'border-transparent',
+                image === undefined ? 'opacity-50' : '',
+              ].join(' ')}
+            >
+              <EnlargeableFigure
+                caption={kind === 'studio' ? 'Studio render' : 'Photo'}
+                colors={garment.colors}
+                image={image}
+                name={garment.name}
+              />
+            </div>
+            <label className="mt-1 flex min-h-11 cursor-pointer items-center justify-center gap-2 text-ink-muted text-xs">
+              <input
+                checked={selected}
+                className={checkClass}
+                disabled={image === undefined}
+                name={`image-choice-${garment.id}`}
+                onChange={() => onChoose(kind)}
+                type="radio"
+                value={kind}
+              />
               {choiceLabel(kind, image !== undefined, isRendering(garment))}
-            </span>
-          </label>
+            </label>
+          </div>
         );
       })}
     </div>
