@@ -11,7 +11,9 @@ export const fixtureGarment = () => current;
 export const acceptGarmentFn = ({ data }: { readonly data: unknown }) =>
   Effect.runPromise(
     Effect.sync(() => {
-      const accepted = document.querySelector('output');
+      const accepted = document.querySelector(
+        '[aria-label="Accepted garment"]',
+      );
       if (accepted !== null) {
         accepted.textContent = JSON.stringify(data);
       }

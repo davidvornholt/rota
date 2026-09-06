@@ -32,7 +32,6 @@ export const ImageChoiceSchema: Schema.Schema<ImageChoice> = Schema.Literal(
 );
 
 export const GarmentColorSchema: Schema.Schema<GarmentColor> = Schema.Struct({
-  name: Schema.String,
   hex: Schema.String.pipe(Schema.pattern(/^#[0-9a-fA-F]{6}$/u)),
 });
 

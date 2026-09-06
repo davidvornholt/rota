@@ -8,7 +8,7 @@ import {
   UpdateGarmentInputSchema,
 } from './garment-input.ts';
 
-const color = { name: 'Blue', hex: '#336699' };
+const color = { hex: '#336699' };
 
 it.each([
   { count: 0, valid: false },

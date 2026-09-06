@@ -5,10 +5,7 @@ import { renderDescription } from './render-description.ts';
 it('passes colour corrections and instructions to the studio prompt', () => {
   const description = renderDescription({
     name: 'Blue Oxford shirt',
-    colors: [
-      { name: 'Navy', hex: '#112233' },
-      { name: '', hex: '#ffffff' },
-    ],
+    colors: [{ hex: '#112233' }, { hex: '#ffffff' }],
     material: 'Cotton',
     pattern: 'striped',
   });

@@ -56,7 +56,18 @@ for (const mode of ['compact', 'full']) {
     await expect(
       colours.getByRole('button', { name: 'Remove colour 1' }),
     ).toBeDisabled();
+    const picker = colours.getByLabel('Colour 1', { exact: true });
+    const label = colours.getByRole('status', { name: 'Colour 1 name' });
+    await expect(label).toHaveText('Blue');
+    await picker.fill('#ff0000');
+    await expect(label).toHaveText('Red');
+    await expect(
+      colours.getByRole('textbox', { name: 'Colour 1 name' }),
+    ).toHaveCount(0);
     await colours.getByRole('button', { name: 'Add a colour' }).click();
+    await expect(
+      colours.getByRole('status', { name: 'Colour 2 name' }),
+    ).toHaveText('Grey');
     await expect(
       colours.getByRole('button', { name: 'Remove colour 1' }),
     ).toBeEnabled();
@@ -169,12 +180,11 @@ for (const mode of ['review', 'detail']) {
       name: 'Regenerate studio image',
       exact: true,
     });
-    const colourName = page.getByRole('textbox', {
+    const colourName = page.getByRole('status', {
       name: 'Colour 1 name',
       exact: true,
     });
     await expect(render).toBeEnabled();
-    await colourName.fill('Navy');
     await page.getByLabel('Colour 1', { exact: true }).fill('#112233');
     await page
       .getByRole('textbox', { name: 'Image instructions, optional' })
@@ -183,14 +193,12 @@ for (const mode of ['review', 'detail']) {
     await expect(page.getByLabel('Render request')).toContainText(
       '"hex":"#112233"',
     );
-    await expect(page.getByLabel('Render request')).toContainText(
-      '"name":"Navy"',
-    );
+    await expect(colourName).toHaveText('Navy');
     await expect(page.getByLabel('Render request')).toContainText(
       'Keep the white buttons.',
     );
     await expect(render).toBeDisabled();
-    await expect(colourName).toBeDisabled();
+    await expect(page.getByLabel('Colour 1', { exact: true })).toBeDisabled();
     await page.getByRole('button', { name: 'Rate limit', exact: true }).click();
     await expect(
       page
@@ -207,7 +215,7 @@ for (const mode of ['review', 'detail']) {
       }),
     ).toBeVisible();
     await expect(render).toBeEnabled();
-    await expect(colourName).toHaveValue('Navy');
+    await expect(colourName).toHaveText('Navy');
     await render.click();
     await expect(render).toBeDisabled();
     await page
@@ -217,7 +225,7 @@ for (const mode of ['review', 'detail']) {
       page.getByText('Studio picture updated.', { exact: true }),
     ).toBeVisible();
     await expect(render).toBeEnabled();
-    await expect(colourName).toHaveValue('Navy');
+    await expect(colourName).toHaveText('Navy');
     expect(await scanWcag22AaViolations(page)).toEqual([]);
     await expect(name).toHaveValue('My corrected shirt');
   });

@@ -1,9 +1,6 @@
+import { colorName } from '#/shared/data/color-name.ts';
 import type { GarmentColor } from '#/shared/data/garment-types.ts';
-import {
-  fieldClass,
-  labelClass,
-  linkButtonClass,
-} from '#/shared/ui/classes.ts';
+import { labelClass, linkButtonClass } from '#/shared/ui/classes.ts';
 
 const mostColors = 5;
 const newColorHex = '#808080';
@@ -15,7 +12,7 @@ type ColourFieldsProps = {
 
 type Row = GarmentColor & { readonly position: number };
 
-/** The garment's colours, dominant first: a picker and a name per row. */
+/** The garment's colours, dominant first: a picker and a derived name per row. */
 export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
   const rows: ReadonlyArray<Row> = colors.map((color, position) => ({
     ...color,
@@ -43,15 +40,12 @@ export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
               type="color"
               value={row.hex}
             />
-            <input
+            <output
               aria-label={`Colour ${row.position + 1} name`}
-              className={fieldClass}
-              onChange={(event) =>
-                update(row.position, { name: event.target.value })
-              }
-              type="text"
-              value={row.name}
-            />
+              className="flex-1 text-sm"
+            >
+              {colorName(row.hex)}
+            </output>
             <button
               aria-label={`Remove colour ${row.position + 1}`}
               className={[
@@ -72,7 +66,7 @@ export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
       {colors.length < mostColors ? (
         <button
           className={[linkButtonClass, 'mt-2'].join(' ')}
-          onClick={() => onChange([...colors, { name: '', hex: newColorHex }])}
+          onClick={() => onChange([...colors, { hex: newColorHex }])}
           type="button"
         >
           Add a colour

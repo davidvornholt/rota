@@ -31,7 +31,7 @@ const garment: GarmentView = {
   formality: 2,
   wearBudget: null,
   effectiveBudget: 2,
-  colors: [{ name: 'Blue', hex: '#336699' }],
+  colors: [{ hex: '#336699' }],
   pattern: '',
   material: 'Cotton',
   fit: '',
