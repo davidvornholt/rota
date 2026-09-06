@@ -15,13 +15,18 @@ it.each([
   expect(colorName(hex)).toBe(name);
 });
 
-it('discards stored names and derives the label from the validated value', () => {
-  const color = Schema.decodeUnknownSync(GarmentColorSchema)({
-    name: 'Blue',
-    hex: '#ff0000',
-  });
-  expect(color).toEqual({ hex: '#ff0000' });
-  expect(colorName(color.hex)).toBe('Red');
+it('rejects the removed name field in persisted and submitted colours', () => {
+  expect(
+    Schema.is(GarmentColorSchema)({
+      name: 'Blue',
+      hex: '#ff0000',
+    }),
+  ).toBe(false);
+  expect(
+    Schema.decodeUnknownSync(GarmentColorSchema)({
+      hex: '#ff0000',
+    }),
+  ).toEqual({ hex: '#ff0000' });
 });
 
 it('rejects malformed colour values before naming', () => {

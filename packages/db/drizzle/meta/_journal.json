@@ -15,6 +15,13 @@
       "when": 1788631328209,
       "tag": "0001_glorious_cerise",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788700675362,
+      "tag": "0002_remove_stored_colour_names",
+      "breakpoints": true
     }
   ]
 }

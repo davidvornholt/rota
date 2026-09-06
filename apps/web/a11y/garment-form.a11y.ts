@@ -121,6 +121,50 @@ for (const mode of ['compact', 'full']) {
   });
 }
 
+test('colour groups wrap and keep the remaining values when one is removed', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/garment-form.html?full`);
+  const colours = page.getByRole('group', { name: 'Colours', exact: true });
+  await Effect.runPromise(
+    Effect.forEach(['#ff0000', '#112233', '#f5f0e6', '#808000'], (hex) =>
+      Effect.promise(async () => {
+        await colours.getByRole('button', { name: 'Add a colour' }).click();
+        await colours.getByRole('textbox').last().fill(hex);
+      }),
+    ),
+  );
+  await expect(
+    colours.getByRole('button', { name: 'Add a colour' }),
+  ).toHaveCount(0);
+  await expect(colours.getByRole('status')).toHaveText([
+    'Blue',
+    'Red',
+    'Navy',
+    'Off-white',
+    'Olive',
+  ]);
+  await colours.getByRole('button', { name: 'Remove colour 2' }).click();
+  await expect(colours.getByRole('status')).toHaveText([
+    'Blue',
+    'Navy',
+    'Off-white',
+    'Olive',
+  ]);
+  await expect(
+    colours.getByRole('button', { name: 'Add a colour' }),
+  ).toBeVisible();
+  const rain = page.getByRole('checkbox', { name: 'Fine in rain' });
+  await rain.uncheck();
+  await expect(rain).not.toBeChecked();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+});
+
 for (const imageChoice of ['automatic', 'original']) {
   test(`render completion preserves edits and ${imageChoice} picture selection`, async ({
     page,

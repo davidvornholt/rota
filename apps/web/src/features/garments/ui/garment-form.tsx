@@ -114,15 +114,6 @@ const RotationFields = ({
         placeholder={`Category default: ${categoryBudget}`}
         value={value.wearBudget}
       />
-      <label className="mt-3 inline-flex min-h-11 items-center gap-2 text-ink text-sm">
-        <input
-          checked={value.rainOk}
-          className={checkClass}
-          onChange={(event) => set('rainOk', event.target.checked)}
-          type="checkbox"
-        />
-        Fine in rain
-      </label>
     </div>
     <fieldset>
       <legend className={labelClass}>Seasons</legend>
@@ -234,12 +225,23 @@ export const GarmentForm = ({
       <IdentityFields onCategory={onCategory} set={set} value={value} />
       <SlotFields set={set} value={value} />
       <div className="grid gap-6 sm:grid-cols-2">
-        <Scale
-          label="Warmth"
-          onChange={(level) => set('warmth', level)}
-          value={value.warmth}
-          options={warmthOptions}
-        />
+        <div>
+          <Scale
+            label="Warmth"
+            onChange={(level) => set('warmth', level)}
+            value={value.warmth}
+            options={warmthOptions}
+          />
+          <label className="mt-2 inline-flex min-h-11 items-center gap-2 text-ink text-sm">
+            <input
+              checked={value.rainOk}
+              className={checkClass}
+              onChange={(event) => set('rainOk', event.target.checked)}
+              type="checkbox"
+            />
+            Fine in rain
+          </label>
+        </div>
         <Scale
           label="Formality"
           onChange={(level) => set('formality', level)}

@@ -27,8 +27,12 @@ export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
   return (
     <fieldset>
       <legend className={labelClass}>Colours</legend>
-      <p className="mt-1 text-ink-muted text-sm">Choose at least one colour.</p>
-      <ul className="mt-2 grid gap-2">
+      {colors.length === 0 ? (
+        <p className="mt-1 text-ink-muted text-sm">
+          Choose at least one colour.
+        </p>
+      ) : null}
+      <ul className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2">
         {rows.map((row) => (
           <li className="flex items-center gap-3" key={row.position}>
             <input
@@ -42,7 +46,7 @@ export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
             />
             <output
               aria-label={`Colour ${row.position + 1} name`}
-              className="flex-1 text-sm"
+              className="text-sm"
             >
               {colorName(row.hex)}
             </output>
@@ -62,16 +66,18 @@ export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
             </button>
           </li>
         ))}
+        {colors.length < mostColors ? (
+          <li>
+            <button
+              className={linkButtonClass}
+              onClick={() => onChange([...colors, { hex: newColorHex }])}
+              type="button"
+            >
+              Add a colour
+            </button>
+          </li>
+        ) : null}
       </ul>
-      {colors.length < mostColors ? (
-        <button
-          className={[linkButtonClass, 'mt-2'].join(' ')}
-          onClick={() => onChange([...colors, { hex: newColorHex }])}
-          type="button"
-        >
-          Add a colour
-        </button>
-      ) : null}
     </fieldset>
   );
 };

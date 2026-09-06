@@ -11,12 +11,14 @@ Drizzle schema, generated migrations, and the shared Postgres pool factory.
 
 ## Workflow
 
-Migrations are always generated, never handwritten:
+Schema migrations are generated from the Drizzle schema:
 
 ```sh
 bun run db:generate                      # drizzle-kit generate (reads .env.local)
 bun run --cwd ../../apps/web db:migrate  # apply
 ```
+
+The colour-name removal is a data-only migration scaffolded with `bun run db:generate --custom --name remove_stored_colour_names`. It removes `name` from every stored garment colour while preserving hex values, array order, and empty arrays. Run `db:migrate` before starting the updated app, which rejects the old colour shape.
 
 `.env.local` is composed by `just dev-env-generate`; the dev Postgres container is managed by `just dev-db-start`.
 
