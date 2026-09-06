@@ -66,6 +66,12 @@ setFixtureGarment({
     : garment.studioState,
 });
 
+for (const status of ['preparing', 'queued'] as const) {
+  if (query.has(status)) {
+    setFixtureGarment({ ...fixtureGarment(), studioState: { status } });
+  }
+}
+
 if (query.has('completed')) {
   setFixtureGarment({
     ...fixtureGarment(),
