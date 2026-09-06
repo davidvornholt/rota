@@ -45,3 +45,5 @@ export const updateGarmentFn = () => garmentFn();
 export const setImageChoiceFn = () => garmentFn();
 export const retireGarmentFn = () => garmentFn();
 export const restoreGarmentFn = () => garmentFn();
+
+export const alternativesFn = () => Effect.runPromise(Effect.succeed([]));

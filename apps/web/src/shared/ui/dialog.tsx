@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useId, useRef } from 'react';
 
-import { linkButtonClass } from './classes.ts';
+import { IconButton } from './icon-button.tsx';
 
 type DialogProps = {
   readonly open: boolean;
@@ -71,9 +71,7 @@ export const Dialog = ({
               {title}
             </h2>
           </div>
-          <button className={linkButtonClass} onClick={onClose} type="button">
-            Close
-          </button>
+          <IconButton icon="close" label="Close" onClick={onClose} />
         </div>
         <div className="mt-5">{children}</div>
       </div>

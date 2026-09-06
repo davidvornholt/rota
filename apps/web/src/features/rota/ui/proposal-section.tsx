@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
-
 import { type Slot, slotLabel } from '#/shared/data/garment-types.ts';
 import { linkButtonClass, signalButtonClass } from '#/shared/ui/classes.ts';
+import { IconButton } from '#/shared/ui/icon-button.tsx';
 import type { ProposalView } from '../schemas/today-view.ts';
 import { alternativesFn } from '../services/today-fns.ts';
 import { OccasionNote } from './occasion-note.tsx';
@@ -116,13 +116,11 @@ const OutfitList = ({ today }: { readonly today: TodayController }) => {
                   Swap
                 </button>
                 {optionalSlots.includes(item.slot) ? (
-                  <button
-                    className={linkButtonClass}
+                  <IconButton
+                    icon="close"
+                    label={`Remove ${slotLabel[item.slot].toLowerCase()}`}
                     onClick={() => today.remove(item.slot)}
-                    type="button"
-                  >
-                    Leave it off
-                  </button>
+                  />
                 ) : null}
               </>
             }

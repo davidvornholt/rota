@@ -1,6 +1,7 @@
 import { colorName } from '#/shared/data/color-name.ts';
 import type { GarmentColor } from '#/shared/data/garment-types.ts';
 import { labelClass, linkButtonClass } from '#/shared/ui/classes.ts';
+import { IconButton } from '#/shared/ui/icon-button.tsx';
 
 const mostColors = 5;
 const newColorHex = '#808080';
@@ -50,20 +51,19 @@ export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
             >
               {colorName(row.hex)}
             </output>
-            <button
-              aria-label={`Remove colour ${row.position + 1}`}
-              className={[
-                linkButtonClass,
-                'whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50',
-              ].join(' ')}
+            <IconButton
+              icon="close"
+              label={`Remove colour ${row.position + 1}`}
+              tooltip={
+                colors.length === 1
+                  ? 'Keep at least one colour'
+                  : `Remove ${colorName(row.hex).toLowerCase()} colour`
+              }
               disabled={colors.length === 1}
               onClick={() =>
                 onChange(colors.filter((_, at) => at !== row.position))
               }
-              type="button"
-            >
-              Remove
-            </button>
+            />
           </li>
         ))}
         {colors.length < mostColors ? (
