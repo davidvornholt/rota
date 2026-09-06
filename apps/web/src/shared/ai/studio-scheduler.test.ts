@@ -156,7 +156,7 @@ describe('studio rate limits', () => {
 });
 
 describe('studio scheduling', () => {
-  it('serializes jobs and releases the permit after interruption', async () => {
+  it('runs at most two jobs and releases the permit after interruption', async () => {
     let inFlight = 0;
     let peak = 0;
     await run(
@@ -178,7 +178,7 @@ describe('studio scheduling', () => {
           .pipe(Effect.fork);
         yield* TestClock.adjust('1 millis');
         const jobs = yield* Effect.all(
-          [request, request].map((work) =>
+          [request, request, request].map((work) =>
             scheduler.schedule(work, () => Effect.void),
           ),
           { concurrency: 'unbounded' },
@@ -188,7 +188,7 @@ describe('studio scheduling', () => {
         yield* Fiber.join(jobs);
       }),
     );
-    expect(peak).toBe(1);
+    expect(peak).toBe(2);
     expect(inFlight).toBe(0);
   });
 

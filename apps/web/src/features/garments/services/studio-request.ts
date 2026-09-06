@@ -1,4 +1,5 @@
 import { Data, Duration, Effect } from 'effect';
+import { studioPollTimeout } from '#/shared/ai/studio-budgets.ts';
 import { isRendering } from '#/shared/data/garment-view.ts';
 import type { GarmentEdit } from '../schemas/garment-input.ts';
 import { garmentFn, retryStudioFn } from './garments-fns.ts';
@@ -43,7 +44,7 @@ export const requestStudioRender = (data: {
           until: (next) => !isRendering(next),
         }),
         Effect.timeoutFail({
-          duration: Duration.minutes(10),
+          duration: studioPollTimeout,
           onTimeout: () =>
             new StudioRequestError({
               message:

@@ -14,7 +14,7 @@ export const makeStudioJobs = () => {
         if (active.has(id)) {
           return false;
         }
-        active.set(id, { status: 'queued' });
+        active.set(id, { status: 'preparing' });
         const report: ReportStudioProgress = (progress) =>
           Effect.sync(() => {
             active.set(id, progress);
