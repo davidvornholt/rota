@@ -15,15 +15,21 @@ const formalHelp = /Dressy occasion clothing/u;
 
 // Exercise the shared form with React and the real theme without bypassing
 // authentication or adding test routes to the production application.
-test.beforeAll(async () => {
+test.beforeAll(async ({ browserName }, testInfo) => {
   server = await Effect.runPromise(
     Effect.promise(() =>
       createServer({
         configFile: false,
+        // Each parallel fixture server owns its dependency optimizer cache.
+        cacheDir: testInfo.outputPath('vite-cache', browserName),
         root: new URL('..', import.meta.url).pathname,
         resolve: {
           tsconfigPaths: true,
           alias: {
+            '../services/today-fns.ts': new URL(
+              './fixtures/garments-fns.ts',
+              import.meta.url,
+            ).pathname,
             './garments-fns.ts': new URL(
               './fixtures/garments-fns.ts',
               import.meta.url,
@@ -56,7 +62,18 @@ for (const mode of ['compact', 'full']) {
     await expect(
       colours.getByRole('button', { name: 'Remove colour 1' }),
     ).toBeDisabled();
+    const picker = colours.getByLabel('Colour 1', { exact: true });
+    const label = colours.getByRole('status', { name: 'Colour 1 name' });
+    await expect(label).toHaveText('Blue');
+    await picker.fill('#ff0000');
+    await expect(label).toHaveText('Red');
+    await expect(
+      colours.getByRole('textbox', { name: 'Colour 1 name' }),
+    ).toHaveCount(0);
     await colours.getByRole('button', { name: 'Add a colour' }).click();
+    await expect(
+      colours.getByRole('status', { name: 'Colour 2 name' }),
+    ).toHaveText('Grey');
     await expect(
       colours.getByRole('button', { name: 'Remove colour 1' }),
     ).toBeEnabled();
@@ -109,6 +126,50 @@ for (const mode of ['compact', 'full']) {
     });
   });
 }
+
+test('colour groups wrap and keep the remaining values when one is removed', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/garment-form.html?full`);
+  const colours = page.getByRole('group', { name: 'Colours', exact: true });
+  await Effect.runPromise(
+    Effect.forEach(['#ff0000', '#112233', '#f5f0e6', '#808000'], (hex) =>
+      Effect.promise(async () => {
+        await colours.getByRole('button', { name: 'Add a colour' }).click();
+        await colours.getByRole('textbox').last().fill(hex);
+      }),
+    ),
+  );
+  await expect(
+    colours.getByRole('button', { name: 'Add a colour' }),
+  ).toHaveCount(0);
+  await expect(colours.getByRole('status')).toHaveText([
+    'Blue',
+    'Red',
+    'Navy',
+    'Off-white',
+    'Olive',
+  ]);
+  await colours.getByRole('button', { name: 'Remove colour 2' }).click();
+  await expect(colours.getByRole('status')).toHaveText([
+    'Blue',
+    'Navy',
+    'Off-white',
+    'Olive',
+  ]);
+  await expect(
+    colours.getByRole('button', { name: 'Add a colour' }),
+  ).toBeVisible();
+  const rain = page.getByRole('checkbox', { name: 'Fine in rain' });
+  await rain.uncheck();
+  await expect(rain).not.toBeChecked();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+});
 
 for (const imageChoice of ['automatic', 'original']) {
   test(`render completion preserves edits and ${imageChoice} picture selection`, async ({
@@ -169,12 +230,11 @@ for (const mode of ['review', 'detail']) {
       name: 'Regenerate studio image',
       exact: true,
     });
-    const colourName = page.getByRole('textbox', {
+    const colourName = page.getByRole('status', {
       name: 'Colour 1 name',
       exact: true,
     });
     await expect(render).toBeEnabled();
-    await colourName.fill('Navy');
     await page.getByLabel('Colour 1', { exact: true }).fill('#112233');
     await page
       .getByRole('textbox', { name: 'Image instructions, optional' })
@@ -183,14 +243,12 @@ for (const mode of ['review', 'detail']) {
     await expect(page.getByLabel('Render request')).toContainText(
       '"hex":"#112233"',
     );
-    await expect(page.getByLabel('Render request')).toContainText(
-      '"name":"Navy"',
-    );
+    await expect(colourName).toHaveText('Navy');
     await expect(page.getByLabel('Render request')).toContainText(
       'Keep the white buttons.',
     );
     await expect(render).toBeDisabled();
-    await expect(colourName).toBeDisabled();
+    await expect(page.getByLabel('Colour 1', { exact: true })).toBeDisabled();
     await page.getByRole('button', { name: 'Rate limit', exact: true }).click();
     await expect(
       page
@@ -207,7 +265,7 @@ for (const mode of ['review', 'detail']) {
       }),
     ).toBeVisible();
     await expect(render).toBeEnabled();
-    await expect(colourName).toHaveValue('Navy');
+    await expect(colourName).toHaveText('Navy');
     await render.click();
     await expect(render).toBeDisabled();
     await page
@@ -217,8 +275,118 @@ for (const mode of ['review', 'detail']) {
       page.getByText('Studio picture updated.', { exact: true }),
     ).toBeVisible();
     await expect(render).toBeEnabled();
-    await expect(colourName).toHaveValue('Navy');
+    await expect(colourName).toHaveText('Navy');
     expect(await scanWcag22AaViolations(page)).toEqual([]);
     await expect(name).toHaveValue('My corrected shirt');
   });
 }
+
+test('colour icon tooltips support hover, focus, Escape, and disabled explanations', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/garment-form.html?compact`);
+  const remove = page.getByRole('button', {
+    name: 'Remove colour 1',
+    exact: true,
+  });
+  await remove.focus();
+  await expect(remove).toHaveAccessibleDescription('Keep at least one colour');
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Colour 1', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Add a colour' }).click();
+  await remove.hover();
+  const tooltip = page.getByRole('tooltip');
+  await expect(tooltip).toHaveText('Remove blue colour');
+  await tooltip.hover();
+  await expect(tooltip).toBeVisible();
+  await remove.focus();
+  await page.keyboard.press('Escape');
+  await expect(tooltip).toHaveCount(0);
+  await expect(remove).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status', { name: 'Colour 1 name' })).toHaveText(
+    'Grey',
+  );
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+});
+
+test('edit and delete icons preserve dialog dismissal and explicit confirmation', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/icon-actions.html`);
+  const edit = page.getByRole('button', { name: 'Edit occasion note' });
+  await edit.focus();
+  await expect(page.getByRole('tooltip')).toHaveText('Edit occasion note');
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog');
+  const close = dialog.getByRole('button', { name: 'Close' });
+  await close.focus();
+  await expect(page.getByRole('tooltip')).toHaveText('Close');
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(edit).toBeFocused();
+  await edit.click();
+  await page
+    .getByRole('textbox', { name: 'A word for the valet' })
+    .fill('Office');
+  await page.getByRole('button', { name: 'Save note' }).click();
+  await expect(page.getByText('Office', { exact: true })).toBeVisible();
+  const remove = page.getByRole('button', {
+    name: 'Delete garment',
+    exact: true,
+  });
+  await remove.click();
+  await expect(page.getByText('Garment deleted', { exact: true })).toHaveCount(
+    0,
+  );
+  await page.getByRole('button', { name: 'Keep it' }).click();
+  await expect(remove).toBeVisible();
+  await remove.click();
+  await page.getByRole('button', { name: 'Delete for good' }).click();
+  await expect(
+    page.getByText('Garment deleted', { exact: true }),
+  ).toBeVisible();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+});
+
+test('image close icon dismisses the enlarged picture and restores focus', async ({
+  page,
+}) => {
+  await page.goto(
+    `${fixtureUrl()}a11y/fixtures/review-card.html?detail&completed`,
+  );
+  const show = page
+    .getByRole('button', { name: 'Show Blue Oxford shirt large' })
+    .first();
+  await show.click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  const close = dialog.getByRole('button', { name: 'Close', exact: true });
+  await close.focus();
+  await expect(page.getByRole('tooltip')).toHaveText('Close');
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await page.keyboard.press('Enter');
+  await expect(dialog).not.toBeVisible();
+  await expect(show).toBeFocused();
+});
+
+test('optional outfit removal keeps the add action available', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?outfit`);
+  const remove = page.getByRole('button', { name: 'Remove over layer' });
+  await remove.focus();
+  await expect(page.getByRole('tooltip')).toHaveText('Remove over layer');
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await page.keyboard.press('Enter');
+  await expect(remove).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Add over layer' }),
+  ).toBeVisible();
+});

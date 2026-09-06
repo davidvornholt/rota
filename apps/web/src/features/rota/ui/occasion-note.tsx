@@ -1,5 +1,4 @@
 import { useId, useState } from 'react';
-
 import {
   fieldClass,
   labelClass,
@@ -7,6 +6,7 @@ import {
   quietButtonClass,
 } from '#/shared/ui/classes.ts';
 import { Dialog } from '#/shared/ui/dialog.tsx';
+import { IconButton } from '#/shared/ui/icon-button.tsx';
 
 type OccasionNoteProps = {
   readonly occasion: string | null;
@@ -45,9 +45,17 @@ export const OccasionNote = ({
       <p className="text-ink text-sm">
         {occasion ?? <span className="text-ink-faint">None noted</span>}
       </p>
-      <button className={linkButtonClass} onClick={openEditor} type="button">
-        {occasion === null ? 'Add a note' : 'Change'}
-      </button>
+      {occasion === null ? (
+        <button className={linkButtonClass} onClick={openEditor} type="button">
+          Add a note
+        </button>
+      ) : (
+        <IconButton
+          icon="edit"
+          label="Edit occasion note"
+          onClick={openEditor}
+        />
+      )}
       <Dialog
         eyebrow="Occasion"
         onClose={() => setEditing(false)}

@@ -12,6 +12,7 @@ import { WardrobePage } from '#/features/garments/ui/wardrobe-page.tsx';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import { fixtureGarment, setFixtureGarment } from './garments-fns.ts';
+import { OutfitActionsFixture } from './outfit-actions.tsx';
 
 const photo = {
   url: '/a11y/fixtures/shirt.svg',
@@ -31,7 +32,7 @@ const garment: GarmentView = {
   formality: 2,
   wearBudget: null,
   effectiveBudget: 2,
-  colors: [{ name: 'Blue', hex: '#336699' }],
+  colors: [{ hex: '#336699' }],
   pattern: '',
   material: 'Cotton',
   fit: '',
@@ -97,6 +98,13 @@ const fail = () => {
 };
 export const ReviewFixture = () => {
   const loaded = route.useLoaderData();
+  if (query.has('outfit')) {
+    return (
+      <main>
+        <OutfitActionsFixture garment={loaded} />
+      </main>
+    );
+  }
   return (
     <main>
       <fieldset aria-label="Fixture controls">

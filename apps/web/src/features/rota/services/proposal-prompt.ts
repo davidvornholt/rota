@@ -1,3 +1,4 @@
+import { colorName } from '#/shared/data/color-name.ts';
 /**
  * The morning question, written out for Gemini. The engine has already decided
  * what may continue and which garments are worth considering; this turns that
@@ -91,7 +92,7 @@ const describeGarment = (garment: Garment): string =>
     `formality ${garment.formality}/3`,
     garment.colors.length === 0
       ? undefined
-      : `colours ${garment.colors.map((color) => `${color.name} ${color.hex}`).join(', ')}`,
+      : `colours ${garment.colors.map((color) => `${colorName(color.hex)} ${color.hex}`).join(', ')}`,
     garment.material === '' ? undefined : garment.material,
     garment.pattern === '' ? undefined : garment.pattern,
     garment.rainOk ? undefined : 'not for rain',

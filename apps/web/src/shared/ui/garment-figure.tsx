@@ -1,3 +1,4 @@
+import { colorName } from '#/shared/data/color-name.ts';
 import type { GarmentColor } from '#/shared/data/garment-types.ts';
 import type { GarmentImageView } from '#/shared/data/garment-view.ts';
 
@@ -47,7 +48,7 @@ export const GarmentFigure = ({
               role="img"
               viewBox="0 0 3 4"
             >
-              <title>{`${name}, ${dominant.name}`}</title>
+              <title>{`${name}, ${colorName(dominant.hex)}`}</title>
               <rect fill={dominant.hex} height={4} width={3} />
             </svg>
           )}

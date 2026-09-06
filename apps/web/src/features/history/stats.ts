@@ -1,3 +1,4 @@
+import { colorName } from '#/shared/data/color-name.ts';
 /**
  * What the wear log says when you look back at it. Everything here is derived
  * on request from the log, the garments, the forecasts, and the proposals;
@@ -200,7 +201,7 @@ const shares = (
   for (const { garment, weight } of weighted) {
     const [dominant] = garment.colors;
     if (dominant !== undefined && weight > 0) {
-      const key = dominant.name.toLowerCase();
+      const key = colorName(dominant.hex);
       const current = totals.get(key) ?? { hex: dominant.hex, weight: 0 };
       totals.set(key, { hex: current.hex, weight: current.weight + weight });
       sum += weight;

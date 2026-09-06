@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-
 import { linkButtonClass, quietButtonClass } from '#/shared/ui/classes.ts';
+import { IconButton } from './icon-button.tsx';
 
 type ConfirmButtonProps = {
   readonly label: string;
@@ -41,16 +41,14 @@ export const ConfirmButton = ({
   const className = tone === 'quiet' ? quietButtonClass : linkButtonClass;
   if (!armed) {
     return (
-      <button
-        aria-busy={pending}
-        className={className}
-        disabled={disabled || pending}
+      <IconButton
+        icon="trash"
+        label={label}
+        tooltip={title ?? label}
+        pending={pending}
+        disabled={disabled}
         onClick={() => setArmed(true)}
-        title={title}
-        type="button"
-      >
-        {label}
-      </button>
+      />
     );
   }
   return (

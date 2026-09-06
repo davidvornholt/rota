@@ -1,3 +1,4 @@
+import { colorName } from '#/shared/data/color-name.ts';
 import type { GarmentEdit } from './garment-input.ts';
 
 /** A garment's description for the render prompt, from its accepted or extracted fields. */
@@ -12,7 +13,7 @@ export const renderDescription = (
       : `with a ${garment.pattern} pattern`,
     garment.colors.length === 0
       ? undefined
-      : `in ${garment.colors.map((color) => `${color.name} (${color.hex})`).join(' and ')}`,
+      : `in ${garment.colors.map((color) => `${colorName(color.hex)} (${color.hex})`).join(' and ')}`,
   ]
     .filter((part) => part !== undefined)
     .join(', ');

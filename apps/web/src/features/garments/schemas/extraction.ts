@@ -103,14 +103,11 @@ export const extractionJsonSchema = {
       items: {
         type: 'object',
         properties: {
-          name: stringProperty(
-            'A plain colour name: "navy", "off-white", "olive".',
-          ),
           hex: stringProperty(
             'The colour as #RRGGBB, matched to the garment, not the lighting.',
           ),
         },
-        required: ['name', 'hex'],
+        required: ['hex'],
       },
       description: 'Dominant colours first, at most three.',
     },

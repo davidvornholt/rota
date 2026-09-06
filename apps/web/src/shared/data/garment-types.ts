@@ -32,7 +32,6 @@ export type GarmentStatus = 'processing' | 'review' | 'active' | 'retired';
 export type ImageChoice = 'studio' | 'original';
 
 export type GarmentColor = {
-  readonly name: string;
   readonly hex: string;
 };
 

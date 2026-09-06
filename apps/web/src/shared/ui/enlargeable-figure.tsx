@@ -3,8 +3,8 @@ import { flushSync } from 'react-dom';
 
 import type { GarmentColor } from '#/shared/data/garment-types.ts';
 import type { GarmentImageView } from '#/shared/data/garment-view.ts';
-import { linkButtonClass } from './classes.ts';
 import { GarmentFigure } from './garment-figure.tsx';
+import { IconButton } from './icon-button.tsx';
 import { Swatches } from './swatches.tsx';
 
 type EnlargeableFigureProps = {
@@ -134,9 +134,7 @@ export const EnlargeableFigure = ({
               {colors === undefined ? null : (
                 <Swatches colors={colors} size="md" />
               )}
-              <button className={linkButtonClass} onClick={hide} type="button">
-                Close
-              </button>
+              <IconButton icon="close" label="Close" onClick={hide} />
             </div>
           </div>
           <div className="flex min-h-0 flex-1 items-center justify-center p-5 sm:p-8">

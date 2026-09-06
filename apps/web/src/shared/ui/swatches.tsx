@@ -1,3 +1,4 @@
+import { colorName } from '#/shared/data/color-name.ts';
 import type { GarmentColor } from '#/shared/data/garment-types.ts';
 
 type SwatchesProps = {
@@ -17,7 +18,7 @@ export const Swatches = ({ colors, size = 'sm' }: SwatchesProps) => {
   const width = colors.length * side + (colors.length - 1) * swatchGap;
   return (
     <svg
-      aria-label={`Colours: ${colors.map((color) => color.name).join(', ')}`}
+      aria-label={`Colours: ${colors.map((color) => colorName(color.hex)).join(', ')}`}
       className="inline-block shrink-0"
       height={side}
       role="img"
@@ -28,7 +29,7 @@ export const Swatches = ({ colors, size = 'sm' }: SwatchesProps) => {
         <rect
           fill={color.hex}
           height={side}
-          key={`${color.hex}-${color.name}`}
+          key={`${color.hex}-${colorName(color.hex)}`}
           stroke="var(--color-rule)"
           width={side}
           x={index * (side + swatchGap)}
