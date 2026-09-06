@@ -24,8 +24,10 @@ const progressMessage = (garment: GarmentView): string => {
   switch (garment.studioState.status) {
     case 'waiting':
       return 'Image service is busy. Retrying shortly.';
+    case 'preparing':
+      return 'Preparing studio picture.';
     case 'queued':
-      return 'Studio picture is queued.';
+      return 'Waiting for a free image slot. Your picture will start automatically.';
     default:
       return 'Rendering … this may take a few minutes.';
   }

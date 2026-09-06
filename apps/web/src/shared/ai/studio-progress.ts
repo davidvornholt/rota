@@ -1,5 +1,5 @@
 export type StudioProgress =
-  | { readonly status: 'queued' | 'rendering' }
+  | { readonly status: 'preparing' | 'queued' | 'rendering' }
   | { readonly status: 'waiting'; readonly retryAt: number };
 
 export type StudioState =
@@ -9,6 +9,7 @@ export type StudioState =
     };
 
 export const studioIsBusy = (state: StudioState): boolean =>
+  state.status === 'preparing' ||
   state.status === 'queued' ||
   state.status === 'rendering' ||
   state.status === 'waiting';

@@ -390,3 +390,38 @@ test('optional outfit removal keeps the add action available', async ({
     page.getByRole('button', { name: 'Add over layer' }),
   ).toBeVisible();
 });
+
+for (const status of ['preparing', 'queued']) {
+  test(`${status} studio jobs announce progress and prevent duplicate renders`, async ({
+    page,
+  }, testInfo) => {
+    await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?${status}`);
+    const message =
+      status === 'preparing'
+        ? 'Preparing studio picture.'
+        : 'Waiting for a free image slot. Your picture will start automatically.';
+    await expect(
+      page.getByRole('status').filter({ hasText: message }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Generate studio image', exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole('textbox', { name: 'Image instructions, optional' }),
+    ).toBeDisabled();
+    expect(await scanWcag22AaViolations(page)).toEqual([]);
+    await page.screenshot({
+      path: testInfo.outputPath(`studio-${status}-after.png`),
+      fullPage: true,
+    });
+    await page
+      .getByRole('button', { name: 'Finish render', exact: true })
+      .click();
+    await expect(
+      page.getByRole('button', {
+        name: 'Regenerate studio image',
+        exact: true,
+      }),
+    ).toBeEnabled();
+  });
+}
