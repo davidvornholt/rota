@@ -14,7 +14,7 @@ describe('studio jobs', () => {
             yield* Effect.sleep('1 second');
           });
         expect(yield* jobs.start('shirt', work)).toBe(true);
-        expect(jobs.progress().get('shirt')).toEqual({ status: 'queued' });
+        expect(jobs.progress().get('shirt')).toEqual({ status: 'preparing' });
         expect(yield* jobs.start('shirt', work)).toBe(false);
         yield* TestClock.adjust('1 second');
         expect(starts).toBe(1);

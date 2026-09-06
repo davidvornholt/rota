@@ -1,5 +1,9 @@
 import { Duration, Effect } from 'effect';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
+import {
+  studioErrorTimeout,
+  studioJobTimeout,
+} from '#/shared/ai/studio-budgets.ts';
 import type { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
 import type { ReportStudioProgress } from '#/shared/ai/studio-scheduler.ts';
 import type { Garment } from '#/shared/data/garment.ts';
@@ -7,9 +11,6 @@ import type { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import { imageDimensions } from '#/shared/media/image-dimensions.ts';
 import type { MediaStore } from '#/shared/media/media-store.ts';
 
-const renderJobTimeout = Duration.minutes(10);
-const studioErrorTimeoutSeconds = 30;
-const studioErrorTimeout = Duration.seconds(studioErrorTimeoutSeconds);
 const timeoutMessage = 'The studio picture took too long. Try again later.';
 const saveErrorMessage =
   'The studio picture could not be saved. Try again later.';
@@ -69,7 +70,7 @@ export const renderStudio = <E>(
     }
   }).pipe(
     Effect.timeoutFail({
-      duration: renderJobTimeout,
+      duration: studioJobTimeout,
       onTimeout: () =>
         new StudioRenderError({
           message: 'The studio picture took too long. Try again later.',
@@ -103,7 +104,7 @@ export const makeStudioWork =
     return setStudioError(null).pipe(
       Effect.andThen(render),
       Effect.timeoutFail({
-        duration: renderJobTimeout,
+        duration: Duration.sum(studioJobTimeout, studioErrorTimeout),
         onTimeout: () =>
           new StudioRenderError({
             message: timeoutMessage,

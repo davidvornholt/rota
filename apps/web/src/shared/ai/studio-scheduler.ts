@@ -1,5 +1,6 @@
 import { Clock, Duration, Effect, Random } from 'effect';
 import { StudioRateLimit, StudioRenderError } from './errors/ai-errors.ts';
+import { studioQueueTimeout, studioRenderTimeout } from './studio-budgets.ts';
 import type { StudioProgress } from './studio-progress.ts';
 
 const maxRetries = 3;
@@ -7,7 +8,7 @@ const baseDelayMs = 2000;
 const maxDelayMs = 30_000;
 const millisecondsPerSecond = 1000;
 /** A provider hint cannot hold the process-wide permit past one job budget. */
-const maxCooldownMs = Duration.toMillis(Duration.minutes(10));
+const maxCooldownMs = Duration.toMillis(studioRenderTimeout);
 const cooldownTimeoutMessage =
   'The studio picture took too long. Try again later.';
 
@@ -63,18 +64,25 @@ export type ReportStudioProgress = (
   progress: StudioProgress,
 ) => Effect.Effect<void>;
 
-/** One deployment permit also spaces subsequent jobs after an exhausted 429. */
+/** Both process-local slots share provider cooldowns, including exhausted retries. */
 export const makeStudioScheduler = Effect.gen(function* () {
-  const permit = yield* Effect.makeSemaphore(1);
+  const permit = yield* Effect.makeSemaphore(2);
   let cooldownUntil = 0;
   const waitForCooldown = (report: ReportStudioProgress) =>
     Effect.gen(function* () {
-      const now = yield* Clock.currentTimeMillis;
-      if (cooldownUntil > now) {
+      while (cooldownUntil > (yield* Clock.currentTimeMillis)) {
         yield* report({ status: 'waiting', retryAt: cooldownUntil });
-        yield* Effect.sleep(Duration.millis(cooldownUntil - now));
+        yield* Effect.sleep(
+          Duration.millis(
+            Math.ceil(cooldownUntil - (yield* Clock.currentTimeMillis)),
+          ),
+        );
       }
     });
+  const beforeRequest = (report: ReportStudioProgress) =>
+    waitForCooldown(report).pipe(
+      Effect.andThen(report({ status: 'rendering' })),
+    );
   const handleRateLimit = (
     error: StudioRateLimit,
     retries: number,
@@ -116,8 +124,7 @@ export const makeStudioScheduler = Effect.gen(function* () {
     Effect.gen(function* () {
       let retries = 0;
       while (true) {
-        yield* waitForCooldown(report);
-        yield* report({ status: 'rendering' });
+        yield* beforeRequest(report);
         const result = yield* Effect.either(request);
         if (result._tag === 'Right') {
           return result.right;
@@ -129,6 +136,38 @@ export const makeStudioScheduler = Effect.gen(function* () {
           return yield* Effect.fail(error);
         }
       }
-    }).pipe(permit.withPermits(1));
-  return { schedule };
+    }).pipe(
+      Effect.timeoutFail({
+        duration: studioRenderTimeout,
+        onTimeout: () =>
+          new StudioRenderError({
+            message: cooldownTimeoutMessage,
+            cause: undefined,
+          }),
+      }),
+      (render) =>
+        Effect.uninterruptibleMask((restore) =>
+          report({ status: 'queued' }).pipe(
+            Effect.andThen(
+              restore(
+                permit.take(1).pipe(
+                  Effect.timeoutFail({
+                    duration: studioQueueTimeout,
+                    onTimeout: () =>
+                      new StudioRenderError({
+                        message:
+                          'The studio picture waited too long for an image slot. Try again later.',
+                        cause: undefined,
+                      }),
+                  }),
+                ),
+              ),
+            ),
+            Effect.flatMap(() =>
+              restore(render).pipe(Effect.ensuring(permit.release(1))),
+            ),
+          ),
+        ),
+    );
+  return { schedule, beforeRequest };
 });
