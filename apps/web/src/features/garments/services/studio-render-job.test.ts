@@ -168,7 +168,9 @@ describe('studio job deadlines', () => {
     expect(job.error()).toBeNull();
     expect(job.attachImage).toHaveBeenCalledTimes(1);
   });
+});
 
+describe('studio job budget composition', () => {
   it('persists a render that finishes inside its budget after a slow error clear', async () => {
     const row = garment('active', true);
     const job = setup(row);
@@ -207,7 +209,9 @@ describe('studio job deadlines', () => {
     expect(job.error()).toBeNull();
     expect(job.attachImage).toHaveBeenCalledTimes(1);
   });
+});
 
+describe('studio job deadline failures', () => {
   it('times out storage and records a failure instead of leaving the job active', async () => {
     const row = garment('active', true);
     const job = setup(row, Effect.never);
