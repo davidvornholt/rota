@@ -11,6 +11,9 @@ export const studioErrorTimeoutSeconds = 30;
 export const studioErrorTimeout = Duration.seconds(studioErrorTimeoutSeconds);
 // Poll past the job, the error clear that precedes it, and the write that records a failure.
 export const studioPollTimeout = Duration.sum(
-  Duration.sum(studioJobTimeout, studioErrorTimeout),
+  Duration.sum(
+    studioJobTimeout,
+    Duration.sum(studioErrorTimeout, studioErrorTimeout),
+  ),
   Duration.minutes(1),
 );
