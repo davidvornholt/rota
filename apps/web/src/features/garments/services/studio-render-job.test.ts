@@ -8,7 +8,10 @@ import {
   TestContext,
 } from 'effect';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
-import { studioJobTimeout } from '#/shared/ai/studio-budgets.ts';
+import {
+  studioErrorTimeoutSeconds,
+  studioJobTimeout,
+} from '#/shared/ai/studio-budgets.ts';
 import type { Garment } from '#/shared/data/garment.ts';
 import { makeStudioJobs } from './studio-jobs.ts';
 import { makeStudioWork, renderStudio } from './studio-render-job.ts';
@@ -46,7 +49,6 @@ const unavailable = new StudioRenderError({
   message: 'Image service is busy. Try again later.',
   cause: 'provider detail',
 });
-const studioErrorTimeoutSeconds = 30;
 
 type StoredMedia = { readonly key: string; readonly bytes: number };
 
@@ -160,6 +162,45 @@ describe('studio job deadlines', () => {
           )
           .pipe(Effect.fork);
         yield* TestClock.adjust('18 minutes');
+        yield* Fiber.join(fiber);
+      }).pipe(Effect.provide(TestContext.TestContext)),
+    );
+    expect(job.error()).toBeNull();
+    expect(job.attachImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists a render that finishes inside its budget after a slow error clear', async () => {
+    const row = garment('active', true);
+    const job = setup(row);
+    const writeError =
+      job.setStudioError.getMockImplementation() ??
+      ((_id: string, _message: string | null) => Effect.void);
+    job.setStudioError.mockImplementation((id, message) =>
+      Effect.sleep(Duration.seconds(studioErrorTimeoutSeconds - 1)).pipe(
+        Effect.andThen(writeError(id, message)),
+      ),
+    );
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const fiber = yield* job
+          .render(
+            Effect.sleep(
+              Duration.subtract(studioJobTimeout, Duration.seconds(10)),
+            ).pipe(
+              Effect.as({
+                bytes: new Uint8Array([1]),
+                mime: 'image/png' as const,
+                transparent: true,
+              }),
+            ),
+          )
+          .pipe(Effect.fork);
+        yield* TestClock.adjust(
+          Duration.sum(
+            studioJobTimeout,
+            Duration.seconds(studioErrorTimeoutSeconds),
+          ),
+        );
         yield* Fiber.join(fiber);
       }).pipe(Effect.provide(TestContext.TestContext)),
     );
