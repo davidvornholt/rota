@@ -1,6 +1,6 @@
 {
   "upstream": "github:davidvornholt/standards",
-  "sha": "9a5650ce8f447f7985af6c22ce78464274e2faa8",
+  "sha": "c3a6b3224dc11dffe32f47e350923dfed9c8b5ac",
   "files": {
     ".agents/skills/ci-pipelines/SKILL.md": "87728fdc98f9ac95df243ef4c1d44d616cc0440e2ae384da28dda83d627e00a0",
     ".agents/skills/database/agents/openai.yaml": "4c9f47df24219d5b195c88eef374431f64b453ed1ba057f50d4c11e4549343c1",
@@ -17,7 +17,7 @@
     ".agents/skills/issues/SKILL.md": "c0e3304564a7b5d532bc69995ae86f0e45d3fdaa1bdc1b383fcf4dded7ac62d9",
     ".agents/skills/nextjs/SKILL.md": "f9cd2a37e05246f3a371efed3a71380c3b83f9c0ee32371d57ac0f4f260cd005",
     ".agents/skills/prs/SKILL.md": "03eadfac76d5b1e92a576e41e18d0eb64c3c98da6003f79dcda6fe0d069acddc",
-    ".agents/skills/review-fix/SKILL.md": "d6a2a255fe713a9b23b0f3652d4df68a1894a82177ae6398db0ca917ef7409b8",
+    ".agents/skills/review-fix/SKILL.md": "0ed723a8d85ec0d8d320f1ccc58bee3afd25d7ceff0fc56fed482336034218c7",
     ".agents/skills/review/SKILL.md": "4ca22b900fda25a9d303b017b0059bcd4a29743f5f50f1c7d5d02f24efc9508c",
     ".agents/skills/screenshots-in-prs/agents/openai.yaml": "c412b92301b5d1ab50f62def7b845adf27b7a10bfd9491e270f544a7500661af",
     ".agents/skills/screenshots-in-prs/SKILL.md": "1b0992cf3d5a7c6a42ddfa66f0f3e7d233e1e94553e12f2e76d1915d7a358f21",
