@@ -12,6 +12,7 @@
 import { Effect } from 'effect';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
 import { Gemini } from '#/shared/ai/gemini.ts';
+import { studioJobTimeout } from '#/shared/ai/studio-budgets.ts';
 import { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
 import type { Garment } from '#/shared/data/garment.ts';
 import {
@@ -237,6 +238,15 @@ export class IngestService extends Effect.Service<IngestService>()(
                 }),
               );
             }).pipe(
+              Effect.timeoutFail({
+                duration: studioJobTimeout,
+                onTimeout: () =>
+                  new StudioRenderError({
+                    message:
+                      'The studio picture took too long. Try again later.',
+                    cause: undefined,
+                  }),
+              }),
               Effect.catchAll(recordFailure(id, 'Reading the photo')),
               Effect.catchAllDefect(recordFailure(id, 'Processing')),
             ),
