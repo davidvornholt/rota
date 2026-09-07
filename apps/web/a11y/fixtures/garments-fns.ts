@@ -1,6 +1,8 @@
 import { Effect } from 'effect';
 import type { GarmentEdit } from '#/features/garments/schemas/garment-input.ts';
+import type { TodayView } from '#/features/rota/schemas/today-view.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
+import { localDate } from '#/shared/time/local-date.ts';
 
 let current: GarmentView;
 export const setFixtureGarment = (value: GarmentView) => {
@@ -47,3 +49,38 @@ export const retireGarmentFn = () => garmentFn();
 export const restoreGarmentFn = () => garmentFn();
 
 export const alternativesFn = () => Effect.runPromise(Effect.succeed([]));
+
+export const undecided: TodayView = {
+  today: localDate('2026-09-07'),
+  locationLabel: 'Berlin',
+  weather: null,
+  tomorrowWeather: null,
+  forecastStale: false,
+  occasion: null,
+  proposal: null,
+  worn: null,
+  unloggedDays: [],
+  tomorrowHint: null,
+  problem: null,
+  activeGarments: 1,
+};
+
+export let decisionCalls = 0;
+export const decideTodayFn = () =>
+  Effect.runPromise(
+    Effect.sync(() => {
+      decisionCalls += 1;
+      return {
+        ...undecided,
+        problem: {
+          kind: 'answer-unusable' as const,
+          message: 'Try the valet again.',
+        },
+      };
+    }),
+  );
+export const backfillFn = decideTodayFn;
+export const confirmProposalFn = decideTodayFn;
+export const logOutfitFn = decideTodayFn;
+export const rerollProposalFn = decideTodayFn;
+export const saveOccasionFn = decideTodayFn;

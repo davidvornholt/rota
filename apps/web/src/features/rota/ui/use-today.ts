@@ -117,10 +117,19 @@ export const useToday = (initial: TodayView) => {
   const outfit = useOutfitDraft(initial.proposal);
   const [justLogged, setJustLogged] = useState(false);
   const decisionAsked = useRef(false);
+  const loaderSnapshot = useRef(JSON.stringify(initial));
 
   const { reset } = outfit;
   useEffect(() => {
-    setView(initial);
+    const snapshot = JSON.stringify(initial);
+    const changed = snapshot !== loaderSnapshot.current;
+    loaderSnapshot.current = snapshot;
+    if (changed) {
+      decisionAsked.current = false;
+    }
+    setView((current) =>
+      !changed && current.problem !== null ? current : initial,
+    );
     reset(initial.proposal);
   }, [initial, reset]);
 
