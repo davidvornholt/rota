@@ -142,7 +142,11 @@ export const useToday = (initial: TodayView) => {
     view.problem === null &&
     view.activeGarments > 0;
   useEffect(() => {
-    if (needsDecision && !decisionAsked.current) {
+    if (!needsDecision) {
+      decisionAsked.current = false;
+      return;
+    }
+    if (!decisionAsked.current) {
       decisionAsked.current = true;
       decide.mutate();
     }

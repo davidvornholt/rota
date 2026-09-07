@@ -14,12 +14,50 @@ import type { ProposalItem } from '#/shared/data/proposal-repository.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import { addDays, type LocalDate } from '#/shared/time/local-date.ts';
 import { ProposalAnswerError } from '../errors/rota-errors.ts';
-import { consecutiveWears, type RotationInput } from '../rotation.ts';
+import {
+  type Continuation,
+  candidatesFor,
+  consecutiveWears,
+  type RotationInput,
+} from '../rotation.ts';
 import type { ProposalAnswer } from '../schemas/proposal-answer.ts';
-import type { AliasedGarment, RecentDay } from './proposal-prompt.ts';
+import type { AliasedGarment, OpenSlot, RecentDay } from './proposal-prompt.ts';
 
 export const requiredSlots: ReadonlySet<Slot> = new Set(['bottom', 'top']);
 const recentDays = 14;
+
+/**
+ * The slots not carried over, each with the engine's shortlist. A required
+ * slot that only today's turned-down garments could fill gets them back rather
+ * than failing: the wearer asked for another suggestion, and the rest of the
+ * outfit can still change around the one garment there is no alternative to.
+ */
+export const openSlotsFor = (
+  input: RotationInput,
+  continuing: ReadonlyArray<Continuation>,
+): ReadonlyArray<OpenSlot> => {
+  const chosen = new Set(continuing.map((c) => c.garment.id));
+  return slotOrder
+    .filter((slot) => !continuing.some((c) => c.slot === slot))
+    .map((slot) => {
+      const required = requiredSlots.has(slot);
+      const candidates = candidatesFor(input, slot, chosen);
+      if (candidates.length > 0 || !required || input.excluded.size === 0) {
+        return { slot, required, candidates, turnedDownOnly: false };
+      }
+      const turnedDown = candidatesFor(
+        { ...input, excluded: new Set() },
+        slot,
+        chosen,
+      );
+      return {
+        slot,
+        required,
+        candidates: turnedDown,
+        turnedDownOnly: turnedDown.length > 0,
+      };
+    });
+};
 
 /** The last two weeks of the log as named outfits, oldest first. */
 export const recentSummary = (

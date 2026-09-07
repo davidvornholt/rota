@@ -32,6 +32,7 @@ export const Dialog = ({
   size = 'prose',
 }: DialogProps) => {
   const ref = useRef<HTMLDialogElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
 
   useEffect(() => {
@@ -41,6 +42,10 @@ export const Dialog = ({
     }
     if (open && !dialog.open) {
       dialog.showModal();
+      // Land on the title, not on the close button `showModal` would pick as
+      // the first focusable thing: the dialog announces itself, and nothing
+      // starts out looking pressed or explained.
+      heading.current?.focus();
     } else if (!open && dialog.open) {
       dialog.close();
     }
@@ -65,8 +70,10 @@ export const Dialog = ({
               <p className="type-eyebrow">{eyebrow}</p>
             )}
             <h2
-              className="type-display mt-1 text-2xl text-ink sm:text-3xl"
+              className="type-display mt-1 text-2xl text-ink outline-none sm:text-3xl"
               id={titleId}
+              ref={heading}
+              tabIndex={-1}
             >
               {title}
             </h2>

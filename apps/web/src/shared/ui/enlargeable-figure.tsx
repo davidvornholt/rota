@@ -50,6 +50,7 @@ export const EnlargeableFigure = ({
   loading,
 }: EnlargeableFigureProps) => {
   const dialog = useRef<HTMLDialogElement>(null);
+  const heading = useRef<HTMLParagraphElement>(null);
   const titleId = useId();
   const [open, setOpen] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -61,6 +62,9 @@ export const EnlargeableFigure = ({
     }
     if (open && !element.open) {
       element.showModal();
+      // The title takes focus rather than the close button `showModal` would
+      // pick, so opening announces the picture and explains nothing.
+      heading.current?.focus();
     } else if (!open && element.open) {
       element.close();
     }
@@ -122,8 +126,10 @@ export const EnlargeableFigure = ({
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between gap-6 border-rule border-b px-5 py-3 sm:px-8">
             <p
-              className="type-display text-ink text-xl sm:text-2xl"
+              className="type-display text-ink text-xl outline-none sm:text-2xl"
               id={titleId}
+              ref={heading}
+              tabIndex={-1}
             >
               {name}
               {caption === undefined ? null : (

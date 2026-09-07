@@ -94,9 +94,13 @@ export const IconButton = ({
             onClick();
           }
         }}
-        onFocus={() => {
-          setFocused(true);
-          setDismissed(false);
+        onFocus={(event) => {
+          // Focus a dialog hands out on opening, or a click leaves behind, is
+          // not a request for the tooltip; only visible (keyboard) focus is.
+          if (event.currentTarget.matches(':focus-visible')) {
+            setFocused(true);
+            setDismissed(false);
+          }
         }}
         type="button"
       >
