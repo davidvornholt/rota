@@ -43,7 +43,16 @@ export const renderStudio = <E>(
   }: RenderJobInput<E>,
 ) =>
   Effect.gen(function* () {
-    const photo = yield* photoEffect;
+    const photo = yield* photoEffect.pipe(
+      Effect.mapError(
+        (cause) =>
+          new StudioRenderError({
+            message:
+              'The source photo could not be prepared for the studio picture. Try again.',
+            cause,
+          }),
+      ),
+    );
     const render = yield* deps.studio.render(
       {
         photo: photo.bytes,

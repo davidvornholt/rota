@@ -86,6 +86,8 @@ The review card and garment editor use three choices with visible explanations: 
 
 ## Studio image recovery
 
+The garment analyzer reports the clockwise quarter-turn needed to make the source photo upright. Before studio generation, Sharp rotates a working copy by 0°, 90°, 180°, or 270° without cropping or rearranging the garment. The saved original stays unchanged. Initial uploads reuse the garment analysis; regeneration asks only for orientation so existing photos also receive the correction without overwriting edited garment attributes. The image model is asked to preserve the prepared orientation. This reduces orientation mistakes but does not guarantee that the generated garment is faithful to the source.
+
 Studio renders share one deployment permit per server process. HTTP 429 responses wait for `retry-after-ms` or `Retry-After`, including HTTP dates, with a maximum ten-minute cooldown. Missing or invalid delays use exponential backoff starting at two seconds with jitter. Each background variant allows three retries. A ten-minute job deadline bounds loading, queueing, cooldowns, transparency fallback, and image storage. Recording a failure has its own thirty-second limit so a stalled write cannot prevent another attempt. Each individual image request has a four-minute timeout that aborts its fetch. Other failures are not automatically resubmitted.
 
 A garment has at most one extraction/render/storage job in the garments runtime. A duplicate studio request is rejected before saving its edits. Regeneration saves the submitted fields inside the registered job and renders from that snapshot, including colour hex values and optional instructions. Forms and server validation require at least one colour. The full photo reanalysis action is removed.

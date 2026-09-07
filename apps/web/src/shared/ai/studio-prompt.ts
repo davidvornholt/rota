@@ -8,7 +8,7 @@ export const studioPrompt = ({
   [
     `A studio product photograph of exactly this garment: ${description}.`,
     'Lay it perfectly flat and neatly arranged, front view, centred, filling most of the frame with even margins.',
-    'Orient the garment naturally upright in the portrait frame, regardless of the source photo orientation; rotate sideways or upside-down garments into this position.',
+    'The source photo has been rotated to make the garment upright. Preserve that orientation and the attachment of sleeves, neckline and hem.',
     'For tops and dresses, place the neckline at the top and the hem at the bottom; for trousers, shorts and skirts, place the waistband at the top and the leg openings or hem at the bottom.',
     'Preserve natural proportions, even when an upright garment is wider than it is tall; do not rotate it sideways to fill the frame.',
     "Smooth incidental wrinkles and storage folds for a neatly steamed appearance. Preserve intentional pleats, gathers, pressed creases, natural fabric texture, and the garment's shape.",
