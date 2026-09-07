@@ -36,6 +36,12 @@ export const ProposalPayloadSchema = Schema.Struct({
 });
 export type ProposalPayload = Schema.Schema.Type<typeof ProposalPayloadSchema>;
 
+export type ProposalDraft = {
+  readonly payload: ProposalPayload;
+  readonly reason: string;
+  readonly model: string;
+};
+
 export const ProposalFromRow = Schema.Struct({
   id: Schema.UUID,
   forDate: Schema.propertySignature(LocalDateSchema).pipe(
@@ -94,12 +100,7 @@ export class ProposalRepository extends Effect.Service<ProposalRepository>()(
        * A new proposal for a day retires any pending one for the same day, so
        * the day has exactly one open proposal at a time.
        */
-      const insert = (
-        date: LocalDate,
-        payload: ProposalPayload,
-        reason: string,
-        model: string,
-      ) =>
+      const insert = (date: LocalDate, draft: ProposalDraft) =>
         sql
           .withTransaction(
             Effect.gen(function* () {
@@ -109,7 +110,7 @@ export class ProposalRepository extends Effect.Service<ProposalRepository>()(
               `;
               const rows = yield* sql`
                 insert into proposal (for_date, payload, reason, model)
-                values (${date}, ${JSON.stringify(payload)}::jsonb, ${reason}, ${model})
+                values (${date}, ${JSON.stringify(draft.payload)}::jsonb, ${draft.reason}, ${draft.model})
                 returning id, for_date, status, payload, reason, model, created_at, decided_at
               `;
               return rows;
@@ -126,6 +127,36 @@ export class ProposalRepository extends Effect.Service<ProposalRepository>()(
             }),
           );
 
+      /** Replaces one still-pending proposal, or returns nothing if it was decided. */
+      const replacePending = (
+        id: string,
+        date: LocalDate,
+        draft: ProposalDraft,
+      ) =>
+        sql
+          .withTransaction(
+            Effect.gen(function* () {
+              const retired = yield* sql`
+                update proposal set status = 'rejected', decided_at = now()
+                where id = ${id} and for_date = ${date} and status = 'pending'
+                returning id
+              `;
+              if (retired.length === 0) {
+                return [];
+              }
+              return yield* sql`
+                insert into proposal (for_date, payload, reason, model)
+                values (${date}, ${JSON.stringify(draft.payload)}::jsonb, ${draft.reason}, ${draft.model})
+                returning id, for_date, status, payload, reason, model, created_at, decided_at
+              `;
+            }),
+          )
+          .pipe(
+            Effect.flatMap(decodeProposals),
+            Effect.mapError(writeProposal),
+            Effect.map((rows) => rows[0]),
+          );
+
       const setStatus = (id: string, status: ProposalStatus) =>
         sql`
           update proposal set status = ${status}, decided_at = now()
@@ -140,7 +171,15 @@ export class ProposalRepository extends Effect.Service<ProposalRepository>()(
           order by for_date desc, created_at desc
         `.pipe(Effect.flatMap(decodeProposals), Effect.mapError(readProposal));
 
-      return { listForDate, latestForDate, byId, insert, setStatus, history };
+      return {
+        listForDate,
+        latestForDate,
+        byId,
+        insert,
+        replacePending,
+        setStatus,
+        history,
+      };
     }),
   },
 ) {}

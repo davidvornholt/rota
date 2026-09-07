@@ -13,6 +13,7 @@ import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { displayImage, type Garment } from '#/shared/data/garment.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import {
+  type ProposalDraft,
   type ProposalPayload,
   ProposalRepository,
 } from '#/shared/data/proposal-repository.ts';
@@ -97,15 +98,14 @@ const ask = (gemini: Gemini, parts: ReadonlyArray<PromptPart>) =>
 type GenerateDeps = {
   readonly garments: GarmentRepository;
   readonly wearLog: WearLogRepository;
-  readonly proposals: ProposalRepository;
   readonly notes: DayNoteRepository;
   readonly media: MediaStore;
   readonly gemini: Gemini;
 };
 
-/** Asks Gemini for the day, given a forecast window and what to leave out. */
+/** Builds a proposal draft from the forecast window and what to leave out. */
 const generateProposal = (
-  { garments, wearLog, proposals, notes, media, gemini }: GenerateDeps,
+  { garments, wearLog, notes, media, gemini }: GenerateDeps,
   clock: WardrobeClock,
   forecast: ForecastWindow,
   options: GenerateOptions,
@@ -157,12 +157,11 @@ const generateProposal = (
       forecastStale: forecast.stale,
       occasion,
     };
-    return yield* proposals.insert(
-      clock.today,
+    return {
       payload,
-      answer.headline,
-      gemini.model,
-    );
+      reason: answer.headline,
+      model: gemini.model,
+    } satisfies ProposalDraft;
   });
 
 export class ProposalService extends Effect.Service<ProposalService>()(
@@ -183,7 +182,7 @@ export class ProposalService extends Effect.Service<ProposalService>()(
         options: GenerateOptions,
       ) =>
         generateProposal(
-          { garments, wearLog, proposals, notes, media, gemini },
+          { garments, wearLog, notes, media, gemini },
           clock,
           forecast,
           options,
@@ -197,10 +196,11 @@ export class ProposalService extends Effect.Service<ProposalService>()(
             return latest;
           }
           const forecast = yield* forecasts.ensure(clock.settings, clock.today);
-          return yield* generate(clock, forecast, {
+          const draft = yield* generate(clock, forecast, {
             excluded: new Set(latest?.payload.excludedGarmentIds ?? []),
             releaseAll: false,
           });
+          return yield* proposals.insert(clock.today, draft);
         });
 
       const settlement: SettlementDeps = {

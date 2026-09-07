@@ -6,13 +6,10 @@
 
 import { Effect } from 'effect';
 import type { GeminiError } from '#/shared/ai/errors/ai-errors.ts';
-import type {
-  DataReadError,
-  DataWriteError,
-  NotFoundError,
-} from '#/shared/data/errors/data-errors.ts';
+import type { DataReadError } from '#/shared/data/errors/data-errors.ts';
 import type {
   Proposal,
+  ProposalDraft,
   ProposalRepository,
 } from '#/shared/data/proposal-repository.ts';
 import type {
@@ -30,14 +27,12 @@ import {
 import type { ForecastService, ForecastWindow } from './forecast-service.ts';
 import type { GenerateOptions } from './proposal-service.ts';
 
-/** Everything that can stop a proposal being made once the forecast is in hand. */
+/** Everything that can stop a proposal draft being made once the forecast is in hand. */
 export type GenerateError =
   | SlotEmptyError
   | ProposalAnswerError
   | GeminiError
-  | DataReadError
-  | DataWriteError
-  | NotFoundError;
+  | DataReadError;
 
 export type RerollScope = 'boundary' | 'all';
 
@@ -49,7 +44,7 @@ export type SettlementDeps = {
     clock: WardrobeClock,
     forecast: ForecastWindow,
     options: GenerateOptions,
-  ) => Effect.Effect<Proposal, GenerateError>;
+  ) => Effect.Effect<ProposalDraft, GenerateError>;
 };
 
 const pendingOrFail = (proposal: Proposal) =>
@@ -80,8 +75,9 @@ export const confirm = ({ proposals, wearLog }: SettlementDeps, id: string) =>
  * Pick again. `boundary` re-picks only what the engine chose
  * freshly and keeps the rotation; `all` reopens every slot. Either way
  * the garments just turned down stay out for the rest of the day, unless
- * nothing else could fill their slot. The old proposal is retired only once
- * the new one exists, so a failed attempt leaves the wearer with what they had.
+ * nothing else could fill their slot. The draft is committed only while the
+ * old proposal is pending; the repository retires it and inserts the new one
+ * in one transaction, so a failed attempt leaves the wearer with what they had.
  */
 export const reroll = (
   { proposals, forecasts, generate }: SettlementDeps,
@@ -102,12 +98,16 @@ export const reroll = (
       ...turnedDown,
     ]);
     const forecast = yield* forecasts.ensure(clock.settings, clock.today);
-    const next = yield* generate(clock, forecast, {
+    const draft = yield* generate(clock, forecast, {
       excluded,
       releaseAll: scope === 'all',
     });
-    yield* proposals.setStatus(id, 'rejected');
-    return next;
+    const next = yield* proposals.replacePending(id, clock.today, draft);
+    return next === undefined
+      ? yield* new ProposalStateError(
+          'That proposal has already been decided. Reload to see today.',
+        )
+      : next;
   });
 
 /**

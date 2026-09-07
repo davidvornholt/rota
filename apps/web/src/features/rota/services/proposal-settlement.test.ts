@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { Effect } from 'effect';
-import type { Proposal } from '#/shared/data/proposal-repository.ts';
+import type {
+  Proposal,
+  ProposalDraft,
+} from '#/shared/data/proposal-repository.ts';
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
@@ -91,6 +94,13 @@ const depsWith = (
   const deps = {
     proposals: {
       byId: () => Effect.succeed(pending),
+      replacePending: (id: string) => {
+        recorded.statuses.push([id, 'rejected']);
+        return Effect.succeed({
+          ...pending,
+          id: 'b0000000-0000-4000-8000-000000000000',
+        });
+      },
       setStatus: (id: string, status: string) => {
         recorded.statuses.push([id, status]);
         return Effect.void;
@@ -106,9 +116,10 @@ const depsWith = (
       recorded.generated.push(options);
       return generateOutcome === 'succeeds'
         ? Effect.succeed({
-            ...pending,
-            id: 'b0000000-0000-4000-8000-000000000000',
-          })
+            payload: pending.payload,
+            reason: pending.reason,
+            model: pending.model,
+          } satisfies ProposalDraft)
         : Effect.fail(new SlotEmptyError('bottom'));
     },
   } as unknown as SettlementDeps;
@@ -136,6 +147,72 @@ describe('reroll', () => {
 
     expect(outcome._tag).toBe('Left');
     expect(recorded.statuses).toEqual([]);
+  });
+
+  it('keeps a confirmation that wins while replacement generation runs', async () => {
+    let current = pending;
+    let wearWritten = false;
+    let inserted: Proposal | undefined;
+    const next = {
+      ...pending,
+      id: 'b0000000-0000-4000-8000-000000000000',
+    };
+    const proposals = {
+      byId: () => Effect.succeed(current),
+      replacePending: () =>
+        Effect.sync(() => {
+          if (current.status !== 'pending') {
+            return;
+          }
+          current = {
+            ...current,
+            status: 'rejected',
+            decidedAt: new Date(),
+          };
+          inserted = next;
+          return next;
+        }),
+      setStatus: (id: string, status: string) =>
+        Effect.sync(() => {
+          if (id === pending.id) {
+            current = {
+              ...current,
+              status: status as Proposal['status'],
+              decidedAt: new Date(),
+            };
+          }
+        }),
+    };
+    const wearLog = {
+      replaceDay: () =>
+        Effect.sync(() => {
+          wearWritten = true;
+        }),
+    };
+    const deps = {
+      proposals,
+      wearLog,
+      forecasts: { ensure: () => Effect.succeed(forecast) },
+      generate: () =>
+        Effect.gen(function* () {
+          yield* wearLog.replaceDay();
+          yield* proposals.setStatus(pending.id, 'confirmed');
+          return {
+            payload: pending.payload,
+            reason: pending.reason,
+            model: pending.model,
+          } satisfies ProposalDraft;
+        }),
+    } as unknown as SettlementDeps;
+
+    const outcome = await Effect.runPromise(
+      Effect.either(reroll(deps, clock, pending.id, 'boundary')),
+    );
+
+    expect(outcome._tag).toBe('Left');
+    expect(wearWritten).toBeTrue();
+    expect(current.status).toBe('confirmed');
+    expect(inserted).toBeUndefined();
   });
 
   it('turns down only the fresh picks for boundary and everything for all', async () => {
