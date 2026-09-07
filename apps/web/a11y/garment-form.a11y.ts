@@ -1,9 +1,8 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
-import tailwindcss from '@tailwindcss/vite';
-import viteReact from '@vitejs/plugin-react';
 import { Effect } from 'effect';
-import { createServer, type ViteDevServer } from 'vite';
+import type { ViteDevServer } from 'vite';
+import { startGarmentFixtureServer } from './garment-fixture-server.ts';
 
 let server: ViteDevServer;
 const fixtureUrl = () => server.resolvedUrls?.local[0];
@@ -13,37 +12,9 @@ const lightHelp = /Little insulation/u;
 const mediumHelp = /Some insulation/u;
 const formalHelp = /Dressy occasion clothing/u;
 
-// Exercise the shared form with React and the real theme without bypassing
-// authentication or adding test routes to the production application.
 test.beforeAll(async ({ browserName }, testInfo) => {
   server = await Effect.runPromise(
-    Effect.promise(() =>
-      createServer({
-        configFile: false,
-        // Each parallel fixture server owns its dependency optimizer cache.
-        cacheDir: testInfo.outputPath('vite-cache', browserName),
-        root: new URL('..', import.meta.url).pathname,
-        resolve: {
-          tsconfigPaths: true,
-          alias: {
-            '../services/today-fns.ts': new URL(
-              './fixtures/garments-fns.ts',
-              import.meta.url,
-            ).pathname,
-            './garments-fns.ts': new URL(
-              './fixtures/garments-fns.ts',
-              import.meta.url,
-            ).pathname,
-            '../services/garments-fns.ts': new URL(
-              './fixtures/garments-fns.ts',
-              import.meta.url,
-            ).pathname,
-          },
-        },
-        plugins: [tailwindcss(), viteReact()],
-        server: { host: '127.0.0.1', port: 0 },
-      }),
-    ).pipe(Effect.tap((vite) => Effect.promise(() => vite.listen()))),
+    startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
   );
 });
 
@@ -390,3 +361,38 @@ test('optional outfit removal keeps the add action available', async ({
     page.getByRole('button', { name: 'Add over layer' }),
   ).toBeVisible();
 });
+
+for (const status of ['preparing', 'queued']) {
+  test(`${status} studio jobs announce progress and prevent duplicate renders`, async ({
+    page,
+  }, testInfo) => {
+    await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?${status}`);
+    const message =
+      status === 'preparing'
+        ? 'Preparing studio picture.'
+        : 'Waiting for a free image slot. Your picture will start automatically.';
+    await expect(
+      page.getByRole('status').filter({ hasText: message }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Generate studio image', exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole('textbox', { name: 'Image instructions, optional' }),
+    ).toBeDisabled();
+    expect(await scanWcag22AaViolations(page)).toEqual([]);
+    await page.screenshot({
+      path: testInfo.outputPath(`studio-${status}-after.png`),
+      fullPage: true,
+    });
+    await page
+      .getByRole('button', { name: 'Finish render', exact: true })
+      .click();
+    await expect(
+      page.getByRole('button', {
+        name: 'Regenerate studio image',
+        exact: true,
+      }),
+    ).toBeEnabled();
+  });
+}

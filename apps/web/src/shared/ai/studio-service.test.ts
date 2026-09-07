@@ -174,3 +174,51 @@ describe('studio deadlines', () => {
     );
   });
 });
+
+describe('concurrent studio fallbacks', () => {
+  it("waits for the other slot's cooldown before submitting an opaque fallback", async () => {
+    await run(
+      Effect.gen(function* () {
+        const refusal = yield* Deferred.make<Response>();
+        const busy = yield* Deferred.make<void>();
+        fetchSpy.mockImplementationOnce(
+          Object.assign(() => Effect.runPromise(Deferred.await(refusal)), {
+            preconnect: () => undefined,
+          }),
+        );
+        fetchSpy.mockResolvedValueOnce(
+          new Response('busy', {
+            status: 429,
+            headers: { 'retry-after-ms': '2000' },
+          }),
+        );
+        fetchSpy.mockResolvedValueOnce(success());
+        fetchSpy.mockResolvedValueOnce(success());
+        const studio = yield* makeStudioRenderer(connection);
+        const first = yield* studio
+          .render(input, () => Effect.void)
+          .pipe(Effect.fork);
+        yield* TestClock.adjust('1 millis');
+        const second = yield* studio
+          .render(input, (state) =>
+            state.status === 'waiting'
+              ? Deferred.succeed(busy, undefined).pipe(Effect.asVoid)
+              : Effect.void,
+          )
+          .pipe(Effect.fork);
+        yield* Deferred.await(busy);
+        yield* Deferred.succeed(
+          refusal,
+          new Response('transparent background unsupported', { status: 400 }),
+        );
+        yield* TestClock.adjust('1 second');
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        yield* TestClock.adjust('1 second');
+        expect((yield* Fiber.join(first)).transparent).toBe(false);
+        expect((yield* Fiber.join(second)).transparent).toBe(true);
+        const initialRequestsAndRetries = 4;
+        expect(fetchSpy).toHaveBeenCalledTimes(initialRequestsAndRetries);
+      }),
+    );
+  });
+});

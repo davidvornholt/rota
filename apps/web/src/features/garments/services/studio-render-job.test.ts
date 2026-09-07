@@ -8,6 +8,7 @@ import {
   TestContext,
 } from 'effect';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
+import { studioJobTimeout } from '#/shared/ai/studio-budgets.ts';
 import type { Garment } from '#/shared/data/garment.ts';
 import { makeStudioJobs } from './studio-jobs.ts';
 import { makeStudioWork, renderStudio } from './studio-render-job.ts';
@@ -140,6 +141,31 @@ describe('studio render persistence', () => {
     expect(job.setImageChoice).not.toHaveBeenCalled();
     expect(row.status).toBe('active');
   });
+});
+
+describe('studio job deadlines', () => {
+  it('persists a render that finishes after a long queue wait', async () => {
+    const job = setup(garment('active', true));
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const fiber = yield* job
+          .render(
+            Effect.sleep('18 minutes').pipe(
+              Effect.as({
+                bytes: new Uint8Array([1]),
+                mime: 'image/png' as const,
+                transparent: true,
+              }),
+            ),
+          )
+          .pipe(Effect.fork);
+        yield* TestClock.adjust('18 minutes');
+        yield* Fiber.join(fiber);
+      }).pipe(Effect.provide(TestContext.TestContext)),
+    );
+    expect(job.error()).toBeNull();
+    expect(job.attachImage).toHaveBeenCalledTimes(1);
+  });
 
   it('times out storage and records a failure instead of leaving the job active', async () => {
     const row = garment('active', true);
@@ -163,7 +189,7 @@ describe('studio render persistence', () => {
         );
         yield* Deferred.await(storageStarted);
         expect(job.put).toHaveBeenCalledTimes(1);
-        yield* TestClock.adjust('10 minutes');
+        yield* TestClock.adjust(studioJobTimeout);
         yield* Fiber.join(fiber);
       }).pipe(Effect.provide(TestContext.TestContext)),
     );
