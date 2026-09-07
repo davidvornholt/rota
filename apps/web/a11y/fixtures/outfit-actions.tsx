@@ -10,12 +10,31 @@ import { localDate } from '#/shared/time/local-date.ts';
 
 const ignore = () => undefined;
 
+/** With `?continuing`, a pair of chinos on day two of four sits under the layer. */
+const continuingBottom = (garment: GarmentView): ProposalItemView => ({
+  garment: {
+    ...garment,
+    id: 'demo-chinos',
+    name: 'Navy chinos',
+    slots: ['bottom'],
+    effectiveBudget: 4,
+  },
+  slot: 'bottom',
+  continued: true,
+  dayOfBudget: 2,
+  budget: 4,
+  reason: 'Two days left in their rotation.',
+});
+
 export const OutfitActionsFixture = ({
   garment,
+  continuing = false,
 }: {
   readonly garment: GarmentView;
+  readonly continuing?: boolean;
 }) => {
   const [items, setItems] = useState<ReadonlyArray<ProposalItemView>>([
+    ...(continuing ? [continuingBottom(garment)] : []),
     {
       garment,
       slot: 'over',
