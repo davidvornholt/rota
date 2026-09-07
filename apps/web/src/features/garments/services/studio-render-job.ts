@@ -43,7 +43,7 @@ export const renderStudio = <E>(
   }: RenderJobInput<E>,
 ) =>
   Effect.gen(function* () {
-    const photo = yield* photoEffect.pipe(
+    const input = photoEffect.pipe(
       Effect.mapError(
         (cause) =>
           new StudioRenderError({
@@ -52,16 +52,14 @@ export const renderStudio = <E>(
             cause,
           }),
       ),
-    );
-    const render = yield* deps.studio.render(
-      {
+      Effect.map((photo) => ({
         photo: photo.bytes,
         mime: photo.mime,
         description,
         instructions,
-      },
-      report,
+      })),
     );
+    const render = yield* deps.studio.render(input, report);
     const stored = yield* deps.media.put(render.bytes, render.mime);
     const dimensions = imageDimensions(render.bytes);
     yield* deps.garments.attachImage(garment.id, 'studio', {

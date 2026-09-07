@@ -9,6 +9,7 @@ import {
 } from 'effect';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
 import { studioJobTimeout } from '#/shared/ai/studio-budgets.ts';
+import type { StudioRenderInput } from '#/shared/ai/studio-request.ts';
 import type { Garment } from '#/shared/data/garment.ts';
 import { makeStudioJobs } from './studio-jobs.ts';
 import { makeStudioWork, renderStudio } from './studio-render-job.ts';
@@ -107,9 +108,12 @@ const setup = (
   };
 };
 
-it('stops before generation or storage when source preparation fails', async () => {
+it('passes lazy source preparation to the renderer and stops storage when it fails', async () => {
   const row = garment('active', true);
-  const render = mock(() => Effect.fail(unavailable));
+  const render = mock(
+    (input: Effect.Effect<StudioRenderInput, StudioRenderError>) =>
+      input.pipe(Effect.andThen(Effect.fail(unavailable))),
+  );
   const put = mock(() => Effect.succeed({ key: 'new', bytes: 1 }));
   const attachImage = mock(() => Effect.void);
   const setImageChoice = mock(() => Effect.void);
@@ -137,7 +141,7 @@ it('stops before generation or storage when source preparation fails', async () 
         'The source photo could not be prepared for the studio picture. Try again.',
     },
   });
-  expect(render).not.toHaveBeenCalled();
+  expect(render).toHaveBeenCalledTimes(1);
   expect(put).not.toHaveBeenCalled();
   expect(attachImage).not.toHaveBeenCalled();
   expect(setImageChoice).not.toHaveBeenCalled();
