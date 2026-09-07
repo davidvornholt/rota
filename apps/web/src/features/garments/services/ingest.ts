@@ -172,6 +172,15 @@ const originalPhoto = ({ media }: IngestDependencies, garment: Garment) =>
         new Error('The photo is missing from the media store.'),
       );
     }
+    const dimensions = imageDimensions(bytes);
+    if (
+      dimensions === undefined ||
+      dimensions.width * dimensions.height > maximumSourcePixels
+    ) {
+      return yield* Effect.fail(
+        new Error('The stored source photo is too large to process.'),
+      );
+    }
     return { bytes, mime: original.mime };
   });
 
