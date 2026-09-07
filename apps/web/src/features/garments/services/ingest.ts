@@ -22,6 +22,7 @@ import {
 import { categoryDefaults } from '#/shared/data/garment-types.ts';
 import { imageDimensions } from '#/shared/media/image-dimensions.ts';
 import { isStorableMime, MediaStore } from '#/shared/media/media-store.ts';
+import { rotateImage } from '#/shared/media/rotate-image.ts';
 import { UploadError } from '../errors/garment-errors.ts';
 import {
   type Extraction,
@@ -32,6 +33,7 @@ import {
 } from '../schemas/extraction.ts';
 import type { GarmentEdit } from '../schemas/garment-input.ts';
 import { renderDescription } from '../schemas/render-description.ts';
+import { orientStudioPhoto } from './orient-studio-photo.ts';
 import { makeStudioJobs } from './studio-jobs.ts';
 import { makeStudioWork, renderStudio } from './studio-render-job.ts';
 
@@ -232,7 +234,11 @@ export class IngestService extends Effect.Service<IngestService>()(
                   garment: read,
                   description: extraction.description,
                   instructions: '',
-                  photoEffect: originalPhoto(deps, read),
+                  photoEffect: originalPhoto(deps, read).pipe(
+                    Effect.flatMap((photo) =>
+                      rotateImage(photo, extraction.rotationClockwise),
+                    ),
+                  ),
                   report,
                 }),
               );
@@ -260,7 +266,11 @@ export class IngestService extends Effect.Service<IngestService>()(
                   garment,
                   description: renderDescription(edit),
                   instructions,
-                  photoEffect: originalPhoto(deps, garment),
+                  photoEffect: originalPhoto(deps, garment).pipe(
+                    Effect.flatMap((photo) =>
+                      orientStudioPhoto(deps.gemini, photo),
+                    ),
+                  ),
                   report,
                 });
               }),
