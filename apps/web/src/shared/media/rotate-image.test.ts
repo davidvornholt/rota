@@ -30,6 +30,17 @@ const source = () =>
   sharp(rgb(sourcePixels), {
     raw: { width: sourceWidth, height: sourceHeight, channels },
   });
+const oversizedSource = () =>
+  sharp({
+    create: {
+      width: 2049,
+      height: 2048,
+      channels,
+      background: { r: 0, g: 0, b: 0 },
+    },
+  })
+    .png()
+    .toBuffer();
 
 describe('source photo rotation', () => {
   it.each([
@@ -96,6 +107,20 @@ describe('source photo rotation', () => {
       mime: 'image/jpeg',
     };
     expect(await Effect.runPromise(rotateImage(photo, 0))).toBe(photo);
+  });
+
+  it('rejects source photos over the pixel limit before rotating', async () => {
+    const bytes = await oversizedSource();
+
+    const result = await Effect.runPromise(
+      rotateImage({ bytes, mime: 'image/png' }, quarterTurn).pipe(
+        Effect.either,
+      ),
+    );
+    expect(result).toMatchObject({
+      _tag: 'Left',
+      left: { _tag: 'ImageRotationError' },
+    });
   });
 
   it.each(['jpeg', 'webp'] as const)(

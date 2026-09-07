@@ -1,5 +1,6 @@
 import { Data, Effect, Schema } from 'effect';
 import sharp from 'sharp';
+import { maximumSourcePixels } from './image-limits.ts';
 
 const quarterTurn = 90;
 const halfTurn = 180;
@@ -30,7 +31,12 @@ export const rotateImage = (photo: SourcePhoto, clockwise: ImageRotation) =>
     : Effect.tryPromise({
         try: async () => ({
           bytes: new Uint8Array(
-            await sharp(photo.bytes).rotate(clockwise).png().toBuffer(),
+            await sharp(photo.bytes, {
+              limitInputPixels: maximumSourcePixels,
+            })
+              .rotate(clockwise)
+              .png()
+              .toBuffer(),
           ),
           mime: 'image/png',
         }),

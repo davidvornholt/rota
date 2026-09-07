@@ -21,6 +21,7 @@ import {
 } from '#/shared/data/garment-repository.ts';
 import { categoryDefaults } from '#/shared/data/garment-types.ts';
 import { imageDimensions } from '#/shared/media/image-dimensions.ts';
+import { maximumSourcePixels } from '#/shared/media/image-limits.ts';
 import { isStorableMime, MediaStore } from '#/shared/media/media-store.ts';
 import { rotateImage } from '#/shared/media/rotate-image.ts';
 import { UploadError } from '../errors/garment-errors.ts';
@@ -47,6 +48,11 @@ const bytesPerKibibyte = 1024;
 const bytesPerMebibyte = bytesPerKibibyte * bytesPerKibibyte;
 const uploadLimitMebibytes = 6;
 export const maximumUploadBytes = uploadLimitMebibytes * bytesPerMebibyte;
+const tooLargePhoto = new UploadError({
+  message:
+    'That photo is too large. Photos are resized in the app before upload; try again from the app.',
+  httpStatus: 413,
+});
 
 const unreadablePhoto = new UploadError({
   message: 'That file is not a readable JPEG or PNG photo.',
@@ -62,14 +68,14 @@ export const validateUpload = (upload: Upload): UploadError | undefined => {
     });
   }
   if (upload.bytes.byteLength > maximumUploadBytes) {
-    return new UploadError({
-      message:
-        'That photo is too large. Photos are resized in the app before upload; try again from the app.',
-      httpStatus: 413,
-    });
+    return tooLargePhoto;
   }
-  return imageDimensions(upload.bytes) === undefined
-    ? unreadablePhoto
+  const dimensions = imageDimensions(upload.bytes);
+  if (dimensions === undefined) {
+    return unreadablePhoto;
+  }
+  return dimensions.width * dimensions.height > maximumSourcePixels
+    ? tooLargePhoto
     : undefined;
 };
 

@@ -1,10 +1,11 @@
+import { uploadLongEdge } from '#/shared/media/image-limits.ts';
+
 /**
  * Phones hand over 10 MB photos; the models need nothing like that and the
  * upload should not either. The browser decodes, scales the long edge down,
  * and re-encodes as JPEG before a byte leaves the device.
  */
 
-export const uploadLongEdge = 2048;
 const jpegQuality = 0.88;
 const fileExtension = /\.[^.]+$/u;
 
