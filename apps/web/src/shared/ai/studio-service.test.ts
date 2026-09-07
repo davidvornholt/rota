@@ -7,6 +7,7 @@ import {
   TestClock,
   TestContext,
 } from 'effect';
+import { StudioRenderError } from './errors/ai-errors.ts';
 import { makeStudioRenderer } from './studio-service.ts';
 
 const fallbackAndRetryCalls = 3;
@@ -62,15 +63,21 @@ describe('studio image requests', () => {
       }),
     );
     fetchSpy.mockResolvedValueOnce(success());
+    let preparations = 0;
     const result = await run(
       Effect.gen(function* () {
         const waiting = yield* Deferred.make<void>();
         const studio = yield* makeStudioRenderer(connection);
         const job = yield* studio
-          .render(input, (state) =>
-            state.status === 'waiting'
-              ? Deferred.succeed(waiting, undefined).pipe(Effect.asVoid)
-              : Effect.void,
+          .render(
+            Effect.sync(() => {
+              preparations += 1;
+              return input;
+            }),
+            (state) =>
+              state.status === 'waiting'
+                ? Deferred.succeed(waiting, undefined).pipe(Effect.asVoid)
+                : Effect.void,
           )
           .pipe(Effect.fork);
         yield* Deferred.await(waiting);
@@ -79,6 +86,7 @@ describe('studio image requests', () => {
         return yield* Fiber.join(job);
       }),
     );
+    expect(preparations).toBe(1);
     expect(result.transparent).toBe(false);
     expect(new TextDecoder().decode(result.bytes)).toBe('picture');
     expect(fetchSpy).toHaveBeenCalledTimes(fallbackAndRetryCalls);
@@ -99,7 +107,9 @@ describe('studio image requests', () => {
       const result = await run(
         Effect.gen(function* () {
           const studio = yield* makeStudioRenderer(connection);
-          return yield* Effect.either(studio.render(input, () => Effect.void));
+          return yield* Effect.either(
+            studio.render(Effect.succeed(input), () => Effect.void),
+          );
         }),
       );
       expect(result).toMatchObject({
@@ -121,7 +131,7 @@ describe('studio deadlines', () => {
         const waiting = yield* Deferred.make<void>();
         const studio = yield* makeStudioRenderer(connection);
         const job = yield* studio
-          .render(input, (state) =>
+          .render(Effect.succeed(input), (state) =>
             state.status === 'waiting'
               ? Deferred.succeed(waiting, undefined).pipe(Effect.asVoid)
               : Effect.void,
@@ -159,7 +169,7 @@ describe('studio deadlines', () => {
       Effect.gen(function* () {
         const studio = yield* makeStudioRenderer(connection);
         const job = yield* studio
-          .render(input, () => Effect.void)
+          .render(Effect.succeed(input), () => Effect.void)
           .pipe(Effect.either, Effect.fork);
         yield* TestClock.adjust('4 minutes');
         expect(yield* Fiber.join(job)).toMatchObject({
@@ -167,9 +177,9 @@ describe('studio deadlines', () => {
           left: { message: 'The studio render timed out.' },
         });
         expect(signal?.aborted).toBe(true);
-        expect((yield* studio.render(input, () => Effect.void)).mime).toBe(
-          'image/png',
-        );
+        expect(
+          (yield* studio.render(Effect.succeed(input), () => Effect.void)).mime,
+        ).toBe('image/png');
       }),
     );
   });
@@ -196,11 +206,11 @@ describe('concurrent studio fallbacks', () => {
         fetchSpy.mockResolvedValueOnce(success());
         const studio = yield* makeStudioRenderer(connection);
         const first = yield* studio
-          .render(input, () => Effect.void)
+          .render(Effect.succeed(input), () => Effect.void)
           .pipe(Effect.fork);
         yield* TestClock.adjust('1 millis');
         const second = yield* studio
-          .render(input, (state) =>
+          .render(Effect.succeed(input), (state) =>
             state.status === 'waiting'
               ? Deferred.succeed(busy, undefined).pipe(Effect.asVoid)
               : Effect.void,
@@ -218,6 +228,154 @@ describe('concurrent studio fallbacks', () => {
         expect((yield* Fiber.join(second)).transparent).toBe(true);
         const initialRequestsAndRetries = 4;
         expect(fetchSpy).toHaveBeenCalledTimes(initialRequestsAndRetries);
+      }),
+    );
+  });
+});
+
+describe('studio source preparation', () => {
+  it('loads only two photos from a batch until a render frees its slot', async () => {
+    await run(
+      Effect.gen(function* () {
+        const release = yield* Deferred.make<void>();
+        fetchSpy.mockImplementation(
+          Object.assign(
+            () =>
+              Effect.runPromise(
+                Deferred.await(release).pipe(Effect.as(success())),
+              ),
+            { preconnect: () => undefined },
+          ),
+        );
+        const studio = yield* makeStudioRenderer(connection);
+        let preparations = 0;
+        const batchSize = 10;
+        const jobs = yield* Effect.forEach(
+          Array.from({ length: batchSize }),
+          () =>
+            studio
+              .render(
+                Effect.sync(() => {
+                  preparations += 1;
+                  return input;
+                }),
+                () => Effect.void,
+              )
+              .pipe(Effect.fork),
+        );
+        yield* TestClock.adjust('1 second');
+        expect(preparations).toBe(2);
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        yield* Deferred.succeed(release, undefined);
+        yield* Effect.forEach(jobs, Fiber.join);
+        expect(preparations).toBe(batchSize);
+        expect(fetchSpy).toHaveBeenCalledTimes(batchSize);
+      }),
+    );
+  });
+
+  it('never prepares a photo that expires in the queue', async () => {
+    await run(
+      Effect.gen(function* () {
+        const studio = yield* makeStudioRenderer(connection);
+        const blockers = yield* Effect.forEach([0, 1], () =>
+          studio
+            .render(Effect.never, () => Effect.void)
+            .pipe(Effect.either, Effect.fork),
+        );
+        yield* TestClock.adjust('1 second');
+        const next = yield* Effect.forEach([0, 1], () =>
+          studio
+            .render(Effect.never, () => Effect.void)
+            .pipe(Effect.either, Effect.fork),
+        );
+        yield* TestClock.adjust('1 second');
+        let prepared = false;
+        const queued = yield* studio
+          .render(
+            Effect.sync(() => {
+              prepared = true;
+              return input;
+            }),
+            () => Effect.void,
+          )
+          .pipe(Effect.either, Effect.fork);
+        yield* TestClock.adjust('10 minutes');
+        expect(yield* Fiber.join(queued)).toMatchObject({
+          _tag: 'Left',
+          left: {
+            message:
+              'The studio picture waited too long for an image slot. Try again later.',
+          },
+        });
+        expect(prepared).toBe(false);
+        expect(fetchSpy).not.toHaveBeenCalled();
+        yield* Effect.forEach([...blockers, ...next], Fiber.interrupt);
+      }),
+    );
+  });
+});
+
+describe('studio preparation recovery', () => {
+  it('honours a cooldown received while another photo is being prepared', async () => {
+    await run(
+      Effect.gen(function* () {
+        const prepared = yield* Deferred.make<void>();
+        const waiting = yield* Deferred.make<void>();
+        fetchSpy.mockResolvedValueOnce(
+          new Response('busy', {
+            status: 429,
+            headers: { 'retry-after-ms': '2000' },
+          }),
+        );
+        fetchSpy.mockResolvedValueOnce(success());
+        fetchSpy.mockResolvedValueOnce(success());
+        const studio = yield* makeStudioRenderer(connection);
+        const first = yield* studio
+          .render(
+            Deferred.await(prepared).pipe(Effect.as(input)),
+            () => Effect.void,
+          )
+          .pipe(Effect.fork);
+        const second = yield* studio
+          .render(Effect.succeed(input), (state) =>
+            state.status === 'waiting'
+              ? Deferred.succeed(waiting, undefined).pipe(Effect.asVoid)
+              : Effect.void,
+          )
+          .pipe(Effect.fork);
+        yield* Deferred.await(waiting);
+        yield* Deferred.succeed(prepared, undefined);
+        yield* TestClock.adjust('1 second');
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        yield* TestClock.adjust('1 second');
+        yield* Fiber.join(first);
+        yield* Fiber.join(second);
+        expect(fetchSpy).toHaveBeenCalledTimes(fallbackAndRetryCalls);
+      }),
+    );
+  });
+
+  it('releases a slot when preparation fails without submitting an image request', async () => {
+    fetchSpy.mockResolvedValue(success());
+    await run(
+      Effect.gen(function* () {
+        const studio = yield* makeStudioRenderer(connection);
+        const failure = new StudioRenderError({
+          message: 'Cannot prepare photo.',
+          cause: undefined,
+        });
+        for (const _attempt of [0, 1]) {
+          expect(
+            yield* studio
+              .render(Effect.fail(failure), () => Effect.void)
+              .pipe(Effect.either),
+          ).toMatchObject({ _tag: 'Left', left: failure });
+        }
+        expect(fetchSpy).not.toHaveBeenCalled();
+        expect(
+          (yield* studio.render(Effect.succeed(input), () => Effect.void)).mime,
+        ).toBe('image/png');
       }),
     );
   });
