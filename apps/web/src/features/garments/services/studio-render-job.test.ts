@@ -107,6 +107,42 @@ const setup = (
   };
 };
 
+it('stops before generation or storage when source preparation fails', async () => {
+  const row = garment('active', true);
+  const render = mock(() => Effect.fail(unavailable));
+  const put = mock(() => Effect.succeed({ key: 'new', bytes: 1 }));
+  const attachImage = mock(() => Effect.void);
+  const setImageChoice = mock(() => Effect.void);
+  const result = await Effect.runPromise(
+    renderStudio(
+      {
+        garments: { attachImage, setImageChoice },
+        media: { put },
+        studio: { render },
+      },
+      {
+        garment: row,
+        description: 'A shirt',
+        instructions: '',
+        photoEffect: Effect.fail('Photo orientation is unavailable.'),
+        report: () => Effect.void,
+      },
+    ).pipe(Effect.either),
+  );
+  expect(result).toMatchObject({
+    _tag: 'Left',
+    left: {
+      _tag: 'StudioRenderError',
+      message:
+        'The source photo could not be prepared for the studio picture. Try again.',
+    },
+  });
+  expect(render).not.toHaveBeenCalled();
+  expect(put).not.toHaveBeenCalled();
+  expect(attachImage).not.toHaveBeenCalled();
+  expect(setImageChoice).not.toHaveBeenCalled();
+});
+
 describe('studio render persistence', () => {
   it.each(['review', 'active', 'retired'] as const)(
     'preserves the %s garment and existing pictures when generation fails',

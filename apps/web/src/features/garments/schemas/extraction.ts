@@ -14,12 +14,17 @@ import {
   scaleMinimum,
   seasons,
 } from '#/shared/data/garment-types.ts';
+import {
+  PhotoOrientationSchema,
+  photoOrientationProperties,
+} from './photo-orientation.ts';
 
 /** The longest rotation the model may suggest from material alone. */
 const longestSuggestedBudget = 10;
 
 /** What Gemini is asked to read off a garment photo. */
 export const ExtractionSchema = Schema.Struct({
+  ...PhotoOrientationSchema.fields,
   name: Schema.String,
   category: GarmentCategorySchema,
   subcategory: Schema.String,
@@ -55,6 +60,7 @@ const stringProperty = (description: string) => ({
 export const extractionJsonSchema = {
   type: 'object',
   properties: {
+    ...photoOrientationProperties,
     name: stringProperty(
       'A short wardrobe name: colour plus garment, at most five words, sentence case. Example: "Grey wool trousers".',
     ),
@@ -136,6 +142,7 @@ export const extractionJsonSchema = {
     ),
   },
   required: [
+    'rotationClockwise',
     'name',
     'category',
     'subcategory',
