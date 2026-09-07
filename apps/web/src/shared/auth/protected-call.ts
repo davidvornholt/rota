@@ -21,9 +21,10 @@ const returnedResponse = (value: unknown): Response | undefined => {
 };
 
 /**
- * Runs `next` only for an authorized caller. TanStack Start turns a thrown
- * `Response` into the server-function response, so an unauthorized call ends as
- * a 401 without the protected operation ever running.
+ * Runs `next` only for an authorized caller. Every failure leaves as a
+ * `Response` with a vetted body and status; `runSessionRequired` decides how
+ * that reaches the transport. An unauthorized call ends as a 401 without the
+ * protected operation ever running.
  */
 export const runProtectedCall = async <T>({
   authorize,

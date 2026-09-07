@@ -107,7 +107,10 @@ export const ReviewFixture = () => {
   if (query.has('outfit')) {
     return (
       <main>
-        <OutfitActionsFixture garment={loaded} />
+        <OutfitActionsFixture
+          continuing={query.has('continuing')}
+          garment={loaded}
+        />
       </main>
     );
   }

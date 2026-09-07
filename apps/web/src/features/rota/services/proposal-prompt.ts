@@ -31,6 +31,8 @@ export type OpenSlot = {
   readonly slot: Slot;
   readonly required: boolean;
   readonly candidates: ReadonlyArray<Candidate>;
+  /** Nothing else fits the slot today, so garments turned down earlier are offered again. */
+  readonly turnedDownOnly: boolean;
 };
 
 export type RecentDay = {
@@ -176,7 +178,9 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
       return;
     }
     say(
-      `${slotLabel[open.slot]} candidates${open.required ? ' (choose one)' : ' (choose one or null)'}:`,
+      open.turnedDownOnly
+        ? `${slotLabel[open.slot]} candidates (choose one; the wearer turned these down today, but nothing else in the wardrobe fits the slot, so say so plainly in the reason):`
+        : `${slotLabel[open.slot]} candidates${open.required ? ' (choose one)' : ' (choose one or null)'}:`,
     );
     open.candidates.forEach((candidate, index) => {
       const alias = `${slotPrefix[open.slot]}${index + 1}`;

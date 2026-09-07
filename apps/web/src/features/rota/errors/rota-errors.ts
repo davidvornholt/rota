@@ -66,7 +66,7 @@ export class ProposalAnswerError extends Data.TaggedError(
   constructor(cause: unknown) {
     super({
       message:
-        "The model's answer could not be used. Ask for another suggestion.",
+        "The model's answer could not be used. Pick again to ask once more.",
       httpStatus: 424,
       cause,
     });

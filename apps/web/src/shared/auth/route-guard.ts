@@ -14,6 +14,7 @@ export const guardedRoute =
         authorize: () => hasAuthorizedSession(request.headers),
         next: () => handle(request),
         publishHeaders: () => undefined,
+        publishStatus: () => undefined,
       });
     } catch (error) {
       if (error instanceof Response) {

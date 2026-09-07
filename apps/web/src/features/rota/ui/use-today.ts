@@ -108,8 +108,8 @@ const useTodayMutations = (
 /**
  * The Today page's state and actions in one place: the server's view, the
  * outfit as the wearer has edited it, and the mutations that move the day.
- * The loader's payload always wins when it arrives; a mutation's answer is
- * shown at once and the loader asked to catch up.
+ * Mutation answers appear immediately. A loader refresh preserves a decision
+ * problem until the loader's context changes or the wearer retries.
  */
 export const useToday = (initial: TodayView) => {
   const router = useRouter();
@@ -117,10 +117,20 @@ export const useToday = (initial: TodayView) => {
   const outfit = useOutfitDraft(initial.proposal);
   const [justLogged, setJustLogged] = useState(false);
   const decisionAsked = useRef(false);
+  const loaderSnapshot = useRef(JSON.stringify(initial));
 
   const { reset } = outfit;
   useEffect(() => {
-    setView(initial);
+    const snapshot = JSON.stringify(initial);
+    const changed = snapshot !== loaderSnapshot.current;
+    loaderSnapshot.current = snapshot;
+    if (changed) {
+      decisionAsked.current = false;
+    }
+    // Decision problems are transient and absent from an unchanged loader view.
+    setView((current) =>
+      !changed && current.problem !== null ? current : initial,
+    );
     reset(initial.proposal);
   }, [initial, reset]);
 

@@ -21,63 +21,88 @@ const eyebrowFor = (rerolling: boolean, edited: boolean): string => {
   return edited ? 'Your outfit' : 'Proposed';
 };
 
-const Deciding = () => (
+const Deciding = ({ again = false }: { readonly again?: boolean }) => (
   <section aria-live="polite" className="py-10">
-    <p className="type-eyebrow">Deciding</p>
+    <p className="type-eyebrow">{again ? 'Choosing again' : 'Deciding'}</p>
     <p className="type-display mt-2 text-3xl text-ink sm:text-4xl">
-      Reading the forecast and the rota …
+      {again
+        ? 'Weighing what is left …'
+        : 'Reading the forecast and the rota …'}
     </p>
     <p className="mt-3 max-w-prose text-ink-muted">
-      The wardrobe narrows the choice and the model weighs it. This takes a
-      moment the first time each day.
+      {again
+        ? 'The wardrobe sets aside what you turned down and the model picks from the rest.'
+        : 'The wardrobe narrows the choice and the model weighs it. This takes a moment the first time each day.'}
     </p>
   </section>
 );
 
-/** Wear this, another suggestion, start over: the same three verbs wherever they sit. */
+/**
+ * Wear this, pick again, reopen everything: the same verbs wherever they sit.
+ * Reopening only differs from picking again while something continues from
+ * yesterday, so it appears only then, with a line saying what each keeps.
+ */
 const Actions = ({
+  proposal,
   today,
   layout,
 }: {
+  readonly proposal: ProposalView;
   readonly today: TodayController;
   readonly layout: 'column' | 'bar';
-}) => (
-  <>
-    <button
-      aria-busy={today.logging}
-      className={[signalButtonClass, 'w-full text-base'].join(' ')}
-      disabled={today.busy}
-      onClick={today.wear}
-      type="button"
-    >
-      {today.logging ? 'Logging …' : 'Wear this'}
-    </button>
-    <div
-      className={
-        layout === 'column'
-          ? 'flex flex-wrap gap-x-5 gap-y-1'
-          : 'mt-2 flex justify-between'
-      }
-    >
+}) => {
+  const continuing = proposal.items.some((item) => item.continued);
+  return (
+    <>
       <button
-        className={linkButtonClass}
+        aria-busy={today.logging}
+        className={[signalButtonClass, 'w-full text-base'].join(' ')}
         disabled={today.busy}
-        onClick={() => today.reroll('boundary')}
+        onClick={today.wear}
         type="button"
       >
-        Another suggestion
+        {today.logging ? 'Logging …' : 'Wear this'}
       </button>
-      <button
-        className={linkButtonClass}
-        disabled={today.busy}
-        onClick={() => today.reroll('all')}
-        type="button"
+      <div
+        className={
+          layout === 'column'
+            ? 'flex flex-wrap gap-x-5 gap-y-1'
+            : 'mt-2 flex justify-between'
+        }
       >
-        Start over
-      </button>
-    </div>
-  </>
-);
+        <button
+          className={linkButtonClass}
+          disabled={today.busy}
+          onClick={() => today.reroll('boundary')}
+          type="button"
+        >
+          Pick again
+        </button>
+        {continuing ? (
+          <button
+            className={linkButtonClass}
+            disabled={today.busy}
+            onClick={() => today.reroll('all')}
+            type="button"
+          >
+            Reopen everything
+          </button>
+        ) : null}
+      </div>
+      <p
+        className={[
+          'text-ink-faint',
+          layout === 'column' ? 'text-sm' : 'mt-1 text-xs',
+        ].join(' ')}
+      >
+        {continuing
+          ? 'Picking again keeps the continuing garments; reopening puts them up too. '
+          : ''}
+        What you turn down stays out for today.
+      </p>
+    </>
+  );
+};
 
 const optionalSlots: ReadonlyArray<Slot> = ['under', 'over'];
 
@@ -185,7 +210,7 @@ export const ProposalSection = ({ proposal, today }: ProposalSectionProps) => {
             </p>
           ) : null}
           <div className="mt-8 hidden flex-col gap-3 lg:flex">
-            <Actions layout="column" today={today} />
+            <Actions layout="column" proposal={proposal} today={today} />
           </div>
           <div className="mt-8">
             <OccasionNote
@@ -198,10 +223,14 @@ export const ProposalSection = ({ proposal, today }: ProposalSectionProps) => {
         </div>
       </div>
       <div className="lg:col-span-7">
-        {today.rerolling ? <Deciding /> : <OutfitList today={today} />}
+        {today.rerolling ? (
+          <Deciding again={true} />
+        ) : (
+          <OutfitList today={today} />
+        )}
       </div>
       <div className="sticky bottom-16 z-10 -mx-5 border-rule border-t bg-paper px-5 py-3 sm:-mx-8 sm:px-8 lg:hidden">
-        <Actions layout="bar" today={today} />
+        <Actions layout="bar" proposal={proposal} today={today} />
       </div>
     </section>
   );

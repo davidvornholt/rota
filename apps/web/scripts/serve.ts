@@ -8,6 +8,7 @@
 import { realpath } from 'node:fs/promises';
 import process from 'node:process';
 
+import { applyPrivateResponseHeaders } from '../src/shared/auth/private-response.ts';
 import { parsePort } from './server-config.ts';
 
 type FetchHandler = (request: Request) => Promise<Response> | Response;
@@ -23,6 +24,8 @@ const okStatus = 200;
 const healthPath = '/api/healthz';
 const pagePath = '/login';
 const selfCheckTimeout = 10_000;
+const serverFunctionBase = '/_serverFn/';
+const serverFunctionHeader = 'x-tsr-serverFn';
 const tickPath = '/api/internal/tick';
 const tickTokenHeader = 'x-rota-tick-token';
 const tickInterval = 60_000;
@@ -80,9 +83,41 @@ export const createFetchHandler = async (
     return new Response(file, { headers });
   };
 
+  const addPrivateHeadersToServerFunctionFailure = (
+    request: Request,
+    response: Response,
+  ): Response => {
+    const { pathname } = new URL(request.url);
+    if (
+      response.ok ||
+      !pathname.startsWith(serverFunctionBase) ||
+      request.headers.get(serverFunctionHeader) !== 'true'
+    ) {
+      return response;
+    }
+
+    const headers = new Headers(response.headers);
+    // TanStack serializes thrown server-function Errors into a new Response
+    // after event headers have been published, so restore the private policy
+    // at the final application boundary without changing that response.
+    applyPrivateResponseHeaders(headers);
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  };
+
   return async (request) => {
     const { pathname } = new URL(request.url);
-    return (await serveStatic(pathname)) ?? ssrFetch(request);
+    const staticResponse = await serveStatic(pathname);
+    if (staticResponse !== null) {
+      return staticResponse;
+    }
+    return addPrivateHeadersToServerFunctionFailure(
+      request,
+      await ssrFetch(request),
+    );
   };
 };
 

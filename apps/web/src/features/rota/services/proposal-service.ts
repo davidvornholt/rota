@@ -12,7 +12,6 @@ import { Gemini, type ImagePart, type PromptPart } from '#/shared/ai/gemini.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { displayImage, type Garment } from '#/shared/data/garment.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
-import { slotOrder } from '#/shared/data/garment-types.ts';
 import {
   type ProposalPayload,
   ProposalRepository,
@@ -26,12 +25,7 @@ import { MediaStore } from '#/shared/media/media-store.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import { SlotEmptyError } from '../errors/rota-errors.ts';
-import {
-  type Continuation,
-  candidatesFor,
-  continuations,
-  type RotationInput,
-} from '../rotation.ts';
+import { continuations, type RotationInput } from '../rotation.ts';
 import {
   ProposalAnswerSchema,
   proposalAnswerJsonSchema,
@@ -39,12 +33,11 @@ import {
 import { ForecastService, type ForecastWindow } from './forecast-service.ts';
 import {
   answerToItems,
+  openSlotsFor,
   recentSummary,
-  requiredSlots,
 } from './proposal-assembly.ts';
 import {
   buildProposalPrompt,
-  type OpenSlot,
   proposalSystemPrompt,
 } from './proposal-prompt.ts';
 import {
@@ -59,21 +52,6 @@ export type GenerateOptions = {
   readonly excluded: ReadonlySet<string>;
   /** Also reopen the slots that would have continued from yesterday. */
   readonly releaseAll: boolean;
-};
-
-/** The slots not carried over, each with the engine's shortlist. */
-const openSlotsFor = (
-  input: RotationInput,
-  continuing: ReadonlyArray<Continuation>,
-): ReadonlyArray<OpenSlot> => {
-  const chosen = new Set(continuing.map((c) => c.garment.id));
-  return slotOrder
-    .filter((slot) => !continuing.some((c) => c.slot === slot))
-    .map((slot) => ({
-      slot,
-      required: requiredSlots.has(slot),
-      candidates: candidatesFor(input, slot, chosen),
-    }));
 };
 
 const imageConcurrency = 4;

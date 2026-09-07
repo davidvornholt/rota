@@ -77,9 +77,11 @@ export const confirm = ({ proposals, wearLog }: SettlementDeps, id: string) =>
   });
 
 /**
- * Another suggestion. `boundary` re-picks only what the engine chose
+ * Pick again. `boundary` re-picks only what the engine chose
  * freshly and keeps the rotation; `all` reopens every slot. Either way
- * the garments just turned down stay out for the rest of the day.
+ * the garments just turned down stay out for the rest of the day, unless
+ * nothing else could fill their slot. The old proposal is retired only once
+ * the new one exists, so a failed attempt leaves the wearer with what they had.
  */
 export const reroll = (
   { proposals, forecasts, generate }: SettlementDeps,
@@ -92,7 +94,6 @@ export const reroll = (
     if (proposal.forDate !== clock.today) {
       return yield* new ProposalStateError('That proposal is for another day.');
     }
-    yield* proposals.setStatus(id, 'rejected');
     const turnedDown = proposal.payload.items
       .filter((item) => scope === 'all' || !item.continued)
       .map((item) => item.garmentId);
@@ -101,10 +102,12 @@ export const reroll = (
       ...turnedDown,
     ]);
     const forecast = yield* forecasts.ensure(clock.settings, clock.today);
-    return yield* generate(clock, forecast, {
+    const next = yield* generate(clock, forecast, {
       excluded,
       releaseAll: scope === 'all',
     });
+    yield* proposals.setStatus(id, 'rejected');
+    return next;
   });
 
 /**
