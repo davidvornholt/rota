@@ -36,7 +36,6 @@ const garment = (
   fit: '',
   sleeve: '',
   brand: '',
-  seasons: [],
   notes: '',
   price: null,
   purchasedOn: null,

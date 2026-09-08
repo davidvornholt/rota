@@ -9,7 +9,6 @@ import {
   garmentCategories,
   longestWearBudget,
   type Slot,
-  seasons,
   slotLabel,
   slotOrder,
 } from '#/shared/data/garment-types.ts';
@@ -115,25 +114,6 @@ const RotationFields = ({
         value={value.wearBudget}
       />
     </div>
-    <fieldset>
-      <legend className={labelClass}>Seasons</legend>
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-        {seasons.map((season) => (
-          <label
-            className="inline-flex min-h-11 items-center gap-2 text-ink text-sm"
-            key={season}
-          >
-            <input
-              checked={value.seasons.includes(season)}
-              className={checkClass}
-              onChange={() => set('seasons', toggled(value.seasons, season))}
-              type="checkbox"
-            />
-            {season}
-          </label>
-        ))}
-      </div>
-    </fieldset>
   </div>
 );
 

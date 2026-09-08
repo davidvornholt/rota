@@ -1,0 +1,1 @@
+ALTER TABLE "garment" DROP COLUMN "seasons";

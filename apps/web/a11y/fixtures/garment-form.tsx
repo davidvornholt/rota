@@ -19,7 +19,6 @@ const sample: GarmentEdit = {
   fit: '',
   sleeve: '',
   brand: '',
-  seasons: ['spring', 'autumn'],
   notes: '',
   price: null,
   purchasedOn: null,

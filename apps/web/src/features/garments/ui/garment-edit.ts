@@ -18,7 +18,6 @@ export const editOf = (garment: GarmentView): GarmentEdit => ({
   fit: garment.fit,
   sleeve: garment.sleeve,
   brand: garment.brand,
-  seasons: garment.seasons,
   notes: garment.notes,
   price: garment.price,
   purchasedOn: garment.purchasedOn,

@@ -29,6 +29,9 @@ for (const mode of ['compact', 'full']) {
     const base = fixtureUrl();
     expect(base).toBeDefined();
     await page.goto(`${base}a11y/fixtures/garment-form.html?${mode}`);
+    const budget = page.getByRole('spinbutton', { name: 'Days in a row' });
+    await budget.fill('4');
+    await expect(budget).toHaveValue('4');
     const colours = page.getByRole('group', { name: 'Colours', exact: true });
     await expect(
       colours.getByRole('button', { name: 'Remove colour 1' }),
@@ -90,6 +93,7 @@ for (const mode of ['compact', 'full']) {
       formality.getByRole('radio', { name: 'Formal' }),
     ).toBeChecked();
     await expect(formality.getByText(formalHelp)).toBeVisible();
+    await expect(budget).toHaveValue('4');
     expect(await scanWcag22AaViolations(page)).toEqual([]);
     await page.screenshot({
       path: testInfo.outputPath('garment-ratings.png'),

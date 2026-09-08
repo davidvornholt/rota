@@ -12,7 +12,6 @@ import {
 import {
   garmentCategories,
   scaleMinimum,
-  seasons,
 } from '#/shared/data/garment-types.ts';
 import {
   PhotoOrientationSchema,
@@ -41,7 +40,6 @@ export const ExtractionSchema = Schema.Struct({
   fit: Schema.String,
   sleeve: Schema.String,
   brand: Schema.String,
-  seasons: Schema.Array(Schema.Literal(...seasons)),
   description: Schema.String,
 });
 
@@ -132,11 +130,6 @@ export const extractionJsonSchema = {
     brand: stringProperty(
       'The brand if a label or logo is legible, else empty string.',
     ),
-    seasons: {
-      type: 'array',
-      items: { type: 'string', enum: [...seasons] },
-      description: 'Seasons this garment suits.',
-    },
     description: stringProperty(
       'One sentence describing the garment for a photographer who has to reproduce it exactly: kind, colour, pattern, material, distinctive details.',
     ),
@@ -157,7 +150,6 @@ export const extractionJsonSchema = {
     'fit',
     'sleeve',
     'brand',
-    'seasons',
     'description',
   ],
 } as const;

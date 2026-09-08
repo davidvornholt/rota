@@ -166,7 +166,7 @@ export const historyFn = createServerFn({ method: 'GET' })
               board: board(pastLog, byId, clock.today, boardDays),
               daysLogged: new Set(pastLog.map((entry) => entry.wornOn)).size,
               totalWears: pastLog.length,
-              neglected: neglected(views, clock.today),
+              neglected: neglected(views),
               mostWorn: mostWorn(views, mostWornLimit),
               temperature: temperatureByGarment(pastLog, weather, byId),
               colors: colorDistribution(views),
