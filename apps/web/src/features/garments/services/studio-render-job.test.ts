@@ -8,7 +8,7 @@ import {
   TestContext,
 } from 'effect';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
-import { studioJobTimeout } from '#/shared/ai/studio-budgets.ts';
+import { studioPersistenceTimeout } from '#/shared/ai/studio-budgets.ts';
 import type { StudioRenderInput } from '#/shared/ai/studio-request.ts';
 import type { Garment } from '#/shared/data/garment.ts';
 import { makeStudioJobs } from './studio-jobs.ts';
@@ -190,7 +190,7 @@ describe('studio job deadlines', () => {
       Effect.gen(function* () {
         const fiber = yield* job
           .render(
-            Effect.sleep('18 minutes').pipe(
+            Effect.sleep('30 minutes').pipe(
               Effect.as({
                 bytes: new Uint8Array([1]),
                 mime: 'image/png' as const,
@@ -199,7 +199,7 @@ describe('studio job deadlines', () => {
             ),
           )
           .pipe(Effect.fork);
-        yield* TestClock.adjust('18 minutes');
+        yield* TestClock.adjust('30 minutes');
         yield* Fiber.join(fiber);
       }).pipe(Effect.provide(TestContext.TestContext)),
     );
@@ -229,12 +229,12 @@ describe('studio job deadlines', () => {
         );
         yield* Deferred.await(storageStarted);
         expect(job.put).toHaveBeenCalledTimes(1);
-        yield* TestClock.adjust(studioJobTimeout);
+        yield* TestClock.adjust(studioPersistenceTimeout);
         yield* Fiber.join(fiber);
       }).pipe(Effect.provide(TestContext.TestContext)),
     );
     expect(job.error()).toBe(
-      'The studio picture took too long. Try again later.',
+      'The studio picture could not be saved. Try again later.',
     );
     expect(job.attachImage).not.toHaveBeenCalled();
     expect(job.setStudioError).toHaveBeenNthCalledWith(2, row.id, job.error());

@@ -1,6 +1,6 @@
 import { Duration, Effect } from 'effect';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
-import { studioJobTimeout } from '#/shared/ai/studio-budgets.ts';
+import { studioPersistenceTimeout } from '#/shared/ai/studio-budgets.ts';
 import type { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
 import type { ReportStudioProgress } from '#/shared/ai/studio-scheduler.ts';
 import type { Garment } from '#/shared/data/garment.ts';
@@ -10,9 +10,19 @@ import type { MediaStore } from '#/shared/media/media-store.ts';
 
 const studioErrorTimeoutSeconds = 30;
 const studioErrorTimeout = Duration.seconds(studioErrorTimeoutSeconds);
-const timeoutMessage = 'The studio picture took too long. Try again later.';
 const saveErrorMessage =
   'The studio picture could not be saved. Try again later.';
+
+export const withStudioPersistenceDeadline = <A, E, R>(
+  work: Effect.Effect<A, E, R>,
+) =>
+  work.pipe(
+    Effect.timeoutFail({
+      duration: studioPersistenceTimeout,
+      onTimeout: () =>
+        new StudioRenderError({ message: saveErrorMessage, cause: undefined }),
+    }),
+  );
 
 type StudioDependencies = {
   readonly garments: Pick<GarmentRepository, 'attachImage' | 'setImageChoice'>;
@@ -60,30 +70,23 @@ export const renderStudio = <E>(
       })),
     );
     const render = yield* deps.studio.render(input, report);
-    const stored = yield* deps.media.put(render.bytes, render.mime);
-    const dimensions = imageDimensions(render.bytes);
-    yield* deps.garments.attachImage(garment.id, 'studio', {
-      key: stored.key,
-      mime: render.mime,
-      width: dimensions?.width ?? 0,
-      height: dimensions?.height ?? 0,
-      bytes: stored.bytes,
-    });
-    // A garment that showed its photo only because no render existed now shows
-    // the render; a photo the wearer chose over an earlier render stays.
-    if (garment.images.studio === undefined) {
-      yield* deps.garments.setImageChoice(garment.id, 'studio');
-    }
-  }).pipe(
-    Effect.timeoutFail({
-      duration: studioJobTimeout,
-      onTimeout: () =>
-        new StudioRenderError({
-          message: 'The studio picture took too long. Try again later.',
-          cause: undefined,
-        }),
-    }),
-  );
+    yield* Effect.gen(function* () {
+      const stored = yield* deps.media.put(render.bytes, render.mime);
+      const dimensions = imageDimensions(render.bytes);
+      yield* deps.garments.attachImage(garment.id, 'studio', {
+        key: stored.key,
+        mime: render.mime,
+        width: dimensions?.width ?? 0,
+        height: dimensions?.height ?? 0,
+        bytes: stored.bytes,
+      });
+      // A garment that showed its photo only because no render existed now shows
+      // the render; a photo the wearer chose over an earlier render stays.
+      if (garment.images.studio === undefined) {
+        yield* deps.garments.setImageChoice(garment.id, 'studio');
+      }
+    }).pipe(withStudioPersistenceDeadline);
+  });
 
 export const makeStudioWork =
   (garments: Pick<GarmentRepository, 'setStudioError'>) =>
@@ -109,14 +112,6 @@ export const makeStudioWork =
       );
     return setStudioError(null).pipe(
       Effect.andThen(render),
-      Effect.timeoutFail({
-        duration: studioJobTimeout,
-        onTimeout: () =>
-          new StudioRenderError({
-            message: timeoutMessage,
-            cause: undefined,
-          }),
-      }),
       Effect.catchAll((error) =>
         Effect.logWarning(
           `Studio render failed for garment ${id}.`,

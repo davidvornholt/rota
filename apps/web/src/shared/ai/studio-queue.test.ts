@@ -20,6 +20,65 @@ const run = <A, E>(
 ) => Effect.runPromise(effect.pipe(Effect.provide(TestContext.TestContext)));
 
 describe('studio queue budgets', () => {
+  it('expires stalled active renders and lets the queued job use a released slot', async () => {
+    await run(
+      Effect.gen(function* () {
+        const scheduler = yield* makeStudioScheduler;
+        const blockers = yield* Effect.forEach(twoSlots, () =>
+          scheduler
+            .schedule(Effect.never, () => Effect.void)
+            .pipe(Effect.either, Effect.fork),
+        );
+        yield* TestClock.adjust('1 second');
+        const queued = yield* scheduler
+          .schedule(Effect.succeed('picture'), () => Effect.void)
+          .pipe(Effect.fork);
+        yield* TestClock.adjust('10 minutes');
+        expect(yield* Fiber.join(queued)).toBe('picture');
+        for (const blocker of blockers) {
+          expect(yield* Fiber.join(blocker)).toMatchObject({
+            _tag: 'Left',
+            left: {
+              message: 'The studio picture took too long. Try again later.',
+            },
+          });
+        }
+      }),
+    );
+  });
+
+  it('finishes all 16 accepted jobs even when the batch takes 24 minutes', async () => {
+    const batchSize = 16;
+    let completed = 0;
+    await run(
+      Effect.gen(function* () {
+        const scheduler = yield* makeStudioScheduler;
+        const jobs = yield* Effect.forEach(
+          Array.from({ length: batchSize }),
+          () =>
+            scheduler
+              .schedule(
+                Effect.sleep('3 minutes').pipe(
+                  Effect.andThen(
+                    Effect.sync(() => {
+                      completed += 1;
+                    }),
+                  ),
+                ),
+                () => Effect.void,
+              )
+              .pipe(Effect.either, Effect.fork),
+        );
+        yield* TestClock.adjust('24 minutes');
+        const results = yield* Effect.forEach(jobs, Fiber.join);
+        expect(results.every((result) => result._tag === 'Right')).toBe(true);
+      }),
+    );
+    expect(completed).toBe(batchSize);
+  });
+});
+
+describe('studio queue cancellation and budgets', () => {
   it('gives a queued job its full rendering budget after acquiring a slot', async () => {
     await run(
       Effect.gen(function* () {
@@ -51,7 +110,7 @@ describe('studio queue budgets', () => {
     );
   });
 
-  it('expires a long queue wait without starting the request or leaking a slot', async () => {
+  it('cancels a queued job without starting its request or leaking a slot', async () => {
     await run(
       Effect.gen(function* () {
         const scheduler = yield* makeStudioScheduler;
@@ -77,13 +136,7 @@ describe('studio queue budgets', () => {
           )
           .pipe(Effect.either, Effect.fork);
         yield* TestClock.adjust('10 minutes');
-        expect(yield* Fiber.join(queued)).toMatchObject({
-          _tag: 'Left',
-          left: {
-            message:
-              'The studio picture waited too long for an image slot. Try again later.',
-          },
-        });
+        yield* Fiber.interrupt(queued);
         expect(started).toBe(false);
         yield* TestClock.adjust('8 minutes');
         yield* Effect.forEach([...blockers, ...next], Fiber.join);
