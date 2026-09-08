@@ -43,6 +43,7 @@ COPY --chown=app:app --from=prod-deps /app/packages/db/node_modules /app/package
 COPY --chown=app:app --from=builder /app/apps/web/dist ./dist
 COPY --chown=app:app --from=builder /app/apps/web/package.json ./package.json
 COPY --chown=app:app --from=builder /app/apps/web/scripts ./scripts
+COPY --chown=app:app --from=builder /app/apps/web/src/shared/auth/private-response.ts ./src/shared/auth/private-response.ts
 COPY --chown=app:app --from=builder /app/packages/db /app/packages/db
 
 EXPOSE 3000
