@@ -274,7 +274,7 @@ describe('studio source preparation', () => {
     );
   });
 
-  it('never prepares a photo that expires in the queue', async () => {
+  it('never prepares a photo cancelled in the queue', async () => {
     await run(
       Effect.gen(function* () {
         const studio = yield* makeStudioRenderer(connection);
@@ -301,13 +301,7 @@ describe('studio source preparation', () => {
           )
           .pipe(Effect.either, Effect.fork);
         yield* TestClock.adjust('10 minutes');
-        expect(yield* Fiber.join(queued)).toMatchObject({
-          _tag: 'Left',
-          left: {
-            message:
-              'The studio picture waited too long for an image slot. Try again later.',
-          },
-        });
+        yield* Fiber.interrupt(queued);
         expect(prepared).toBe(false);
         expect(fetchSpy).not.toHaveBeenCalled();
         yield* Effect.forEach([...blockers, ...next], Fiber.interrupt);

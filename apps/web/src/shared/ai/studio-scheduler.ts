@@ -1,6 +1,6 @@
 import { Clock, Duration, Effect, Random } from 'effect';
 import { StudioRateLimit, StudioRenderError } from './errors/ai-errors.ts';
-import { studioQueueTimeout, studioRenderTimeout } from './studio-budgets.ts';
+import { studioRenderTimeout } from './studio-budgets.ts';
 import type { StudioProgress } from './studio-progress.ts';
 
 const maxRetries = 3;
@@ -146,27 +146,8 @@ export const makeStudioScheduler = Effect.gen(function* () {
           }),
       }),
       (render) =>
-        Effect.uninterruptibleMask((restore) =>
-          report({ status: 'queued' }).pipe(
-            Effect.andThen(
-              restore(
-                permit.take(1).pipe(
-                  Effect.timeoutFail({
-                    duration: studioQueueTimeout,
-                    onTimeout: () =>
-                      new StudioRenderError({
-                        message:
-                          'The studio picture waited too long for an image slot. Try again later.',
-                        cause: undefined,
-                      }),
-                  }),
-                ),
-              ),
-            ),
-            Effect.flatMap(() =>
-              restore(render).pipe(Effect.ensuring(permit.release(1))),
-            ),
-          ),
+        report({ status: 'queued' }).pipe(
+          Effect.andThen(permit.withPermits(1)(render)),
         ),
     );
   return { schedule, beforeRequest };

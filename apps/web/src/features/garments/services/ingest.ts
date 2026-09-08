@@ -36,7 +36,11 @@ import type { GarmentEdit } from '../schemas/garment-input.ts';
 import { renderDescription } from '../schemas/render-description.ts';
 import { orientStudioPhoto } from './orient-studio-photo.ts';
 import { makeStudioJobs } from './studio-jobs.ts';
-import { makeStudioWork, renderStudio } from './studio-render-job.ts';
+import {
+  makeStudioWork,
+  renderStudio,
+  withStudioPersistenceDeadline,
+} from './studio-render-job.ts';
 
 export type Upload = {
   readonly bytes: Uint8Array;
@@ -275,8 +279,12 @@ export class IngestService extends Effect.Service<IngestService>()(
             studioWork(
               id,
               Effect.gen(function* () {
-                yield* garments.update(id, edit);
-                const garment = yield* garments.byId(id);
+                const garment = yield* garments
+                  .update(id, edit)
+                  .pipe(
+                    Effect.andThen(garments.byId(id)),
+                    withStudioPersistenceDeadline,
+                  );
                 yield* renderStudio(deps, {
                   garment,
                   description: renderDescription(edit),
