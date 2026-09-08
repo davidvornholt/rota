@@ -18,7 +18,6 @@ import {
   decodeImageChoiceInput,
   decodeRetryStudioInput,
   decodeUpdateGarmentInput,
-  type GarmentEdit,
 } from '../schemas/garment-input.ts';
 import { garmentsRuntime } from './garments-runtime.ts';
 import { IngestService } from './ingest.ts';
@@ -94,11 +93,6 @@ export const garmentFn = createServerFn({ method: 'GET' })
       garmentsRuntime.run(garmentView(data.id)),
   );
 
-const attributesOf = (edit: GarmentEdit) => ({
-  ...edit,
-  seasons: edit.seasons,
-});
-
 export const acceptGarmentFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
   .validator((input: unknown) => decodeAcceptGarmentInput(input))
@@ -107,7 +101,7 @@ export const acceptGarmentFn = createServerFn({ method: 'POST' })
       garmentsRuntime.run(
         Effect.gen(function* () {
           const garments = yield* GarmentRepository;
-          yield* garments.update(data.id, attributesOf(data.edit));
+          yield* garments.update(data.id, data.edit);
           yield* garments.setImageChoice(data.id, data.imageChoice);
           yield* garments.setStatus(data.id, 'active');
           return yield* garmentView(data.id);
@@ -123,7 +117,7 @@ export const updateGarmentFn = createServerFn({ method: 'POST' })
       garmentsRuntime.run(
         Effect.gen(function* () {
           const garments = yield* GarmentRepository;
-          yield* garments.update(data.id, attributesOf(data.edit));
+          yield* garments.update(data.id, data.edit);
           return yield* garmentView(data.id);
         }),
       ),

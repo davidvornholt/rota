@@ -24,7 +24,6 @@ const garment = (id: string, slots: ReadonlyArray<Slot>): Garment => ({
   fit: '',
   sleeve: '',
   brand: '',
-  seasons: [],
   notes: '',
   price: null,
   purchasedOn: null,

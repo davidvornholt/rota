@@ -38,7 +38,6 @@ const garment: GarmentView = {
   fit: '',
   sleeve: '',
   brand: '',
-  seasons: [],
   notes: '',
   price: null,
   purchasedOn: null,

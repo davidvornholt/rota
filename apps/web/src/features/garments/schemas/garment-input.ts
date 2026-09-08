@@ -43,7 +43,6 @@ export const GarmentEditSchema = Schema.Struct({
   fit: shortText,
   sleeve: shortText,
   brand: shortText,
-  seasons: Schema.Array(Schema.String),
   notes: Schema.String.pipe(Schema.maxLength(notesLength)),
   price: Schema.NullOr(Schema.Number.pipe(Schema.between(0, highestPrice))),
   purchasedOn: Schema.NullOr(LocalDateSchema),

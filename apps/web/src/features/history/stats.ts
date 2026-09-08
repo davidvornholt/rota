@@ -14,45 +14,18 @@ import {
   addDays,
   daysInRange,
   type LocalDate,
-  monthOf,
 } from '#/shared/time/local-date.ts';
 
-export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
-
-const lastWinterMonth = 2;
-const lastSpringMonth = 5;
-const lastSummerMonth = 8;
-const december = 12;
-
-export const seasonOf = (date: LocalDate): Season => {
-  const month = monthOf(date);
-  if (month <= lastWinterMonth || month === december) {
-    return 'winter';
-  }
-  if (month <= lastSpringMonth) {
-    return 'spring';
-  }
-  if (month <= lastSummerMonth) {
-    return 'summer';
-  }
-  return 'autumn';
-};
-
-const inSeason = (garment: GarmentView, season: Season): boolean =>
-  garment.seasons.length === 0 || garment.seasons.includes(season);
-
-/** Active garments in season that have gone unworn for a long while, longest first. */
+/** Active garments unworn for at least 90 days, longest first. */
 export const neglectedDays = 90;
 
 export const neglected = (
   garments: ReadonlyArray<GarmentView>,
-  today: LocalDate,
 ): ReadonlyArray<GarmentView> =>
   garments
     .filter(
       (garment) =>
         garment.status === 'active' &&
-        inSeason(garment, seasonOf(today)) &&
         (garment.daysSinceWorn === null ||
           garment.daysSinceWorn >= neglectedDays),
     )

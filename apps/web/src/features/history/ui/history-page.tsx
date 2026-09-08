@@ -102,9 +102,9 @@ export const HistoryPage = ({ view }: { readonly view: HistoryView }) => (
           garments={view.mostWorn}
         />
       </Section>
-      <Section title="Neglected this season">
+      <Section title="Not worn recently">
         <GarmentStrip
-          empty="Everything in season has been worn in the last three months."
+          empty="Every active garment has been worn in the last 90 days."
           fact={(garment) =>
             garment.daysSinceWorn === null
               ? 'never worn'

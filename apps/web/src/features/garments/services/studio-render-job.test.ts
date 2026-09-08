@@ -32,7 +32,6 @@ const garment = (status: Garment['status'], hasStudio: boolean): Garment => ({
   fit: '',
   sleeve: '',
   brand: '',
-  seasons: [],
   notes: '',
   price: null,
   purchasedOn: null,

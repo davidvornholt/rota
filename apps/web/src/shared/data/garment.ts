@@ -79,7 +79,6 @@ export const GarmentFromRow = Schema.Struct({
   fit: Schema.String,
   sleeve: Schema.String,
   brand: Schema.String,
-  seasons: Schema.Array(Schema.String),
   notes: Schema.String,
   price: NumericFromRow,
   purchasedOn: Schema.propertySignature(Schema.NullOr(LocalDateSchema)).pipe(

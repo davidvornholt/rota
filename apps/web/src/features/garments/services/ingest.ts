@@ -104,7 +104,6 @@ export const attributesFromExtraction = (
   fit: extraction.fit,
   sleeve: extraction.sleeve,
   brand: extraction.brand,
-  seasons: extraction.seasons,
   notes: '',
   price: null,
   purchasedOn: null,

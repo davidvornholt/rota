@@ -28,7 +28,6 @@ export type GarmentAttributes = {
   readonly fit: string;
   readonly sleeve: string;
   readonly brand: string;
-  readonly seasons: ReadonlyArray<string>;
   readonly notes: string;
   readonly price: number | null;
   readonly purchasedOn: LocalDate | null;
@@ -63,7 +62,7 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
         select g.id, g.status, g.name, g.category, g.subcategory,
                array_to_json(g.slots) as slots,
                g.warmth, g.rain_ok, g.formality, g.wear_budget, g.colors,
-               g.pattern, g.material, g.fit, g.sleeve, g.brand, g.seasons,
+               g.pattern, g.material, g.fit, g.sleeve, g.brand,
                g.notes, g.price, g.purchased_on, g.image_choice,
                g.processing_error, g.studio_error, g.retired_at, g.created_at,
                ${imagesJson} as images
@@ -135,7 +134,6 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
             fit = ${attributes.fit},
             sleeve = ${attributes.sleeve},
             brand = ${attributes.brand},
-            seasons = ${attributes.seasons}::text[],
             notes = ${attributes.notes},
             price = ${attributes.price},
             purchased_on = ${attributes.purchasedOn},

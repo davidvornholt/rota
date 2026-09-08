@@ -109,7 +109,6 @@ export const garment = pgTable(
     fit: text('fit').notNull().default(''),
     sleeve: text('sleeve').notNull().default(''),
     brand: text('brand').notNull().default(''),
-    seasons: text('seasons').array().notNull().default([]),
     notes: text('notes').notNull().default(''),
     price: numeric('price', { precision: pricePrecision, scale: priceScale }),
     purchasedOn: date('purchased_on'),

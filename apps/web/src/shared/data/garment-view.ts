@@ -44,7 +44,6 @@ export type GarmentView = {
   readonly fit: string;
   readonly sleeve: string;
   readonly brand: string;
-  readonly seasons: ReadonlyArray<string>;
   readonly notes: string;
   readonly price: number | null;
   readonly purchasedOn: LocalDate | null;
@@ -144,7 +143,6 @@ export const toGarmentView = ({
     fit: garment.fit,
     sleeve: garment.sleeve,
     brand: garment.brand,
-    seasons: garment.seasons,
     notes: garment.notes,
     price: garment.price,
     purchasedOn: garment.purchasedOn,

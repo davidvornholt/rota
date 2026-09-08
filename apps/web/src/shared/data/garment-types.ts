@@ -35,9 +35,6 @@ export type GarmentColor = {
   readonly hex: string;
 };
 
-export const seasons = ['spring', 'summer', 'autumn', 'winter'] as const;
-export type Season = (typeof seasons)[number];
-
 /**
  * The categories a garment can be filed under. Each carries the default wear
  * budget (days in a row before it goes to the wash) and the slots it can fill.
