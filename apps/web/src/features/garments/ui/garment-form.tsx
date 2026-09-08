@@ -97,26 +97,6 @@ const SlotFields = ({ value, set }: FieldsProps) => (
   </fieldset>
 );
 
-const RotationFields = ({
-  value,
-  set,
-  categoryBudget,
-}: FieldsProps & { readonly categoryBudget: number }) => (
-  <div className="grid gap-6 sm:grid-cols-2">
-    <div>
-      <NumberField
-        inputMode="numeric"
-        label="Days in a row"
-        max={longestWearBudget}
-        min={1}
-        onChange={(next) => set('wearBudget', next)}
-        placeholder={`Category default: ${categoryBudget}`}
-        value={value.wearBudget}
-      />
-    </div>
-  </div>
-);
-
 const DetailFields = ({ value, set }: FieldsProps) => {
   const notesId = useId();
   return (
@@ -229,11 +209,23 @@ export const GarmentForm = ({
           options={formalityOptions}
         />
       </div>
-      <RotationFields categoryBudget={categoryBudget} set={set} value={value} />
-      <ColourFields
-        colors={value.colors}
-        onChange={(next) => set('colors', next)}
-      />
+      <div className="grid items-start gap-6 sm:grid-cols-2">
+        <div>
+          <NumberField
+            inputMode="numeric"
+            label="Days in a row"
+            max={longestWearBudget}
+            min={1}
+            onChange={(next) => set('wearBudget', next)}
+            placeholder={`Category default: ${categoryBudget}`}
+            value={value.wearBudget}
+          />
+        </div>
+        <ColourFields
+          colors={value.colors}
+          onChange={(next) => set('colors', next)}
+        />
+      </div>
       <div className="grid gap-6 sm:grid-cols-3">
         <TextField
           label="Material"
