@@ -26,16 +26,19 @@ export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
       ),
     );
   return (
-    <fieldset>
+    <fieldset className="min-w-0">
       <legend className={labelClass}>Colours</legend>
       {colors.length === 0 ? (
         <p className="mt-1 text-ink-muted text-sm">
           Choose at least one colour.
         </p>
       ) : null}
-      <ul className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2">
+      <ul className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(min(100%,10.5rem),1fr))] items-center gap-x-3 gap-y-2">
         {rows.map((row) => (
-          <li className="flex items-center gap-3" key={row.position}>
+          <li
+            className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2"
+            key={row.position}
+          >
             <input
               aria-label={`Colour ${row.position + 1}`}
               className="size-11 cursor-pointer border border-rule-strong bg-paper p-0.5"
