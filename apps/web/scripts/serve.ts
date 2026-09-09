@@ -7,9 +7,11 @@
 
 import { realpath } from 'node:fs/promises';
 import process from 'node:process';
+import { Effect } from 'effect';
 
 import { applyPrivateResponseHeaders } from '../src/shared/auth/private-response.ts';
 import { parsePort } from './server-config.ts';
+import { runServerFunction } from './server-request.ts';
 
 type FetchHandler = (request: Request) => Promise<Response> | Response;
 
@@ -29,8 +31,7 @@ const serverFunctionHeader = 'x-tsr-serverFn';
 const tickPath = '/api/internal/tick';
 const tickTokenHeader = 'x-rota-tick-token';
 const tickInterval = 60_000;
-// Proposal work, including waiting for another request, has a 180-second
-// deadline. Leave time to deliver its result without Bun closing the socket.
+// Once the RPC has answered, restore an idle limit for response streaming.
 const serverFunctionIdleSeconds = 240;
 
 export const serveRequest = (
@@ -39,7 +40,15 @@ export const serveRequest = (
   server: Pick<Bun.Server<undefined>, 'timeout'>,
 ) => {
   if (new URL(request.url).pathname.startsWith(serverFunctionBase)) {
-    server.timeout(request, serverFunctionIdleSeconds);
+    // The application enforces a seven-minute request deadline; Bun caps idle timers at 255 seconds.
+    server.timeout(request, 0);
+    return Effect.runPromise(
+      runServerFunction(handler, request).pipe(
+        Effect.ensuring(
+          Effect.sync(() => server.timeout(request, serverFunctionIdleSeconds)),
+        ),
+      ),
+    );
   }
   return handler(request);
 };

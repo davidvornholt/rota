@@ -25,6 +25,10 @@ bun run dev             # http://localhost:3000
 
 Rota runs at `https://rota.vornholt.online` on `prod-1`, whose configuration lives in [`davidvornholt/personal-infra`](https://github.com/davidvornholt/personal-infra). Every commit on `main` that passes the standards gate is built into `ghcr.io/davidvornholt/rota` and announced to that repository, where a trusted writer opens a promotion pull request pinning the new digest; merging it deploys. Garment images live in the `rota-media` R2 bucket behind `https://img.rota.vornholt.online`. There are no pull request previews, by decision recorded there.
 
+## Outfit generation
+
+Outfit requests keep HIGH reasoning and the original candidate photos. Gemini gets up to five minutes per attempt, within a six-minute operation deadline that includes queueing, media reads and retries. Server functions have a seven-minute request deadline because Bun's idle timer cannot represent that duration. A failed note regeneration keeps the saved note and previous outfit; the page identifies the previous suggestion and offers another attempt.
+
 ## Design
 
 `DESIGN.md` states the design intent: paper, ink, hairline rules, square corners, one yellow signal, the garment as the only picture.

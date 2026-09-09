@@ -72,3 +72,21 @@ export class ProposalAnswerError extends Data.TaggedError(
     });
   }
 }
+
+export class ProposalGenerationError extends Data.TaggedError(
+  'ProposalGenerationError',
+)<{
+  readonly message: string;
+  readonly httpStatus: 424;
+  readonly cause: unknown;
+}> {
+  constructor(timedOut: boolean, cause: unknown) {
+    super({
+      message: timedOut
+        ? 'Choosing an outfit timed out. Please try again.'
+        : 'Rota could not choose an outfit. Please try again.',
+      httpStatus: 424,
+      cause,
+    });
+  }
+}

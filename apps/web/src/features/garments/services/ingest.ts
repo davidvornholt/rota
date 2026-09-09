@@ -192,6 +192,7 @@ const readGarment = (deps: IngestDependencies, garment: Garment) =>
   Effect.gen(function* () {
     const photo = yield* originalPhoto(deps, garment);
     const extraction = yield* deps.gemini.generateJson({
+      purpose: 'garment',
       system: extractionSystemPrompt,
       parts: [
         { image: { mimeType: photo.mime, data: photo.bytes } },

@@ -13,6 +13,7 @@ export const orientStudioPhoto = (
 ) =>
   Effect.gen(function* () {
     const orientation = yield* gemini.generateJson({
+      purpose: 'garment',
       system:
         'Identify the upright orientation of a garment in a wardrobe photo.',
       parts: [
