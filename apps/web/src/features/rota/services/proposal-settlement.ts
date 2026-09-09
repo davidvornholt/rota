@@ -6,6 +6,7 @@
 
 import { Effect } from 'effect';
 import type { GeminiError } from '#/shared/ai/errors/ai-errors.ts';
+import type { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import type {
   DataReadError,
   DataWriteError,
@@ -43,6 +44,7 @@ export type RerollScope = 'boundary' | 'all';
 
 export type SettlementDeps = {
   readonly proposals: ProposalRepository;
+  readonly notes: DayNoteRepository;
   readonly wearLog: WearLogRepository;
   readonly forecasts: ForecastService;
   readonly generate: (
@@ -78,7 +80,7 @@ export const confirm = ({ proposals, wearLog }: SettlementDeps, id: string) =>
 
 /**
  * Pick again. `boundary` re-picks only what the engine chose
- * freshly and keeps the rotation; `all` reopens every slot. Either way
+ * freshly and prefers the rotation where it suits today; `all` turns down every slot. Either way
  * the garments just turned down stay out for the rest of the day, unless
  * nothing else could fill their slot. The old proposal is retired only once
  * the new one exists, so a failed attempt leaves the wearer with what they had.
@@ -108,6 +110,26 @@ export const reroll = (
     });
     yield* proposals.setStatus(id, 'rejected');
     return next;
+  });
+
+export const saveOccasion = (
+  { proposals, notes, forecasts, generate }: SettlementDeps,
+  clock: WardrobeClock,
+  occasion: string,
+) =>
+  Effect.gen(function* () {
+    yield* notes.save(clock.today, occasion);
+    const latest = yield* proposals.latestForDate(clock.today);
+    if (latest?.status !== 'pending') {
+      return;
+    }
+    const forecast = yield* forecasts.ensure(clock.settings, clock.today);
+    // Inserting the replacement retires the previous proposal atomically.
+    // A failed attempt keeps both the saved note and the existing outfit.
+    yield* generate(clock, forecast, {
+      excluded: new Set(latest.payload.excludedGarmentIds),
+      releaseAll: false,
+    });
   });
 
 /**

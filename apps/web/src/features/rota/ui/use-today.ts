@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { type Slot, slotOrder } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
+import { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import type {
   ProposalItemView,
   TodayView,
@@ -78,30 +79,48 @@ const useTodayMutations = (
   today: TodayView['today'],
   apply: (next: TodayView) => void,
   applyLogged: (next: TodayView) => void,
+  refresh: () => void,
 ) => ({
-  decide: useMutation({ mutationFn: () => decideTodayFn(), onSuccess: apply }),
+  decide: useMutation({
+    mutationFn: () => decideTodayFn({ fetch: serverFunctionFetch }),
+    onSuccess: apply,
+    onError: refresh,
+  }),
   confirm: useMutation({
-    mutationFn: (id: string) => confirmProposalFn({ data: { id } }),
+    mutationFn: (id: string) =>
+      confirmProposalFn({ data: { id }, fetch: serverFunctionFetch }),
     onSuccess: applyLogged,
+    onError: refresh,
   }),
   wearDraft: useMutation({
     mutationFn: (entries: ReadonlyArray<{ garmentId: string; slot: Slot }>) =>
-      logOutfitFn({ data: { date: today, entries, source: 'override' } }),
+      logOutfitFn({
+        data: { date: today, entries, source: 'override' },
+        fetch: serverFunctionFetch,
+      }),
     onSuccess: applyLogged,
+    onError: refresh,
   }),
   reroll: useMutation({
     mutationFn: (input: { id: string; scope: RerollScope }) =>
-      rerollProposalFn({ data: input }),
+      rerollProposalFn({ data: input, fetch: serverFunctionFetch }),
     onSuccess: apply,
+    onError: refresh,
   }),
   occasion: useMutation({
-    mutationFn: (text: string) => saveOccasionFn({ data: { occasion: text } }),
+    mutationFn: (text: string) =>
+      saveOccasionFn({ data: { occasion: text }, fetch: serverFunctionFetch }),
     onSuccess: apply,
+    onError: refresh,
   }),
   backfill: useMutation({
     mutationFn: (day: UnloggedDay) =>
-      backfillFn({ data: { date: day.date, copyFrom: day.previousDate } }),
+      backfillFn({
+        data: { date: day.date, copyFrom: day.previousDate },
+        fetch: serverFunctionFetch,
+      }),
     onSuccess: apply,
+    onError: refresh,
   }),
 });
 
@@ -134,17 +153,20 @@ export const useToday = (initial: TodayView) => {
     reset(initial.proposal);
   }, [initial, reset]);
 
+  const refresh = () => {
+    router.invalidate().catch(() => undefined);
+  };
   const apply = (next: TodayView) => {
     setView(next);
     reset(next.proposal);
-    router.invalidate().catch(() => undefined);
+    refresh();
   };
   const applyLogged = (next: TodayView) => {
     setJustLogged(true);
     apply(next);
   };
   const { decide, confirm, wearDraft, reroll, occasion, backfill } =
-    useTodayMutations(view.today, apply, applyLogged);
+    useTodayMutations(view.today, apply, applyLogged, refresh);
 
   const needsDecision =
     view.proposal === null &&
@@ -160,11 +182,19 @@ export const useToday = (initial: TodayView) => {
 
   const { proposal } = view;
   const mutations = [confirm, wearDraft, reroll, decide, occasion, backfill];
+  const resetFailures = () => {
+    for (const mutation of mutations) {
+      if (mutation.isError) {
+        mutation.reset();
+      }
+    }
+  };
 
   const wear = () => {
     if (proposal === null) {
       return;
     }
+    resetFailures();
     if (outfit.edited) {
       wearDraft.mutate(
         outfit.items.map((item) => ({
@@ -184,22 +214,32 @@ export const useToday = (initial: TodayView) => {
     justLogged,
     needsDecision,
     deciding: decide.isPending,
-    rerolling: reroll.isPending,
+    rerolling: reroll.isPending || occasion.isPending,
     logging: confirm.isPending || wearDraft.isPending,
     busy: mutations.some((mutation) => mutation.isPending),
     failure: mutations.find((mutation) => mutation.isError)?.error,
-    decide: () => decide.mutate(),
+    decide: () => {
+      resetFailures();
+      decide.mutate();
+    },
     wear,
     reroll: (scope: RerollScope) => {
       if (proposal !== null) {
+        resetFailures();
         reroll.mutate({ id: proposal.id, scope });
       }
     },
     pick: outfit.pick,
     remove: outfit.remove,
-    saveOccasion: (text: string) => occasion.mutate(text),
+    saveOccasion: (text: string) => {
+      resetFailures();
+      occasion.mutate(text);
+    },
     savingOccasion: occasion.isPending,
-    backfill: (day: UnloggedDay) => backfill.mutate(day),
+    backfill: (day: UnloggedDay) => {
+      resetFailures();
+      backfill.mutate(day);
+    },
     backfilling: backfill.isPending,
   };
 };

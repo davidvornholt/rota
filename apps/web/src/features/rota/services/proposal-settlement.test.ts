@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'bun:test';
-import { Effect } from 'effect';
+import { Deferred, Effect, Fiber, TestClock, TestContext } from 'effect';
 import type { Proposal } from '#/shared/data/proposal-repository.ts';
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import { SlotEmptyError } from '../errors/rota-errors.ts';
 import type { ForecastWindow } from './forecast-service.ts';
+import { makeProposalOperations } from './proposal-operations.ts';
 import type { GenerateOptions } from './proposal-service.ts';
-import { reroll, type SettlementDeps } from './proposal-settlement.ts';
+import {
+  reroll,
+  type SettlementDeps,
+  saveOccasion,
+} from './proposal-settlement.ts';
 
 const today = localDate('2026-09-07');
 const shortsId = '0398ab00-0000-4000-8000-000000000001';
@@ -80,6 +85,7 @@ const pending: Proposal = {
 };
 
 type Recorded = {
+  readonly notes: Array<string>;
   readonly statuses: Array<readonly [string, string]>;
   readonly generated: Array<GenerateOptions>;
 };
@@ -87,16 +93,23 @@ type Recorded = {
 const depsWith = (
   generateOutcome: 'succeeds' | 'fails',
 ): { readonly deps: SettlementDeps; readonly recorded: Recorded } => {
-  const recorded: Recorded = { statuses: [], generated: [] };
+  const recorded: Recorded = { statuses: [], generated: [], notes: [] };
   const deps = {
     proposals: {
       byId: () => Effect.succeed(pending),
+      latestForDate: () => Effect.succeed(pending),
       setStatus: (id: string, status: string) => {
         recorded.statuses.push([id, status]);
         return Effect.void;
       },
     },
-    wearLog: {},
+    notes: {
+      save: (_date: string, note: string) =>
+        Effect.sync(() => {
+          recorded.notes.push(note);
+        }),
+    },
+    wearLog: { readDay: () => Effect.succeed([]) },
     forecasts: { ensure: () => Effect.succeed(forecast) },
     generate: (
       _clock: WardrobeClock,
@@ -154,5 +167,91 @@ describe('reroll', () => {
       [jumperId, shortsId, teeId].sort(),
     );
     expect(all.recorded.generated[0]?.releaseAll).toBeTrue();
+  });
+});
+
+describe('note regeneration', () => {
+  it('keeps the saved note and pending outfit after failure', async () => {
+    const { deps, recorded } = depsWith('fails');
+    const outcome = await Effect.runPromise(
+      Effect.either(saveOccasion(deps, clock, 'Meeting today')),
+    );
+    expect(outcome._tag).toBe('Left');
+    expect(recorded.notes).toEqual(['Meeting today']);
+    expect(recorded.statuses).toEqual([]);
+    expect([...(recorded.generated[0]?.excluded ?? [])]).toEqual([jumperId]);
+  });
+
+  it('saves the note on a decided day without generating another outfit', async () => {
+    const { deps, recorded } = depsWith('succeeds');
+    deps.proposals.latestForDate = () =>
+      Effect.succeed({ ...pending, status: 'confirmed' });
+    await Effect.runPromise(saveOccasion(deps, clock, 'Meeting today'));
+    expect(recorded.notes).toEqual(['Meeting today']);
+    expect(recorded.generated).toEqual([]);
+  });
+});
+
+describe('proposal operations', () => {
+  it('makes concurrent morning requests share the stored proposal', async () => {
+    const { deps } = depsWith('succeeds');
+    let stored: Proposal | undefined;
+    let generated = 0;
+    deps.proposals.latestForDate = () => Effect.sync(() => stored);
+    const result = Effect.gen(function* () {
+      const started = yield* Deferred.make<void>();
+      const finish = yield* Deferred.make<void>();
+      const operations = yield* makeProposalOperations({
+        ...deps,
+        generate: () =>
+          Effect.gen(function* () {
+            generated += 1;
+            yield* Deferred.succeed(started, undefined);
+            yield* Deferred.await(finish);
+            stored = pending;
+            return pending;
+          }),
+      });
+      const first = yield* Effect.fork(operations.ensure(clock));
+      yield* Deferred.await(started);
+      const second = yield* Effect.fork(operations.ensure(clock));
+      yield* Deferred.succeed(finish, undefined);
+      return yield* Effect.all([Fiber.join(first), Fiber.join(second)]);
+    });
+    expect(await Effect.runPromise(result)).toEqual([pending, pending]);
+    expect(generated).toBe(1);
+  });
+
+  it('bounds stuck generation, interrupts it and releases the gate for retry', async () => {
+    const { deps } = depsWith('succeeds');
+    deps.proposals.latestForDate = () => Effect.succeed(undefined);
+    let interrupted = false;
+    let stuck = true;
+    const result = Effect.gen(function* () {
+      const started = yield* Deferred.make<void>();
+      const operations = yield* makeProposalOperations({
+        ...deps,
+        generate: () =>
+          stuck
+            ? Deferred.succeed(started, undefined).pipe(
+                Effect.zipRight(Effect.never),
+                Effect.onInterrupt(() =>
+                  Effect.sync(() => {
+                    interrupted = true;
+                  }),
+                ),
+              )
+            : Effect.succeed(pending),
+      });
+      const first = yield* Effect.fork(Effect.either(operations.ensure(clock)));
+      yield* Deferred.await(started);
+      yield* TestClock.adjust('181 seconds');
+      const outcome = yield* Fiber.join(first);
+      expect(outcome._tag).toBe('Left');
+      expect(interrupted).toBeTrue();
+      stuck = false;
+      return yield* operations.ensure(clock);
+    }).pipe(Effect.provide(TestContext.TestContext));
+    expect(await Effect.runPromise(result)).toEqual(pending);
   });
 });

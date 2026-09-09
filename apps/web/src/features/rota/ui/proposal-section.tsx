@@ -25,13 +25,11 @@ const Deciding = ({ again = false }: { readonly again?: boolean }) => (
   <section aria-live="polite" className="py-10">
     <p className="type-eyebrow">{again ? 'Choosing again' : 'Deciding'}</p>
     <p className="type-display mt-2 text-3xl text-ink sm:text-4xl">
-      {again
-        ? 'Weighing what is left …'
-        : 'Reading the forecast and the rota …'}
+      {again ? 'Choosing for today …' : 'Reading the forecast and the rota …'}
     </p>
     <p className="mt-3 max-w-prose text-ink-muted">
       {again
-        ? 'The wardrobe sets aside what you turned down and the model picks from the rest.'
+        ? "The model weighs today's weather, your note and the available clothes."
         : 'The wardrobe narrows the choice and the model weighs it. This takes a moment the first time each day.'}
     </p>
   </section>
@@ -96,7 +94,7 @@ const Actions = ({
         ].join(' ')}
       >
         {continuing
-          ? 'Picking again keeps the continuing garments; reopening puts them up too. '
+          ? 'Picking again prefers the continuing garments when they suit today; reopening turns them down too. '
           : ''}
         What you turn down stays out for today.
       </p>

@@ -2,8 +2,6 @@ import { createServerFn } from '@tanstack/react-start';
 import { Effect } from 'effect';
 
 import { sessionRequired } from '#/shared/auth/auth-middleware.ts';
-import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
-import { ProposalRepository } from '#/shared/data/proposal-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { readWardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import { ProposalStateError } from '../errors/rota-errors.ts';
@@ -91,15 +89,9 @@ export const saveOccasionFn = createServerFn({ method: 'POST' })
       rotaRuntime.run(
         Effect.gen(function* () {
           const clock = yield* readWardrobeClock();
-          const notes = yield* DayNoteRepository;
-          const proposals = yield* ProposalRepository;
+          const proposals = yield* ProposalService;
           const today = yield* TodayService;
-          yield* notes.save(clock.today, data.occasion);
-          const latest = yield* proposals.latestForDate(clock.today);
-          if (latest?.status === 'pending') {
-            yield* proposals.setStatus(latest.id, 'superseded');
-            return yield* today.decide(clock);
-          }
+          yield* proposals.saveOccasion(clock, data.occasion);
           return yield* today.view(clock);
         }),
       ),

@@ -29,6 +29,20 @@ const serverFunctionHeader = 'x-tsr-serverFn';
 const tickPath = '/api/internal/tick';
 const tickTokenHeader = 'x-rota-tick-token';
 const tickInterval = 60_000;
+// Proposal work, including waiting for another request, has a 180-second
+// deadline. Leave time to deliver its result without Bun closing the socket.
+const serverFunctionIdleSeconds = 240;
+
+export const serveRequest = (
+  handler: FetchHandler,
+  request: Request,
+  server: Pick<Bun.Server<undefined>, 'timeout'>,
+) => {
+  if (new URL(request.url).pathname.startsWith(serverFunctionBase)) {
+    server.timeout(request, serverFunctionIdleSeconds);
+  }
+  return handler(request);
+};
 
 const openClientFile = (pathname: string, clientDirUrl: URL) => {
   try {
@@ -268,7 +282,7 @@ if (import.meta.main) {
     // Bun's development mode answers an unhandled error with a debug page
     // carrying this script's source and absolute paths.
     development: false,
-    fetch: handler,
+    fetch: (request, instance) => serveRequest(handler, request, instance),
   });
 
   startScheduler(handler, port, tickToken, tickInterval);

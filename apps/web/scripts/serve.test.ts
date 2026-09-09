@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test';
+import { Effect } from 'effect';
 
 import { privateResponseHeaders } from '../src/shared/auth/private-response.ts';
-import { createFetchHandler } from './serve.ts';
+import { createFetchHandler, serveRequest } from './serve.ts';
 
 const serverFunctionPath = '/_serverFn/test';
 const unauthorized = 401;
@@ -19,6 +20,39 @@ const frameworkFailure = (status: number): Response =>
   });
 
 describe('createFetchHandler', () => {
+  it('lets server functions finish after the ordinary socket idle timeout', async () => {
+    const ordinaryIdleSeconds = 1;
+    const modelDelay = '1500 millis';
+    const result = Effect.acquireUseRelease(
+      Effect.sync(() =>
+        Bun.serve({
+          hostname: '127.0.0.1',
+          port: 0,
+          idleTimeout: ordinaryIdleSeconds,
+          fetch: (request, instance) =>
+            serveRequest(
+              () =>
+                Effect.runPromise(
+                  Effect.sleep(modelDelay).pipe(
+                    Effect.as(new Response('outfit ready')),
+                  ),
+                ),
+              request,
+              instance,
+            ),
+        }),
+      ),
+      (server) =>
+        Effect.tryPromise(() =>
+          fetch(new URL(serverFunctionPath, server.url)),
+        ).pipe(
+          Effect.flatMap((response) => Effect.promise(() => response.text())),
+        ),
+      (server) => Effect.sync(() => server.stop(true)),
+    );
+    expect(await Effect.runPromise(result)).toBe('outfit ready');
+  });
+
   it.each([
     ['unauthorized', unauthorized],
     ['safe conflict', conflict],

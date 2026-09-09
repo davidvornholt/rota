@@ -21,42 +21,49 @@ import {
   type RotationInput,
 } from '../rotation.ts';
 import type { ProposalAnswer } from '../schemas/proposal-answer.ts';
-import type { AliasedGarment, OpenSlot, RecentDay } from './proposal-prompt.ts';
+import type {
+  AliasedGarment,
+  RecentDay,
+  SlotChoices,
+} from './proposal-prompt.ts';
 
 export const requiredSlots: ReadonlySet<Slot> = new Set(['bottom', 'top']);
 const recentDays = 14;
 
 /**
- * The slots not carried over, each with the engine's shortlist. A required
+ * Alternatives for every slot, including those with a rotation preference. A required
  * slot that only today's turned-down garments could fill gets them back rather
  * than failing: the wearer asked for another suggestion, and the rest of the
  * outfit can still change around the one garment there is no alternative to.
  */
-export const openSlotsFor = (
+export const slotChoicesFor = (
   input: RotationInput,
   continuing: ReadonlyArray<Continuation>,
-): ReadonlyArray<OpenSlot> => {
+): ReadonlyArray<SlotChoices> => {
   const chosen = new Set(continuing.map((c) => c.garment.id));
-  return slotOrder
-    .filter((slot) => !continuing.some((c) => c.slot === slot))
-    .map((slot) => {
-      const required = requiredSlots.has(slot);
-      const candidates = candidatesFor(input, slot, chosen);
-      if (candidates.length > 0 || !required || input.excluded.size === 0) {
-        return { slot, required, candidates, turnedDownOnly: false };
-      }
-      const turnedDown = candidatesFor(
-        { ...input, excluded: new Set() },
-        slot,
-        chosen,
-      );
-      return {
-        slot,
-        required,
-        candidates: turnedDown,
-        turnedDownOnly: turnedDown.length > 0,
-      };
-    });
+  return slotOrder.map((slot) => {
+    const required = requiredSlots.has(slot);
+    const candidates = candidatesFor(input, slot, chosen);
+    if (
+      candidates.length > 0 ||
+      !required ||
+      input.excluded.size === 0 ||
+      continuing.some((c) => c.slot === slot)
+    ) {
+      return { slot, required, candidates, turnedDownOnly: false };
+    }
+    const turnedDown = candidatesFor(
+      { ...input, excluded: new Set() },
+      slot,
+      chosen,
+    );
+    return {
+      slot,
+      required,
+      candidates: turnedDown,
+      turnedDownOnly: turnedDown.length > 0,
+    };
+  });
 };
 
 /** The last two weeks of the log as named outfits, oldest first. */
@@ -124,8 +131,12 @@ export const answerToItems = (
           : Either.right(undefined);
       }
       const aliased = aliases.get(alias);
-      if (aliased === undefined || used.has(aliased.garment.id)) {
-        return Either.left(`Unknown or repeated alias ${alias}.`);
+      if (
+        aliased === undefined ||
+        aliased.slot !== slot ||
+        used.has(aliased.garment.id)
+      ) {
+        return Either.left(`Unknown, wrong-slot or repeated alias ${alias}.`);
       }
       used.add(aliased.garment.id);
       return Either.right(

@@ -8,7 +8,7 @@
 
 import { Effect } from 'effect';
 
-import { Gemini, type ImagePart, type PromptPart } from '#/shared/ai/gemini.ts';
+import { Gemini, type ImagePart } from '#/shared/ai/gemini.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { displayImage, type Garment } from '#/shared/data/garment.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
@@ -16,13 +16,8 @@ import {
   type ProposalPayload,
   ProposalRepository,
 } from '#/shared/data/proposal-repository.ts';
-import {
-  type OutfitEntry,
-  WearLogRepository,
-  type WearSource,
-} from '#/shared/data/wear-log-repository.ts';
+import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
-import type { LocalDate } from '#/shared/time/local-date.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import { SlotEmptyError } from '../errors/rota-errors.ts';
 import { continuations, type RotationInput } from '../rotation.ts';
@@ -33,20 +28,16 @@ import {
 import { ForecastService, type ForecastWindow } from './forecast-service.ts';
 import {
   answerToItems,
-  openSlotsFor,
   recentSummary,
+  slotChoicesFor,
 } from './proposal-assembly.ts';
+import { makeProposalOperations } from './proposal-operations.ts';
 import {
+  type BuiltPrompt,
   buildProposalPrompt,
   proposalSystemPrompt,
 } from './proposal-prompt.ts';
-import {
-  confirm,
-  logOutfit,
-  type RerollScope,
-  reroll,
-  type SettlementDeps,
-} from './proposal-settlement.ts';
+import type { SettlementDeps } from './proposal-settlement.ts';
 
 export type GenerateOptions = {
   readonly excluded: ReadonlySet<string>;
@@ -86,12 +77,12 @@ const imagesFor = (media: MediaStore, shown: ReadonlyArray<Garment>) =>
     ),
   );
 
-const ask = (gemini: Gemini, parts: ReadonlyArray<PromptPart>) =>
+const ask = (gemini: Gemini, prompt: BuiltPrompt) =>
   gemini.generateJson({
     system: proposalSystemPrompt,
-    parts,
+    parts: prompt.parts,
     schema: ProposalAnswerSchema,
-    jsonSchema: proposalAnswerJsonSchema,
+    jsonSchema: proposalAnswerJsonSchema(prompt.aliases),
   });
 
 type GenerateDeps = {
@@ -125,16 +116,19 @@ const generateProposal = (
       excluded: options.excluded,
     };
     const continuing = options.releaseAll ? [] : continuations(input);
-    const openSlots = openSlotsFor(input, continuing);
-    const empty = openSlots.find(
-      (open) => open.required && open.candidates.length === 0,
+    const slotChoices = slotChoicesFor(input, continuing);
+    const empty = slotChoices.find(
+      (open) =>
+        open.required &&
+        open.candidates.length === 0 &&
+        !continuing.some((c) => c.slot === open.slot),
     );
     if (empty !== undefined) {
       return yield* new SlotEmptyError(empty.slot);
     }
     const images = yield* imagesFor(media, [
       ...continuing.map((c) => c.garment),
-      ...openSlots.flatMap((open) => open.candidates.map((c) => c.garment)),
+      ...slotChoices.flatMap((open) => open.candidates.map((c) => c.garment)),
     ]);
     const prompt = buildProposalPrompt({
       today: clock.today,
@@ -144,11 +138,11 @@ const generateProposal = (
       forecastStale: forecast.stale,
       occasion,
       continuations: continuing,
-      openSlots,
+      slotChoices,
       recent: recentSummary(log, all, clock.today),
       imageFor: (garment) => images.get(garment.id),
     });
-    const answer = yield* ask(gemini, prompt.parts);
+    const answer = yield* ask(gemini, prompt);
     const items = yield* answerToItems(answer, prompt.aliases, input);
     const payload: ProposalPayload = {
       items,
@@ -176,7 +170,6 @@ export class ProposalService extends Effect.Service<ProposalService>()(
       const media = yield* MediaStore;
       const gemini = yield* Gemini;
       const forecasts = yield* ForecastService;
-
       const generate = (
         clock: WardrobeClock,
         forecast: ForecastWindow,
@@ -189,39 +182,15 @@ export class ProposalService extends Effect.Service<ProposalService>()(
           options,
         );
 
-      /** The day's open proposal, made now if the day has none yet. */
-      const ensure = (clock: WardrobeClock) =>
-        Effect.gen(function* () {
-          const latest = yield* proposals.latestForDate(clock.today);
-          if (latest?.status === 'pending' || latest?.status === 'confirmed') {
-            return latest;
-          }
-          const forecast = yield* forecasts.ensure(clock.settings, clock.today);
-          return yield* generate(clock, forecast, {
-            excluded: new Set(latest?.payload.excludedGarmentIds ?? []),
-            releaseAll: false,
-          });
-        });
-
       const settlement: SettlementDeps = {
         proposals,
+        notes,
         wearLog,
         forecasts,
         generate,
       };
 
-      return {
-        generate,
-        ensure,
-        confirm: (id: string) => confirm(settlement, id),
-        reroll: (clock: WardrobeClock, id: string, scope: RerollScope) =>
-          reroll(settlement, clock, id, scope),
-        logOutfit: (
-          date: LocalDate,
-          entries: ReadonlyArray<OutfitEntry>,
-          source: WearSource,
-        ) => logOutfit(settlement, date, entries, source),
-      };
+      return yield* makeProposalOperations(settlement);
     }),
   },
 ) {}
