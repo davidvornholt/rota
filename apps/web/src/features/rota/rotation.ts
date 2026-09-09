@@ -1,9 +1,7 @@
 /**
  * The rotation engine: everything about what to wear that does not need a
- * model. It reads the wear log (the only truth), decides which of yesterday's
- * garments may carry on, and narrows the wardrobe to the few candidates worth
- * putting in front of Gemini for each slot that is open. Total and synchronous;
- * the day, the log, and the forecast arrive as arguments.
+ * model. It reads the wear log, identifies continuing garments, and offers
+ * available alternatives. Weather and outfit suitability belong to Gemini.
  */
 
 import type { Garment } from '#/shared/data/garment.ts';
@@ -13,7 +11,6 @@ import {
   slotOrder,
 } from '#/shared/data/garment-types.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
-import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { daysBetween, type LocalDate } from '#/shared/time/local-date.ts';
 
 export type Outfit = Partial<Readonly<Record<Slot, string>>>;
@@ -107,38 +104,6 @@ export const daysSinceWorn = (
   return latest === undefined ? null : daysBetween(latest, date);
 };
 
-/** How much the forecast-window high counts against its low in the felt temperature. */
-const highWeight = 0.6;
-const lowWeight = 1 - highWeight;
-
-/** Felt-temperature floors, warmest band first; below the last one it is cold. */
-const bandFloors: ReadonlyArray<{
-  readonly band: number;
-  readonly felt: number;
-}> = [
-  { band: 1, felt: 18 },
-  { band: 2, felt: 12 },
-];
-const coldestBand = 3;
-
-/**
- * The day's garment warmth, 1 (light), 2 (medium), or 3 (heavy), from a felt temperature that
- * leans on the high: you dress for the afternoon you will be out in.
- */
-export const warmthBand = (day: Pick<WeatherDay, 'high' | 'low'>): number => {
-  const felt = day.high * highWeight + day.low * lowWeight;
-  return bandFloors.find((floor) => felt >= floor.felt)?.band ?? coldestBand;
-};
-
-const rainProbabilityThreshold = 50;
-const rainMillimetresThreshold = 2;
-
-export const rainLikely = (
-  day: Pick<WeatherDay, 'precipitationProbability' | 'precipitationMm'>,
-): boolean =>
-  day.precipitationProbability >= rainProbabilityThreshold ||
-  day.precipitationMm >= rainMillimetresThreshold;
-
 export type RotationSettings = {
   readonly cooldownDays: number;
   readonly categoryBudgets: Readonly<Record<string, number>>;
@@ -150,7 +115,6 @@ export type Continuation = {
   /** Which day of the budget today would be. */
   readonly dayOfBudget: number;
   readonly budget: number;
-  readonly weatherFits: boolean;
 };
 
 export type RotationInput = {
@@ -158,7 +122,6 @@ export type RotationInput = {
   readonly log: ReadonlyArray<WearEntry>;
   readonly garments: ReadonlyArray<Garment>;
   readonly settings: RotationSettings;
-  readonly weather: WeatherDay;
   /** Garments this proposal must not use (today's rejections). */
   readonly excluded: ReadonlySet<string>;
 };
@@ -180,7 +143,6 @@ export const continuations = (
   }
   const active = activeById(input.garments);
   const outfit = outfitOn(input.log, previous);
-  const band = warmthBand(input.weather);
   return slotOrder.flatMap((slot) => {
     const id = outfit[slot];
     const garment = id === undefined ? undefined : active.get(id);
@@ -198,9 +160,6 @@ export const continuations = (
         garment,
         dayOfBudget: worn + 1,
         budget,
-        weatherFits:
-          Math.abs(garment.warmth - band) <= 1 &&
-          (garment.rainOk || !rainLikely(input.weather)),
       },
     ];
   });
@@ -209,53 +168,32 @@ export const continuations = (
 export type Candidate = {
   readonly garment: Garment;
   readonly daysSinceWorn: number | null;
-  readonly warmthDistance: number;
   /** Worn more recently than the cooldown allows; offered only when nothing else is. */
   readonly inCooldown: boolean;
 };
 
-export const candidateLimit = 8;
-
 const compareCandidates = (left: Candidate, right: Candidate): number => {
   if (left.inCooldown !== right.inCooldown) {
     return left.inCooldown ? 1 : -1;
-  }
-  if (left.warmthDistance !== right.warmthDistance) {
-    return left.warmthDistance - right.warmthDistance;
   }
   const leftRest = left.daysSinceWorn ?? Number.POSITIVE_INFINITY;
   const rightRest = right.daysSinceWorn ?? Number.POSITIVE_INFINITY;
   return rightRest - leftRest;
 };
 
-/** Below this many well-fitting candidates, garments one band further off are offered too. */
-const comfortableChoice = 3;
-
-/**
- * The garments worth offering for one slot, best first: right for the weather,
- * longest since worn. Garments a band too warm or too cool join only when the
- * close fits are few; garments still in cooldown are kept out unless the slot
- * would otherwise be empty, in which case they are offered and marked.
- */
+/** Available garments for a slot, rested first; cooldown is a fallback when none are rested. */
 export const candidatesFor = (
   input: RotationInput,
   slot: Slot,
   alreadyChosen: ReadonlySet<string>,
 ): ReadonlyArray<Candidate> => {
-  const band = warmthBand(input.weather);
-  const wet = rainLikely(input.weather);
   const all = input.garments.flatMap((garment): ReadonlyArray<Candidate> => {
     if (
       garment.status !== 'active' ||
       !garment.slots.includes(slot) ||
       input.excluded.has(garment.id) ||
-      alreadyChosen.has(garment.id) ||
-      (wet && !garment.rainOk)
+      alreadyChosen.has(garment.id)
     ) {
-      return [];
-    }
-    const warmthDistance = Math.abs(garment.warmth - band);
-    if (warmthDistance > 1) {
       return [];
     }
     const rest = daysSinceWorn(input.log, garment.id, input.today);
@@ -263,14 +201,11 @@ export const candidatesFor = (
       {
         garment,
         daysSinceWorn: rest,
-        warmthDistance,
         inCooldown: rest !== null && rest < input.settings.cooldownDays,
       },
     ];
   });
-  const close = all.filter((candidate) => candidate.warmthDistance === 0);
-  const byWeather = close.length >= comfortableChoice ? close : all;
-  const rested = byWeather.filter((candidate) => !candidate.inCooldown);
-  const pool = rested.length > 0 ? rested : byWeather;
-  return [...pool].sort(compareCandidates).slice(0, candidateLimit);
+  const rested = all.filter((candidate) => !candidate.inCooldown);
+  const pool = rested.length > 0 ? rested : all;
+  return [...pool].sort(compareCandidates);
 };

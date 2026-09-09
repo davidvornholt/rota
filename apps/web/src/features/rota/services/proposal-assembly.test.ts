@@ -61,7 +61,6 @@ const input = (
   log: [],
   garments,
   settings: { cooldownDays: 3, categoryBudgets: {} },
-  weather: warm,
   excluded: new Set(excluded),
 });
 
@@ -75,7 +74,6 @@ describe('slotChoicesFor', () => {
     const shirt = { ...garment('shirt', ['top']), warmth: 2 };
     const rotation: RotationInput = {
       ...input([shorts, polo, chinos, shirt], []),
-      weather: { ...warm, high: 18.9, low: 15.8, precipitationProbability: 78 },
       log: [shorts, polo].map((g) => ({
         wornOn: localDate('2026-09-06'),
         garmentId: g.id,
@@ -87,7 +85,7 @@ describe('slotChoicesFor', () => {
     expect(continuing.map((c) => c.garment.id)).toEqual(['shorts', 'tee']);
     const prompt = buildProposalPrompt({
       today: rotation.today,
-      weather: rotation.weather,
+      weather: { ...warm, high: 18.9, low: 15.8, precipitationProbability: 78 },
       yesterday: { ...warm, high: 32.2 },
       upcoming: [],
       forecastStale: false,
@@ -144,7 +142,6 @@ describe('slotChoicesFor', () => {
         slot: 'bottom' as const,
         budget: 4,
         dayOfBudget: 2,
-        weatherFits: true,
       },
     ];
     const prompt = buildProposalPrompt({
@@ -205,4 +202,35 @@ describe('rejected alternatives', () => {
     expect(over?.turnedDownOnly).toBeFalse();
     expect(over?.candidates).toEqual([]);
   });
+});
+
+it('shows an original image once while offering the garment in each eligible slot', () => {
+  const shirt = { ...garment('shirt', ['top', 'over']), warmth: 1 };
+  const rotation = input([shorts, shirt], []);
+  const image = {
+    mimeType: 'image/png',
+    data: new TextEncoder().encode('original image bytes'),
+  };
+  const prompt = buildProposalPrompt({
+    today: rotation.today,
+    weather: warm,
+    yesterday: undefined,
+    upcoming: [],
+    forecastStale: false,
+    occasion: null,
+    continuations: [],
+    slotChoices: slotChoicesFor(rotation, []),
+    recent: [],
+    imageFor: (g) => (g.id === shirt.id ? image : undefined),
+  });
+  const images = prompt.parts.flatMap((part) =>
+    'image' in part ? [part.image] : [],
+  );
+  expect(images).toEqual([image]);
+  expect(images[0]?.data).toBe(image.data);
+  const schema = proposalAnswerJsonSchema(prompt.aliases);
+  expect(schema.properties.outfit.properties.top.enum).toEqual(['T1']);
+  expect(schema.properties.outfit.properties.over.enum).toEqual(['O1', null]);
+  expect(prompt.aliases.get('T1')?.garment.id).toBe(shirt.id);
+  expect(prompt.aliases.get('O1')?.garment.id).toBe(shirt.id);
 });

@@ -1,6 +1,6 @@
 # Rota
 
-What to wear today, from a wardrobe that keeps its own rotation. Rota holds a photographed wardrobe, applies the rotation rules that decide most days on their own (trousers four days in a row, tops two), and asks Gemini only where there is a real choice — then proposes one outfit each morning with the pictures and a sentence of reasoning. One tap logs it; the log is what tomorrow is built on.
+What to wear today, from your photographed wardrobe. Rota tracks rotation and availability, then gives Gemini the eligible garments, original photos, forecast, and occasion note to choose a complete outfit. One tap logs it; the log informs tomorrow's choices.
 
 > Built on [davidvornholt/standards](https://github.com/davidvornholt/standards).
 
