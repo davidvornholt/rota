@@ -8,7 +8,8 @@
 
 import { Effect } from 'effect';
 
-import { Gemini, type ImagePart } from '#/shared/ai/gemini.ts';
+import { Gemini } from '#/shared/ai/gemini.ts';
+import type { ImagePart } from '#/shared/ai/gemini-request.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { displayImage, type Garment } from '#/shared/data/garment.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
@@ -19,7 +20,10 @@ import {
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
-import { SlotEmptyError } from '../errors/rota-errors.ts';
+import {
+  ProposalGenerationError,
+  SlotEmptyError,
+} from '../errors/rota-errors.ts';
 import { continuations, type RotationInput } from '../rotation.ts';
 import {
   ProposalAnswerSchema,
@@ -78,12 +82,20 @@ const imagesFor = (media: MediaStore, shown: ReadonlyArray<Garment>) =>
   );
 
 const ask = (gemini: Gemini, prompt: BuiltPrompt) =>
-  gemini.generateJson({
-    system: proposalSystemPrompt,
-    parts: prompt.parts,
-    schema: ProposalAnswerSchema,
-    jsonSchema: proposalAnswerJsonSchema(prompt.aliases),
-  });
+  gemini
+    .generateJson({
+      purpose: 'outfit',
+      system: proposalSystemPrompt,
+      parts: prompt.parts,
+      schema: ProposalAnswerSchema,
+      jsonSchema: proposalAnswerJsonSchema(prompt.aliases),
+    })
+    .pipe(
+      Effect.mapError(
+        (error) =>
+          new ProposalGenerationError(error.reason === 'timeout', error),
+      ),
+    );
 
 type GenerateDeps = {
   readonly garments: GarmentRepository;

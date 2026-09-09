@@ -136,6 +136,7 @@ export const useToday = (initial: TodayView) => {
   const outfit = useOutfitDraft(initial.proposal);
   const [justLogged, setJustLogged] = useState(false);
   const decisionAsked = useRef(false);
+  const regenerationProposal = useRef<string | undefined>(undefined);
   const loaderSnapshot = useRef(JSON.stringify(initial));
 
   const { reset } = outfit;
@@ -217,6 +218,10 @@ export const useToday = (initial: TodayView) => {
     rerolling: reroll.isPending || occasion.isPending,
     logging: confirm.isPending || wearDraft.isPending,
     busy: mutations.some((mutation) => mutation.isPending),
+    previousSuggestionShown:
+      (reroll.isError || occasion.isError) &&
+      proposal !== null &&
+      proposal.id === regenerationProposal.current,
     failure: mutations.find((mutation) => mutation.isError)?.error,
     decide: () => {
       resetFailures();
@@ -226,6 +231,7 @@ export const useToday = (initial: TodayView) => {
     reroll: (scope: RerollScope) => {
       if (proposal !== null) {
         resetFailures();
+        regenerationProposal.current = proposal.id;
         reroll.mutate({ id: proposal.id, scope });
       }
     },
@@ -233,6 +239,7 @@ export const useToday = (initial: TodayView) => {
     remove: outfit.remove,
     saveOccasion: (text: string) => {
       resetFailures();
+      regenerationProposal.current = proposal?.id;
       occasion.mutate(text);
     },
     savingOccasion: occasion.isPending,

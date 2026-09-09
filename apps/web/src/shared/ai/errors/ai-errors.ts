@@ -1,6 +1,7 @@
 import { Data } from 'effect';
 
 export class GeminiError extends Data.TaggedError('GeminiError')<{
+  readonly reason: 'request' | 'timeout' | 'answer';
   readonly message: string;
   readonly cause: unknown;
 }> {}

@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'bun:test';
 import { Deferred, Effect, Fiber, TestClock, TestContext } from 'effect';
+import { runSessionRequired } from '#/shared/auth/session-required.ts';
 import type { Proposal } from '#/shared/data/proposal-repository.ts';
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
-import { SlotEmptyError } from '../errors/rota-errors.ts';
+import {
+  ProposalGenerationError,
+  SlotEmptyError,
+} from '../errors/rota-errors.ts';
 import type { ForecastWindow } from './forecast-service.ts';
 import { makeProposalOperations } from './proposal-operations.ts';
 import type { GenerateOptions } from './proposal-service.ts';
@@ -245,7 +249,7 @@ describe('proposal operations', () => {
       });
       const first = yield* Effect.fork(Effect.either(operations.ensure(clock)));
       yield* Deferred.await(started);
-      yield* TestClock.adjust('181 seconds');
+      yield* TestClock.adjust('361 seconds');
       const outcome = yield* Fiber.join(first);
       expect(outcome._tag).toBe('Left');
       expect(interrupted).toBeTrue();
@@ -254,4 +258,33 @@ describe('proposal operations', () => {
     }).pipe(Effect.provide(TestContext.TestContext));
     expect(await Effect.runPromise(result)).toEqual(pending);
   });
+});
+
+it('returns a safe timeout through authentication while retaining the note and previous proposal', async () => {
+  const { deps, recorded } = depsWith('succeeds');
+  const failingDeps = {
+    ...deps,
+    generate: () =>
+      Effect.fail(
+        new ProposalGenerationError(true, new Error('private provider detail')),
+      ),
+  };
+  const failedDependency = 424;
+  const response = runSessionRequired({
+    request: new Request('https://rota.test/_serverFn/note', {
+      headers: { 'x-tsr-serverFn': 'true' },
+    }),
+    authorize: () => Promise.resolve(true),
+    next: () =>
+      Effect.runPromise(saveOccasion(failingDeps, clock, 'Meeting today')),
+    publishHeaders: () => undefined,
+    publishStatus: (status) => {
+      expect(status).toBe(failedDependency);
+    },
+  });
+  await expect(response).rejects.toThrow(
+    'Choosing an outfit timed out. Please try again.',
+  );
+  expect(recorded.notes).toEqual(['Meeting today']);
+  expect(recorded.statuses).toEqual([]);
 });

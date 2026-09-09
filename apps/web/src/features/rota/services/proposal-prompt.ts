@@ -6,7 +6,7 @@ import { colorName } from '#/shared/data/color-name.ts';
  * garment so the answer can name them without a chance of a typo.
  */
 
-import type { ImagePart, PromptPart } from '#/shared/ai/gemini.ts';
+import type { ImagePart, PromptPart } from '#/shared/ai/gemini-request.ts';
 import type { Garment } from '#/shared/data/garment.ts';
 import {
   formalityInstruction,

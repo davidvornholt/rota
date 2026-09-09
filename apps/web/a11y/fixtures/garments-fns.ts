@@ -118,7 +118,14 @@ export const saveOccasionFn = ({
       const view = fixtureProposal ?? undecided;
       setFixtureProposal({ ...view, occasion: data.occasion });
       yield* Effect.sleep('300 millis');
-      yield* Effect.promise(() => requestFetch('/fixture-note-save'));
+      const response = yield* Effect.promise(() =>
+        requestFetch('/fixture-note-save'),
+      );
+      if (!response.ok) {
+        return yield* Effect.fail(
+          new Error(yield* Effect.promise(() => response.text())),
+        );
+      }
       return { ...view, occasion: data.occasion };
     }),
   );

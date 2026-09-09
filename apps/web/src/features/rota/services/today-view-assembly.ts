@@ -40,6 +40,7 @@ const problemKinds: ReadonlyMap<string, TodayProblem['kind']> = new Map([
   ['ForecastUnavailableError', 'forecast-unavailable'],
   ['SlotEmptyError', 'slot-empty'],
   ['ProposalAnswerError', 'answer-unusable'],
+  ['ProposalGenerationError', 'answer-unusable'],
 ]);
 
 /** The failures the page can explain to the wearer; anything else stays a failure. */

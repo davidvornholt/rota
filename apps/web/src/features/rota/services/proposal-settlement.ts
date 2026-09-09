@@ -5,7 +5,6 @@
  */
 
 import { Effect } from 'effect';
-import type { GeminiError } from '#/shared/ai/errors/ai-errors.ts';
 import type { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import type {
   DataReadError,
@@ -25,6 +24,7 @@ import type { LocalDate } from '#/shared/time/local-date.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import {
   type ProposalAnswerError,
+  type ProposalGenerationError,
   ProposalStateError,
   type SlotEmptyError,
 } from '../errors/rota-errors.ts';
@@ -35,7 +35,7 @@ import type { GenerateOptions } from './proposal-service.ts';
 export type GenerateError =
   | SlotEmptyError
   | ProposalAnswerError
-  | GeminiError
+  | ProposalGenerationError
   | DataReadError
   | DataWriteError
   | NotFoundError;

@@ -97,6 +97,11 @@ export const TodayPage = ({ initial }: { readonly initial: TodayView }) => {
       {today.failure === undefined ? null : (
         <Notice className="mt-6" live={true}>
           {failureMessage(today.failure)}
+          {today.previousSuggestionShown ? (
+            <span className="block">
+              Your previous suggestion is still shown below.
+            </span>
+          ) : null}
         </Notice>
       )}
 

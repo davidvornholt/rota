@@ -5,7 +5,10 @@ import type {
 } from '#/shared/data/wear-log-repository.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
-import { ProposalStateError } from '../errors/rota-errors.ts';
+import {
+  ProposalGenerationError,
+  ProposalStateError,
+} from '../errors/rota-errors.ts';
 import {
   confirm,
   logOutfit,
@@ -24,11 +27,8 @@ export const makeProposalOperations = (deps: SettlementDeps) =>
         .withPermits(1)(work)
         .pipe(
           Effect.timeoutFail({
-            duration: '180 seconds',
-            onTimeout: () =>
-              new ProposalStateError(
-                'Choosing an outfit took too long. Please try again.',
-              ),
+            duration: '360 seconds',
+            onTimeout: () => new ProposalGenerationError(true, undefined),
           }),
         );
 

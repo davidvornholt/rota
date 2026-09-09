@@ -76,6 +76,7 @@ export const OutfitActionsFixture = ({
     logging: false,
     busy: false,
     failure: undefined,
+    previousSuggestionShown: false,
     decide: ignore,
     wear: ignore,
     reroll: ignore,
