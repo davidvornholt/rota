@@ -2,7 +2,9 @@ import { Effect } from 'effect';
 import type { GarmentEdit } from '#/features/garments/schemas/garment-input.ts';
 import type { TodayView } from '#/features/rota/schemas/today-view.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
+import type { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import { localDate } from '#/shared/time/local-date.ts';
+import { fixtureProposal, setFixtureProposal } from './today-proposal.ts';
 
 let current: GarmentView;
 export const setFixtureGarment = (value: GarmentView) => {
@@ -82,5 +84,41 @@ export const decideTodayFn = () =>
 export const backfillFn = decideTodayFn;
 export const confirmProposalFn = decideTodayFn;
 export const logOutfitFn = decideTodayFn;
-export const rerollProposalFn = decideTodayFn;
-export const saveOccasionFn = decideTodayFn;
+export const rerollProposalFn = () => {
+  const view = fixtureProposal;
+  const proposal = view?.proposal;
+  if (view === undefined || proposal === undefined || proposal === null) {
+    return decideTodayFn();
+  }
+  return Effect.runPromise(
+    Effect.sync(() => {
+      const next = {
+        ...view,
+        proposal: {
+          ...proposal,
+          headline: 'A fresh choice for your meeting.',
+          occasion: view.occasion,
+        },
+      };
+      setFixtureProposal(next);
+      return next;
+    }),
+  );
+};
+
+export const saveOccasionFn = ({
+  data,
+  fetch: requestFetch,
+}: {
+  readonly data: { readonly occasion: string };
+  readonly fetch: typeof serverFunctionFetch;
+}) =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      const view = fixtureProposal ?? undecided;
+      setFixtureProposal({ ...view, occasion: data.occasion });
+      yield* Effect.sleep('300 millis');
+      yield* Effect.promise(() => requestFetch('/fixture-note-save'));
+      return { ...view, occasion: data.occasion };
+    }),
+  );

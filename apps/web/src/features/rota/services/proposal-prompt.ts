@@ -27,7 +27,7 @@ import type { Candidate, Continuation } from '../rotation.ts';
 import { warmthBand } from '../rotation.ts';
 import { weatherSentence } from '../weather-words.ts';
 
-export type OpenSlot = {
+export type SlotChoices = {
   readonly slot: Slot;
   readonly required: boolean;
   readonly candidates: ReadonlyArray<Candidate>;
@@ -48,7 +48,7 @@ export type PromptInput = {
   readonly forecastStale: boolean;
   readonly occasion: string | null;
   readonly continuations: ReadonlyArray<Continuation>;
-  readonly openSlots: ReadonlyArray<OpenSlot>;
+  readonly slotChoices: ReadonlyArray<SlotChoices>;
   readonly recent: ReadonlyArray<RecentDay>;
   /** The picture to show for a garment, when it has one. */
   readonly imageFor: (garment: Garment) => ImagePart | undefined;
@@ -70,7 +70,7 @@ export const proposalSystemPrompt = [
   formalityInstruction,
   "You are the valet behind Rota, a one-person wardrobe app. Each morning you decide today's outfit from a short list the wardrobe has already narrowed down.",
   'The wearer rotates clothes: trousers and jumpers for several days in a row, tops for a day or two, and expects to keep wearing what still has days left unless the weather has changed enough to make it wrong.',
-  'Rules: keep every continuing garment unless the weather or the occasion makes it a poor choice, and say so in its reason when you drop one. Choose only from the aliases offered; never invent a garment. Dress for 05:00–20:00 in the wardrobe location’s time zone. Forecast highs and lows cover the stated hours; the high matters more than the low. Use an over layer when the day is cool; skip it when the day is warm. Use an under layer only on cold days or under a thin shirt on a cool day. Mind colour harmony and formality, and read the occasion note as an instruction.',
+  "Rules: rotation is a preference, never a requirement. Weather suitability and the wearer's note take priority. You may replace any or all continuing garments with the offered alternatives. Explain a replacement in the new garment's reason. Judge the whole outfit: a jumper does not make shorts suitable for a much cooler or rainy day. A warmth-band match is only a rough guide; consider coverage, material, rain and the change from yesterday. Choose only the offered aliases, never garment names or invented garments. Dress for 05:00–20:00 in the wardrobe location’s time zone. Forecast highs and lows cover the stated hours; the high matters more than the low. Use an over layer when the day is cool; skip it when the day is warm. Use an under layer only on cold days or under a thin shirt on a cool day. Mind colour harmony and formality, and read the occasion note as an instruction.",
   'Write for the wearer in plain, specific, second-person English. No exclamation marks, no emoji, no sales tone.',
 ].join(' ');
 
@@ -101,6 +101,32 @@ const describeGarment = (garment: Garment): string =>
   ]
     .filter((part) => part !== undefined)
     .join('; ');
+
+const slotInstruction = (
+  open: SlotChoices,
+  hasContinuation: boolean,
+): string => {
+  const label = slotLabel[open.slot];
+  if (open.candidates.length === 0) {
+    if (hasContinuation) {
+      const choice = open.required
+        ? 'use the continuing alias'
+        : 'use the continuing alias or null';
+      return `${label}: no replacement available; ${choice}.`;
+    }
+    return `${label}: no garment available${open.required ? '' : '; leave it null'}.`;
+  }
+  if (open.turnedDownOnly) {
+    return `${label} candidates (choose one; the wearer turned these down today, but nothing else in the wardrobe fits the slot, so say so plainly in the reason):`;
+  }
+  let choice = open.required ? 'choose one' : 'choose one or null';
+  if (hasContinuation) {
+    choice = open.required
+      ? 'choose a replacement or the continuing alias'
+      : 'choose a replacement, the continuing alias or null';
+  }
+  return `${label} alternatives (${choice}):`;
+};
 
 export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
   const aliases = new Map<string, AliasedGarment>();
@@ -152,7 +178,9 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
   }
 
   if (input.continuations.length > 0) {
-    say('Continuing from yesterday (still within their rotation):');
+    say(
+      'Available to continue from yesterday, but replace any that no longer fit the weather or note:',
+    );
     input.continuations.forEach((continuation, index) => {
       const alias = `C${index + 1}`;
       aliases.set(alias, {
@@ -161,7 +189,7 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
         continuation,
       });
       say(
-        `${alias} (${slotLabel[continuation.slot].toLowerCase()}) — ${continuation.garment.name}: ${describeGarment(continuation.garment)}; day ${continuation.dayOfBudget} of ${continuation.budget}; ${continuation.weatherFits ? "still suits today's weather" : "may no longer suit today's weather"}.`,
+        `${alias} (${slotLabel[continuation.slot].toLowerCase()}) — ${continuation.garment.name}: ${describeGarment(continuation.garment)}; day ${continuation.dayOfBudget} of ${continuation.budget}; ${continuation.weatherFits ? 'within the rough warmth and rain limits; judge actual suitability' : "may no longer suit today's weather"}.`,
       );
       show(alias, continuation.garment);
     });
@@ -169,19 +197,12 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
     say('Nothing continues from yesterday; every slot is open.');
   }
 
-  const describeOpenSlot = (open: OpenSlot) => {
+  const describeSlotChoices = (open: SlotChoices) => {
     const label = slotLabel[open.slot].toLowerCase();
-    if (open.candidates.length === 0) {
-      say(
-        `${slotLabel[open.slot]}: no garment available${open.required ? '' : '; leave it null'}.`,
-      );
-      return;
-    }
-    say(
-      open.turnedDownOnly
-        ? `${slotLabel[open.slot]} candidates (choose one; the wearer turned these down today, but nothing else in the wardrobe fits the slot, so say so plainly in the reason):`
-        : `${slotLabel[open.slot]} candidates${open.required ? ' (choose one)' : ' (choose one or null)'}:`,
+    const hasContinuation = input.continuations.some(
+      (c) => c.slot === open.slot,
     );
+    say(slotInstruction(open, hasContinuation));
     open.candidates.forEach((candidate, index) => {
       const alias = `${slotPrefix[open.slot]}${index + 1}`;
       aliases.set(alias, {
@@ -195,8 +216,8 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
       show(alias, candidate.garment);
     });
   };
-  for (const open of input.openSlots) {
-    describeOpenSlot(open);
+  for (const open of input.slotChoices) {
+    describeSlotChoices(open);
   }
 
   say(

@@ -10,6 +10,15 @@ import type { ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TodayPage } from '#/features/rota/ui/today-page.tsx';
 import { decisionCalls, undecided } from './garments-fns.ts';
+import {
+  demoProposal,
+  fixtureProposal,
+  setFixtureProposal,
+} from './today-proposal.ts';
+
+if (new URLSearchParams(globalThis.location.search).has('proposal')) {
+  setFixtureProposal(demoProposal);
+}
 
 let loaderCalls = 0;
 let loaderView = undecided;
@@ -19,7 +28,7 @@ const route = createRootRoute({
       Effect.sync(() => {
         loaderCalls += 1;
         return {
-          view: structuredClone(loaderView),
+          view: structuredClone(fixtureProposal ?? loaderView),
           loaderCalls,
           decisionCalls,
         };

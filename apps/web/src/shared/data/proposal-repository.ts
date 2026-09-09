@@ -73,7 +73,9 @@ export class ProposalRepository extends Effect.Service<ProposalRepository>()(
         `.pipe(Effect.flatMap(decodeProposals), Effect.mapError(readProposal));
 
       const latestForDate = (date: LocalDate) =>
-        listForDate(date).pipe(Effect.map((rows) => rows[0]));
+        listForDate(date).pipe(
+          Effect.map((rows): Proposal | undefined => rows[0]),
+        );
 
       const byId = (id: string) =>
         sql`

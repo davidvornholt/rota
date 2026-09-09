@@ -67,7 +67,7 @@ export class Gemini extends Effect.Service<Gemini>()('shared/Gemini', {
       jsonSchema,
     }: GenerateJsonInput<A, I>): Effect.Effect<A, GeminiError> =>
       Effect.tryPromise({
-        try: async () => {
+        try: async (signal) => {
           const response = await client.models.generateContent({
             model,
             contents: [
@@ -86,6 +86,7 @@ export class Gemini extends Effect.Service<Gemini>()('shared/Gemini', {
               },
             ],
             config: {
+              abortSignal: signal,
               systemInstruction: system,
               responseMimeType: 'application/json',
               responseJsonSchema: jsonSchema,

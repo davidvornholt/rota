@@ -17,6 +17,40 @@ test.afterAll(async () => {
   await Effect.runPromise(Effect.promise(() => server.close()));
 });
 
+test('a failed note regeneration keeps the outfit and saved note, then clears the failure on reroll', async ({
+  page,
+}) => {
+  await page.route('**/fixture-note-save', (route) =>
+    route.fulfill({ status: 502, body: '' }),
+  );
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?proposal`);
+  await page.getByRole('button', { name: 'Add a note' }).click();
+  await page
+    .getByRole('textbox', { name: 'A word for the valet' })
+    .fill('Meeting today');
+  await page.getByRole('button', { name: 'Save note' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'One moment …' }),
+  ).toBeVisible();
+  const alert = page.getByRole('alert');
+  await expect(alert).toContainText('Refresh to check your outfit');
+  await expect(
+    page.getByRole('heading', { name: 'Chinos and a shirt for today.' }),
+  ).toBeVisible();
+  await expect(page.getByText('Meeting today', { exact: true })).toBeVisible();
+  const pick = page
+    .getByRole('button', { name: 'Pick again', exact: true })
+    .filter({ visible: true });
+  await expect(pick).toBeEnabled();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await pick.click();
+  await expect(
+    page.getByRole('heading', { name: 'A fresh choice for your meeting.' }),
+  ).toBeVisible();
+  await expect(alert).toHaveCount(0);
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+});
+
 test('a failed automatic decision stays visible through refresh until retry or a new day state', async ({
   page,
 }) => {
