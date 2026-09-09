@@ -14,8 +14,6 @@ import type {
 } from '#/shared/data/wear-log-repository.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import { candidatesFor, type RotationInput } from '../rotation.ts';
-import type { TodayProblem } from '../schemas/today-view.ts';
-import type { ForecastWindow } from './forecast-service.ts';
 import type { ProposalService } from './proposal-service.ts';
 
 export type AlternativesView = {
@@ -32,13 +30,6 @@ export type AlternativesDeps = {
     all: ReadonlyArray<Garment>,
     log: ReadonlyArray<WearEntry>,
   ) => ReadonlyMap<string, GarmentView>;
-  readonly forecastWindow: (
-    clock: WardrobeClock,
-  ) => Effect.Effect<
-    | { readonly value: ForecastWindow; readonly problem: null }
-    | { readonly value: undefined; readonly problem: TodayProblem },
-    unknown
-  >;
 };
 
 export type TickDeps = {
@@ -48,17 +39,13 @@ export type TickDeps = {
 
 /** For one slot: the engine's ranked candidates, then everything else eligible. */
 export const alternatives = (
-  { garments, wearLog, viewsFor, forecastWindow }: AlternativesDeps,
+  { garments, wearLog, viewsFor }: AlternativesDeps,
   clock: WardrobeClock,
   slot: Slot,
   currentIds: ReadonlyArray<string>,
 ) =>
   Effect.gen(function* () {
-    const [all, log, forecast] = yield* Effect.all([
-      garments.list(),
-      wearLog.history(),
-      forecastWindow(clock),
-    ]);
+    const [all, log] = yield* Effect.all([garments.list(), wearLog.history()]);
     const views = viewsFor(clock, all, log);
     const eligible = all.filter(
       (garment) =>
@@ -66,21 +53,17 @@ export const alternatives = (
         garment.slots.includes(slot) &&
         !currentIds.includes(garment.id),
     );
-    const ranked =
-      forecast.value === undefined
-        ? []
-        : candidatesFor(
-            {
-              today: clock.today,
-              log,
-              garments: all,
-              settings: clock.settings,
-              weather: forecast.value.today,
-              excluded: new Set(),
-            } satisfies RotationInput,
-            slot,
-            new Set(currentIds),
-          ).map((candidate) => candidate.garment.id);
+    const ranked = candidatesFor(
+      {
+        today: clock.today,
+        log,
+        garments: all,
+        settings: clock.settings,
+        excluded: new Set(),
+      } satisfies RotationInput,
+      slot,
+      new Set(currentIds),
+    ).map((candidate) => candidate.garment.id);
     const viewOf = (id: string) => {
       const found = views.get(id);
       return found === undefined ? [] : [found];

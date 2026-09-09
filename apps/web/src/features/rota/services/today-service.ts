@@ -188,7 +188,7 @@ export class TodayService extends Effect.Service<TodayService>()(
           currentIds: ReadonlyArray<string>,
         ) =>
           alternatives(
-            { garments, wearLog, viewsFor, forecastWindow },
+            { garments, wearLog, viewsFor },
             clock,
             slot,
             currentIds,

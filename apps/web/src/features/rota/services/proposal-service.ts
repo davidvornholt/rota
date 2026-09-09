@@ -63,7 +63,7 @@ const imageBytes = (media: MediaStore, garment: Garment) =>
 /** The pictures the model will see, keyed by garment; a missing file just means no picture. */
 const imagesFor = (media: MediaStore, shown: ReadonlyArray<Garment>) =>
   Effect.forEach(
-    shown,
+    [...new Map(shown.map((garment) => [garment.id, garment])).values()],
     (garment) =>
       Effect.map(
         imageBytes(media, garment),
@@ -124,7 +124,6 @@ const generateProposal = (
       log,
       garments: all,
       settings: clock.settings,
-      weather: forecast.today,
       excluded: options.excluded,
     };
     const continuing = options.releaseAll ? [] : continuations(input);
