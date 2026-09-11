@@ -91,7 +91,7 @@ jobs:
 
       - name: Build and publish the tracked tag
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           push: true
           provenance: false
