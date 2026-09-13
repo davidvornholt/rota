@@ -61,37 +61,37 @@ const focusMainAfterNavigation = (target: HTMLElement): void => {
 export const AppShell = () => {
   const mainId = useId();
   const router = useRouter();
-  const main = useRef<HTMLElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const locationPath = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const previousPath = useRef(locationPath);
+  const previousPathRef = useRef(locationPath);
   // Client navigation removes the link that held focus; move it to the new page.
   useEffect(() => {
-    if (previousPath.current === locationPath) {
+    if (previousPathRef.current === locationPath) {
       return;
     }
-    previousPath.current = locationPath;
-    if (main.current !== null) {
-      focusMainAfterNavigation(main.current);
+    previousPathRef.current = locationPath;
+    if (mainRef.current !== null) {
+      focusMainAfterNavigation(mainRef.current);
     }
   }, [locationPath]);
 
   // A ref rather than `isPending`: two activations in one React batch would
   // both read "not pending" and fire twice.
-  const signOutStarted: RefObject<boolean> = useRef(false);
+  const signOutStartedRef: RefObject<boolean> = useRef(false);
   const signOut = useMutation({
     mutationFn: () => authClient.signOut().then(rejectAuthError),
     onSuccess: () => router.navigate({ to: '/login' }),
     onSettled: () => {
-      signOutStarted.current = false;
+      signOutStartedRef.current = false;
     },
   });
   const startSignOut = () => {
-    if (signOutStarted.current) {
+    if (signOutStartedRef.current) {
       return;
     }
-    signOutStarted.current = true;
+    signOutStartedRef.current = true;
     signOut.mutate();
   };
 
@@ -118,7 +118,7 @@ export const AppShell = () => {
       <main
         className="flex-1 py-8 sm:py-12"
         id={mainId}
-        ref={main}
+        ref={mainRef}
         tabIndex={-1}
       >
         <InsideMainLandmark>

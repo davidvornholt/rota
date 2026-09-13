@@ -1,54 +1,23 @@
 # Rota
 
-What to wear today, from your photographed wardrobe. Rota tracks rotation and availability, then gives Gemini the eligible garments, original photos, forecast, and occasion note to choose a complete outfit. One tap logs it; the log informs tomorrow's choices.
-
-> Built on [davidvornholt/standards](https://github.com/davidvornholt/standards).
-
-## Workspaces
-
-- `apps/web` — the application: TanStack Start on Bun, Effect on the server, Tailwind with the tokens in `apps/web/src/styles.css`. Its README documents every configuration value and secret.
-- `packages/db` — Drizzle schema, generated migrations, and the shared Postgres pool.
+Outfit suggestions from your photographed wardrobe, forecast, and occasion note.
 
 ## Development
 
+Use the Bun version in `package.json`. From the repository root:
+
 ```sh
 bun install
-just dev-env-generate   # .env.local from config/dev.yaml + secrets/dev.yaml
-just dev-db-start       # local Postgres in a container
+just dev-env-generate
+just dev-db-start
 bun run --cwd apps/web db:migrate
-bun run dev             # http://localhost:3000
+bun run dev
 ```
 
-`bun run check:fix` runs the whole gate: standards sync check, lint, types, tests, build, and the accessibility scan.
+The app runs at `http://localhost:3000`. Development configuration lives in `config/dev.yaml`, encrypted credentials in `secrets/dev.yaml`, and machine overrides in ignored `config/dev.local.yaml`. Secret shapes are in `secrets/dev.example.yaml`.
+
+Run `bun run check:fix` for the full gate. After changing the database schema, generate migrations with `bun run --cwd packages/db db:generate` and apply them with the web workspace’s `db:migrate` script.
 
 ## Deployment
 
-Rota runs at `https://rota.vornholt.online` on `prod-1`, whose configuration lives in [`davidvornholt/personal-infra`](https://github.com/davidvornholt/personal-infra). Every commit on `main` that passes the standards gate is built into `ghcr.io/davidvornholt/rota` and announced to that repository, where a trusted writer opens a promotion pull request pinning the new digest; merging it deploys. Garment images live in the `rota-media` R2 bucket behind `https://img.rota.vornholt.online`. There are no pull request previews, by decision recorded there.
-
-## Outfit generation
-
-Outfit requests keep HIGH reasoning and the original candidate photos. Gemini gets up to five minutes per attempt, within a six-minute operation deadline that includes queueing, media reads and retries. Server functions have a seven-minute request deadline because Bun's idle timer cannot represent that duration. A failed note regeneration keeps the saved note and previous outfit; the page identifies the previous suggestion and offers another attempt.
-
-## Design
-
-`DESIGN.md` states the design intent: paper, ink, hairline rules, square corners, one yellow signal, the garment as the only picture.
-
-## Pull request screenshots
-
-Publish reviewed demo screenshots from the repository root:
-
-```sh
-bun standards screenshots publish /path/to/before.png /path/to/after.png
-```
-
-The command uses `config/screenshots.yaml` and the brokered pair in `secrets/assets.yaml`, then prints Markdown for the pull request. The shared bucket and public domain are managed by [personal-infra](https://github.com/davidvornholt/personal-infra/tree/main/infra/opentofu/cloudflare-dns). Each repository has its own credential; keep this pair in SOPS.
-
-Capture matching base and head revisions with the same route, demo data, UI state, and viewport. Include a phone comparison when responsive behavior changes. Review every image before publishing: the URLs are public and permanent. Add the returned image links as a Before/After table in the pull request's Screenshots section.
-
-Provision or replace the repository's publishing pair through the broker:
-
-```sh
-bun standards creds add cloudflare --dest assets:assets.screenshots_rw --bucket personal-pr-screenshots --jurisdiction eu --s3 --permissions "Workers R2 Storage Bucket Item Write"
-```
-
-Use `bun standards creds plan` and `bun standards creds apply` to inspect and reconcile broker-managed credentials.
+[personal-infra](https://github.com/davidvornholt/personal-infra) owns production at `https://rota.vornholt.online` and the media bucket. Jobs and provider cooldowns are process-local: they do not survive restarts or coordinate multiple replicas. Pull request previews are omitted by maintainer decision.

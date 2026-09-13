@@ -1,3 +1,4 @@
+/* biome-ignore lint/nursery/useLayeredStyles: The imported stylesheet declares its own cascade layers. */
 @import "tailwindcss";
 
 /*
@@ -87,14 +88,18 @@
  * the large picture once the dialog is open. The browser draws the morph
  * between the two; without view transitions the dialog simply appears.
  */
-.lightbox-image {
-  view-transition-name: lightbox-image;
+@layer overrides {
+  .lightbox-image {
+    view-transition-name: lightbox-image;
+  }
 }
 
-::view-transition-old(lightbox-image),
-::view-transition-new(lightbox-image) {
-  animation-duration: 320ms;
-  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+@layer overrides {
+  ::view-transition-old(lightbox-image),
+  ::view-transition-new(lightbox-image) {
+    animation-duration: 320ms;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
 }
 
 @layer components {

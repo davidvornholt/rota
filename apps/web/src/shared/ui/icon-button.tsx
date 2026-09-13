@@ -29,8 +29,8 @@ export const IconButton = ({
   onClick,
 }: IconButtonProps) => {
   const id = useId();
-  const anchor = useRef<HTMLSpanElement>(null);
-  const bubble = useRef<HTMLSpanElement>(null);
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const bubbleRef = useRef<HTMLSpanElement>(null);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -39,11 +39,11 @@ export const IconButton = ({
   const unavailable = disabled || pending;
 
   useLayoutEffect(() => {
-    if (!open || anchor.current === null || bubble.current === null) {
+    if (!open || anchorRef.current === null || bubbleRef.current === null) {
       return;
     }
-    const rect = anchor.current.getBoundingClientRect();
-    const { width } = bubble.current.getBoundingClientRect();
+    const rect = anchorRef.current.getBoundingClientRect();
+    const { width } = bubbleRef.current.getBoundingClientRect();
     if (rect.left + width <= window.innerWidth - viewportInset) {
       setAlignment('left-0');
     } else if (rect.right - width >= viewportInset) {
@@ -79,7 +79,7 @@ export const IconButton = ({
         }
       }}
       onPointerLeave={() => setHovered(false)}
-      ref={anchor}
+      ref={anchorRef}
     >
       <button
         aria-busy={pending}
@@ -124,7 +124,7 @@ export const IconButton = ({
             alignment,
           ].join(' ')}
           id={id}
-          ref={bubble}
+          ref={bubbleRef}
           role="tooltip"
         >
           <span className="block border border-rule-strong bg-paper px-2 py-1 text-ink text-xs">
