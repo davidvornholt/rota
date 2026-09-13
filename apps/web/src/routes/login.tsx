@@ -19,7 +19,7 @@ const SignInPage = () => {
   const { error } = Route.useSearch();
   // A ref rather than `isPending`: two activations in one React batch would
   // both read "not pending" and open the OAuth redirect twice.
-  const signInStarted: RefObject<boolean> = useRef(false);
+  const signInStartedRef: RefObject<boolean> = useRef(false);
   const signIn = useMutation({
     mutationFn: () =>
       authClient.signIn
@@ -30,14 +30,14 @@ const SignInPage = () => {
         })
         .then(rejectAuthError),
     onSettled: () => {
-      signInStarted.current = false;
+      signInStartedRef.current = false;
     },
   });
   const startSignIn = () => {
-    if (signInStarted.current) {
+    if (signInStartedRef.current) {
       return;
     }
-    signInStarted.current = true;
+    signInStartedRef.current = true;
     signIn.mutate();
   };
 

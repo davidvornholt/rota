@@ -23,8 +23,8 @@ type UploadControlProps = {
 export const UploadControl = ({ onUploaded }: UploadControlProps) => {
   const cameraId = useId();
   const libraryId = useId();
-  const cameraInput = useRef<HTMLInputElement>(null);
-  const libraryInput = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<UploadState>({ kind: 'idle' });
 
   const send = async (files: ReadonlyArray<File>) => {
@@ -87,7 +87,7 @@ export const UploadControl = ({ onUploaded }: UploadControlProps) => {
           className="sr-only"
           id={cameraId}
           onChange={onChange}
-          ref={cameraInput}
+          ref={cameraInputRef}
           type="file"
         />
         <input
@@ -97,14 +97,14 @@ export const UploadControl = ({ onUploaded }: UploadControlProps) => {
           id={libraryId}
           multiple={true}
           onChange={onChange}
-          ref={libraryInput}
+          ref={libraryInputRef}
           type="file"
         />
         <button
           aria-busy={busy}
           className={signalButtonClass}
           disabled={busy}
-          onClick={() => cameraInput.current?.click()}
+          onClick={() => cameraInputRef.current?.click()}
           type="button"
         >
           Photograph a garment
@@ -113,7 +113,7 @@ export const UploadControl = ({ onUploaded }: UploadControlProps) => {
           aria-busy={busy}
           className={quietButtonClass}
           disabled={busy}
-          onClick={() => libraryInput.current?.click()}
+          onClick={() => libraryInputRef.current?.click()}
           type="button"
         >
           Choose photos

@@ -135,17 +135,17 @@ export const useToday = (initial: TodayView) => {
   const [view, setView] = useState(initial);
   const outfit = useOutfitDraft(initial.proposal);
   const [justLogged, setJustLogged] = useState(false);
-  const decisionAsked = useRef(false);
-  const regenerationProposal = useRef<string | undefined>(undefined);
-  const loaderSnapshot = useRef(JSON.stringify(initial));
+  const decisionAskedRef = useRef(false);
+  const regenerationProposalRef = useRef<string | undefined>(undefined);
+  const loaderSnapshotRef = useRef(JSON.stringify(initial));
 
   const { reset } = outfit;
   useEffect(() => {
     const snapshot = JSON.stringify(initial);
-    const changed = snapshot !== loaderSnapshot.current;
-    loaderSnapshot.current = snapshot;
+    const changed = snapshot !== loaderSnapshotRef.current;
+    loaderSnapshotRef.current = snapshot;
     if (changed) {
-      decisionAsked.current = false;
+      decisionAskedRef.current = false;
     }
     // Decision problems are transient and absent from an unchanged loader view.
     setView((current) =>
@@ -175,8 +175,8 @@ export const useToday = (initial: TodayView) => {
     view.problem === null &&
     view.activeGarments > 0;
   useEffect(() => {
-    if (needsDecision && !decisionAsked.current) {
-      decisionAsked.current = true;
+    if (needsDecision && !decisionAskedRef.current) {
+      decisionAskedRef.current = true;
       decide.mutate();
     }
   }, [needsDecision, decide]);
@@ -221,7 +221,7 @@ export const useToday = (initial: TodayView) => {
     previousSuggestionShown:
       (reroll.isError || occasion.isError) &&
       proposal !== null &&
-      proposal.id === regenerationProposal.current,
+      proposal.id === regenerationProposalRef.current,
     failure: mutations.find((mutation) => mutation.isError)?.error,
     decide: () => {
       resetFailures();
@@ -231,7 +231,7 @@ export const useToday = (initial: TodayView) => {
     reroll: (scope: RerollScope) => {
       if (proposal !== null) {
         resetFailures();
-        regenerationProposal.current = proposal.id;
+        regenerationProposalRef.current = proposal.id;
         reroll.mutate({ id: proposal.id, scope });
       }
     },
@@ -239,7 +239,7 @@ export const useToday = (initial: TodayView) => {
     remove: outfit.remove,
     saveOccasion: (text: string) => {
       resetFailures();
-      regenerationProposal.current = proposal?.id;
+      regenerationProposalRef.current = proposal?.id;
       occasion.mutate(text);
     },
     savingOccasion: occasion.isPending,

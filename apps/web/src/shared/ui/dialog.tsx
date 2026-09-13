@@ -32,7 +32,7 @@ export const Dialog = ({
   size = 'prose',
 }: DialogProps) => {
   const ref = useRef<HTMLDialogElement>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export const Dialog = ({
       // Land on the title, not on the close button `showModal` would pick as
       // the first focusable thing: the dialog announces itself, and nothing
       // starts out looking pressed or explained.
-      heading.current?.focus();
+      headingRef.current?.focus();
     } else if (!open && dialog.open) {
       dialog.close();
     }
@@ -72,7 +72,7 @@ export const Dialog = ({
             <h2
               className="type-display mt-1 text-2xl text-ink outline-none sm:text-3xl"
               id={titleId}
-              ref={heading}
+              ref={headingRef}
               tabIndex={-1}
             >
               {title}
