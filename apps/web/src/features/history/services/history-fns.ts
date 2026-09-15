@@ -11,6 +11,10 @@ import {
   wearFactsByGarment,
 } from '#/shared/data/garment-view.ts';
 import { ProposalRepository } from '#/shared/data/proposal-repository.ts';
+import {
+  lastLoggedDayBefore,
+  unloggedDaysBefore,
+} from '#/shared/data/wear-log-gap.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import {
   type WeatherDay,
@@ -183,6 +187,22 @@ export const historyFn = createServerFn({ method: 'GET' })
       ),
   );
 
+/** Everything that could be worn in each slot, for an editor. */
+export type SlotChoices = Readonly<Record<Slot, ReadonlyArray<GarmentView>>>;
+
+const slotChoices = (views: ReadonlyArray<GarmentView>): SlotChoices => {
+  const eligible = (slot: Slot) =>
+    views.filter(
+      (view) => view.status !== 'processing' && view.slots.includes(slot),
+    );
+  return {
+    bottom: eligible('bottom'),
+    under: eligible('under'),
+    top: eligible('top'),
+    over: eligible('over'),
+  };
+};
+
 export type DayView = {
   readonly date: LocalDate;
   readonly today: LocalDate;
@@ -192,8 +212,7 @@ export type DayView = {
     readonly slot: Slot;
     readonly garment: GarmentView;
   }>;
-  /** Everything that could be worn in each slot, for the editor. */
-  readonly choices: Readonly<Record<Slot, ReadonlyArray<GarmentView>>>;
+  readonly choices: SlotChoices;
   readonly headline: string | null;
 };
 
@@ -221,17 +240,6 @@ export const dayFn = createServerFn({ method: 'GET' })
                 ? []
                 : [{ slot: entry.slot, garment }];
             });
-          const eligible = (slot: Slot) =>
-            views.filter(
-              (view) =>
-                view.status !== 'processing' && view.slots.includes(slot),
-            );
-          const choices: Record<Slot, ReadonlyArray<GarmentView>> = {
-            bottom: eligible('bottom'),
-            under: eligible('under'),
-            top: eligible('top'),
-            over: eligible('over'),
-          };
           const decided = proposals.find(
             (proposal) =>
               proposal.forDate === data.date && proposal.status === 'confirmed',
@@ -242,8 +250,78 @@ export const dayFn = createServerFn({ method: 'GET' })
             weather: weather.find((day) => day.date === data.date) ?? null,
             occasion,
             worn,
-            choices,
+            choices: slotChoices(views),
             headline: decided?.payload.headline ?? null,
+          };
+        }),
+      ),
+  );
+
+export type CatchUpDay = {
+  readonly date: LocalDate;
+  readonly weather: WeatherDay | null;
+  readonly occasion: string | null;
+};
+
+export type CatchUpView = {
+  readonly today: LocalDate;
+  /** The last logged day and its outfit: what "same as the day before" starts from. Null when nothing is logged yet. */
+  readonly lastLogged: {
+    readonly date: LocalDate;
+    readonly outfit: Partial<Readonly<Record<Slot, string>>>;
+    readonly names: ReadonlyArray<string>;
+  } | null;
+  /** The blank days between the last logged day and today, oldest first. */
+  readonly days: ReadonlyArray<CatchUpDay>;
+  readonly choices: SlotChoices;
+};
+
+/** The blank days before today, with what might jog the memory: the day's weather and its note. */
+export const catchUpFn = createServerFn({ method: 'GET' })
+  .middleware([sessionRequired])
+  .handler(
+    (): Promise<CatchUpView> =>
+      runtime.run(
+        Effect.gen(function* () {
+          const { clock, log, weather, views, byId } = yield* loadAll();
+          const lastDate = lastLoggedDayBefore(log, clock.today);
+          const dates = unloggedDaysBefore(log, clock.today);
+          const [first] = dates;
+          const last = dates.at(-1);
+          const notes =
+            first === undefined || last === undefined
+              ? []
+              : yield* Effect.flatMap(DayNoteRepository, (repository) =>
+                  repository.readRange(first, last),
+                );
+          const lastEntries = log.filter((entry) => entry.wornOn === lastDate);
+          return {
+            today: clock.today,
+            lastLogged:
+              lastDate === undefined
+                ? null
+                : {
+                    date: lastDate,
+                    outfit: Object.fromEntries(
+                      lastEntries.map((entry) => [entry.slot, entry.garmentId]),
+                    ),
+                    names: slotOrder.flatMap((slot) => {
+                      const entry = lastEntries.find((e) => e.slot === slot);
+                      return entry === undefined
+                        ? []
+                        : [
+                            byId.get(entry.garmentId)?.name ??
+                              'unknown garment',
+                          ];
+                    }),
+                  },
+            days: dates.map((date) => ({
+              date,
+              weather: weather.find((day) => day.date === date) ?? null,
+              occasion:
+                notes.find((note) => note.date === date)?.occasion ?? null,
+            })),
+            choices: slotChoices(views),
           };
         }),
       ),

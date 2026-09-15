@@ -1,13 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { Link, useRouter } from '@tanstack/react-router';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import {
-  type Slot,
-  slotLabel,
-  slotOrder,
-} from '#/shared/data/garment-types.ts';
-import type { GarmentView } from '#/shared/data/garment-view.ts';
+import { slotOrder } from '#/shared/data/garment-types.ts';
 import {
   addDays,
   formatDayMonth,
@@ -15,21 +10,20 @@ import {
   type LocalDate,
 } from '#/shared/time/local-date.ts';
 import {
-  fieldClass,
   frameClass,
   inkButtonClass,
   linkButtonClass,
 } from '#/shared/ui/classes.ts';
-import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
-import { forecastHoursLabel } from '#/shared/weather/forecast-window.ts';
 import type { DayView } from '../services/history-fns.ts';
-
-type DayEntries = ReadonlyArray<{
-  readonly garmentId: string;
-  readonly slot: Slot;
-}>;
-type Choice = Partial<Record<Slot, string>>;
+import {
+  type Choice,
+  type DayEntries,
+  entriesOf,
+  sameChoice,
+} from './day-choice.ts';
+import { SlotPicker } from './slot-picker.tsx';
+import { weatherLine } from './weather-line.ts';
 
 type DayPageProps = {
   readonly view: DayView;
@@ -37,70 +31,8 @@ type DayPageProps = {
   readonly save: (date: LocalDate, entries: DayEntries) => Promise<unknown>;
 };
 
-const degrees = (value: number) => `${Math.round(value)}°`;
-
 const choiceOf = (view: DayView): Choice =>
   Object.fromEntries(view.worn.map((item) => [item.slot, item.garment.id]));
-
-const entriesOf = (choice: Choice): DayEntries =>
-  slotOrder.flatMap((slot) => {
-    const garmentId = choice[slot];
-    return garmentId === undefined || garmentId === ''
-      ? []
-      : [{ garmentId, slot }];
-  });
-
-const sameChoice = (left: Choice, right: Choice) =>
-  slotOrder.every((slot) => (left[slot] ?? '') === (right[slot] ?? ''));
-
-const weatherLine = (weather: DayView['weather']) =>
-  weather === null
-    ? 'No forecast stored'
-    : `${forecastHoursLabel} · ${degrees(weather.high)} / ${degrees(weather.low)} · ${Math.round(weather.precipitationProbability)}% rain`;
-
-const SlotRow = ({
-  slot,
-  chosen,
-  candidates,
-  onChange,
-}: {
-  readonly slot: Slot;
-  readonly chosen: GarmentView | undefined;
-  readonly candidates: ReadonlyArray<GarmentView>;
-  readonly onChange: (garmentId: string) => void;
-}) => {
-  const selectId = useId();
-  const required = slot === 'bottom' || slot === 'top';
-  return (
-    <li className="grid grid-cols-[5rem_1fr] items-center gap-4 border-rule border-t py-3 sm:grid-cols-[6rem_1fr] sm:gap-6">
-      <GarmentFigure
-        alt=""
-        colors={chosen?.colors}
-        image={chosen?.image}
-        name={chosen?.name ?? '·'}
-      />
-      <div>
-        <label className="type-eyebrow" htmlFor={selectId}>
-          {slotLabel[slot]}
-        </label>
-        <select
-          className={[fieldClass, 'mt-1'].join(' ')}
-          id={selectId}
-          onChange={(event) => onChange(event.target.value)}
-          value={chosen?.id ?? ''}
-        >
-          <option value="">{required ? 'Not logged' : 'None'}</option>
-          {candidates.map((candidate) => (
-            <option key={candidate.id} value={candidate.id}>
-              {candidate.name}
-              {candidate.status === 'retired' ? ' (retired)' : ''}
-            </option>
-          ))}
-        </select>
-      </div>
-    </li>
-  );
-};
 
 const DayHeader = ({ view }: { readonly view: DayView }) => (
   <>
@@ -199,7 +131,7 @@ export const DayPage = ({ view, save }: DayPageProps) => {
         >
           <ul className="border-rule border-b">
             {slotOrder.map((slot) => (
-              <SlotRow
+              <SlotPicker
                 candidates={view.choices[slot]}
                 chosen={view.choices[slot].find(
                   (garment) => garment.id === choice[slot],

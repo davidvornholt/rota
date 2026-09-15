@@ -8,7 +8,7 @@ import { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import type {
   ProposalItemView,
   TodayView,
-  UnloggedDay,
+  UnloggedGap,
 } from '../schemas/today-view.ts';
 import {
   backfillFn,
@@ -114,9 +114,9 @@ const useTodayMutations = (
     onError: refresh,
   }),
   backfill: useMutation({
-    mutationFn: (day: UnloggedDay) =>
+    mutationFn: (gap: UnloggedGap) =>
       backfillFn({
-        data: { date: day.date, copyFrom: day.previousDate },
+        data: { date: gap.from, copyFrom: gap.lastLogged },
         fetch: serverFunctionFetch,
       }),
     onSuccess: apply,
@@ -243,9 +243,9 @@ export const useToday = (initial: TodayView) => {
       occasion.mutate(text);
     },
     savingOccasion: occasion.isPending,
-    backfill: (day: UnloggedDay) => {
+    backfill: (gap: UnloggedGap) => {
       resetFailures();
-      backfill.mutate(day);
+      backfill.mutate(gap);
     },
     backfilling: backfill.isPending,
   };
