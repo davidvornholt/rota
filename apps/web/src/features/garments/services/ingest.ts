@@ -17,14 +17,12 @@ import type { Garment } from '#/shared/data/garment.ts';
 import {
   type GarmentAttributes,
   GarmentRepository,
-  type StoredImage,
 } from '#/shared/data/garment-repository.ts';
 import { categoryDefaults } from '#/shared/data/garment-types.ts';
 import { imageDimensions } from '#/shared/media/image-dimensions.ts';
 import { maximumSourcePixels } from '#/shared/media/image-limits.ts';
-import { isStorableMime, MediaStore } from '#/shared/media/media-store.ts';
+import { MediaStore } from '#/shared/media/media-store.ts';
 import { rotateImage } from '#/shared/media/rotate-image.ts';
-import { UploadError } from '../errors/garment-errors.ts';
 import {
   type Extraction,
   ExtractionSchema,
@@ -35,53 +33,17 @@ import {
 import type { GarmentEdit } from '../schemas/garment-input.ts';
 import { renderDescription } from '../schemas/render-description.ts';
 import { orientStudioPhoto } from './orient-studio-photo.ts';
+import {
+  replaceOriginalPhoto,
+  storeUpload,
+  type Upload,
+} from './photo-upload.ts';
 import { makeStudioJobs } from './studio-jobs.ts';
 import {
   makeStudioWork,
   renderStudio,
   withStudioPersistenceDeadline,
 } from './studio-render-job.ts';
-
-export type Upload = {
-  readonly bytes: Uint8Array;
-  readonly mime: string;
-};
-
-/** Photos are downscaled in the browser before upload; anything larger did not come from the app. */
-const bytesPerKibibyte = 1024;
-const bytesPerMebibyte = bytesPerKibibyte * bytesPerKibibyte;
-const uploadLimitMebibytes = 6;
-export const maximumUploadBytes = uploadLimitMebibytes * bytesPerMebibyte;
-const tooLargePhoto = new UploadError({
-  message:
-    'That photo is too large. Photos are resized in the app before upload; try again from the app.',
-  httpStatus: 413,
-});
-
-const unreadablePhoto = new UploadError({
-  message: 'That file is not a readable JPEG or PNG photo.',
-  httpStatus: 400,
-});
-
-/** Everything that can be wrong with an upload before any byte is stored. */
-export const validateUpload = (upload: Upload): UploadError | undefined => {
-  if (!isStorableMime(upload.mime)) {
-    return new UploadError({
-      message: 'Only JPEG, PNG, and WebP photos can be added.',
-      httpStatus: 400,
-    });
-  }
-  if (upload.bytes.byteLength > maximumUploadBytes) {
-    return tooLargePhoto;
-  }
-  const dimensions = imageDimensions(upload.bytes);
-  if (dimensions === undefined) {
-    return unreadablePhoto;
-  }
-  return dimensions.width * dimensions.height > maximumSourcePixels
-    ? tooLargePhoto
-    : undefined;
-};
 
 /** The model's reading, as the garment row stores it. A budget equal to the category default stays null so later category changes apply. */
 export const attributesFromExtraction = (
@@ -142,27 +104,6 @@ type IngestDependencies = {
   readonly studio: StudioRenderer;
 };
 
-const storeUpload = ({ media }: IngestDependencies, upload: Upload) =>
-  Effect.gen(function* () {
-    const rejection = validateUpload(upload);
-    if (rejection !== undefined) {
-      return yield* rejection;
-    }
-    const dimensions = imageDimensions(upload.bytes);
-    if (dimensions === undefined) {
-      return yield* unreadablePhoto;
-    }
-    const stored = yield* media.put(upload.bytes, upload.mime);
-    const image: StoredImage = {
-      key: stored.key,
-      mime: upload.mime,
-      width: dimensions.width,
-      height: dimensions.height,
-      bytes: stored.bytes,
-    };
-    return image;
-  });
-
 const originalPhoto = ({ media }: IngestDependencies, garment: Garment) =>
   Effect.gen(function* () {
     const { original } = garment.images;
@@ -208,6 +149,12 @@ const readGarment = (deps: IngestDependencies, garment: Garment) =>
     );
     return extraction;
   });
+
+const renderInProgress = new StudioRenderError({
+  message:
+    'A studio picture is already in progress. Wait for it to finish before changing the render.',
+  cause: undefined,
+});
 
 export class IngestService extends Effect.Service<IngestService>()(
   'garments/IngestService',
@@ -301,19 +248,18 @@ export class IngestService extends Effect.Service<IngestService>()(
           )
           .pipe(
             Effect.flatMap((started) =>
-              started
-                ? Effect.void
-                : Effect.fail(
-                    new StudioRenderError({
-                      message:
-                        'A studio picture is already in progress. Wait for it to finish before changing the render.',
-                      cause: undefined,
-                    }),
-                  ),
+              started ? Effect.void : Effect.fail(renderInProgress),
             ),
           );
 
-      return { start, process, retryStudio, studioProgress: jobs.progress };
+      return {
+        start,
+        process,
+        retryStudio,
+        replacePhoto: (id: string, upload: Upload) =>
+          replaceOriginalPhoto(deps, jobs.progress().has(id), id, upload),
+        studioProgress: jobs.progress,
+      };
     }),
   },
 ) {}
