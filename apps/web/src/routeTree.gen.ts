@@ -22,6 +22,7 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiGarmentsUploadRouteImport } from './routes/api/garments/upload'
 import { Route as ApiInternalTickRouteImport } from './routes/api/internal/tick'
 import { Route as ApiMediaSplatRouteImport } from './routes/api/media/$'
+import { Route as ApiGarmentsGarmentIdPhotoRouteImport } from './routes/api/garments/$garmentId.photo'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -87,6 +88,12 @@ const ApiMediaSplatRoute = ApiMediaSplatRouteImport.update({
   path: '/api/media/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGarmentsGarmentIdPhotoRoute =
+  ApiGarmentsGarmentIdPhotoRouteImport.update({
+    id: '/api/garments/$garmentId/photo',
+    path: '/api/garments/$garmentId/photo',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/api/media/$': typeof ApiMediaSplatRoute
   '/history/': typeof AppHistoryIndexRoute
   '/wardrobe/': typeof AppWardrobeIndexRoute
+  '/api/garments/$garmentId/photo': typeof ApiGarmentsGarmentIdPhotoRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -115,6 +123,7 @@ export interface FileRoutesByTo {
   '/api/media/$': typeof ApiMediaSplatRoute
   '/history': typeof AppHistoryIndexRoute
   '/wardrobe': typeof AppWardrobeIndexRoute
+  '/api/garments/$garmentId/photo': typeof ApiGarmentsGarmentIdPhotoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,6 +140,7 @@ export interface FileRoutesById {
   '/api/media/$': typeof ApiMediaSplatRoute
   '/_app/history/': typeof AppHistoryIndexRoute
   '/_app/wardrobe/': typeof AppWardrobeIndexRoute
+  '/api/garments/$garmentId/photo': typeof ApiGarmentsGarmentIdPhotoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/api/media/$'
     | '/history/'
     | '/wardrobe/'
+    | '/api/garments/$garmentId/photo'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/api/media/$'
     | '/history'
     | '/wardrobe'
+    | '/api/garments/$garmentId/photo'
   id:
     | '__root__'
     | '/_app'
@@ -176,6 +188,7 @@ export interface FileRouteTypes {
     | '/api/media/$'
     | '/_app/history/'
     | '/_app/wardrobe/'
+    | '/api/garments/$garmentId/photo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -186,6 +199,7 @@ export interface RootRouteChildren {
   ApiGarmentsUploadRoute: typeof ApiGarmentsUploadRoute
   ApiInternalTickRoute: typeof ApiInternalTickRoute
   ApiMediaSplatRoute: typeof ApiMediaSplatRoute
+  ApiGarmentsGarmentIdPhotoRoute: typeof ApiGarmentsGarmentIdPhotoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -281,6 +295,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMediaSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/garments/$garmentId/photo': {
+      id: '/api/garments/$garmentId/photo'
+      path: '/api/garments/$garmentId/photo'
+      fullPath: '/api/garments/$garmentId/photo'
+      preLoaderRoute: typeof ApiGarmentsGarmentIdPhotoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -312,6 +333,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGarmentsUploadRoute: ApiGarmentsUploadRoute,
   ApiInternalTickRoute: ApiInternalTickRoute,
   ApiMediaSplatRoute: ApiMediaSplatRoute,
+  ApiGarmentsGarmentIdPhotoRoute: ApiGarmentsGarmentIdPhotoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

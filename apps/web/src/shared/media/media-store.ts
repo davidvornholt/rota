@@ -10,31 +10,15 @@ import { Effect } from 'effect';
 
 import { type MediaStoreConfig, mediaStoreConfig } from '#/shared/env.ts';
 import { MediaStoreError } from './errors/media-errors.ts';
+import { extensionByMime } from './media-keys.ts';
 
 export type StoredMedia = {
   readonly key: string;
   readonly bytes: number;
 };
 
-const extensionByMime: Readonly<Record<string, string>> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-};
-
-export const isStorableMime = (mime: string): boolean =>
-  mime in extensionByMime;
-
-const keyPattern = /^[a-f0-9]{64}\.(?<extension>jpg|png|webp)$/u;
 const missingTrailingSlash = /\/?$/u;
 const trailingSlash = /\/$/u;
-
-export const isMediaKey = (key: string): boolean => keyPattern.test(key);
-
-export const mimeOfKey = (key: string): string | undefined =>
-  Object.entries(extensionByMime).find(([, extension]) =>
-    key.endsWith(`.${extension}`),
-  )?.[0];
 
 const hexRadix = 16;
 const hexDigitsPerByte = 2;
