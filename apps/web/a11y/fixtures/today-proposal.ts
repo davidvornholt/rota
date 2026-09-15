@@ -1,8 +1,11 @@
-import type { TodayView } from '#/features/rota/schemas/today-view.ts';
+import type {
+  TodayView,
+  UnloggedGap,
+} from '#/features/rota/schemas/today-view.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 
-const shirt: GarmentView = {
+export const shirt: GarmentView = {
   id: 'demo-shirt',
   status: 'active',
   name: 'Blue Oxford shirt',
@@ -44,7 +47,7 @@ export const demoProposal: TodayView = {
   forecastStale: false,
   occasion: null,
   worn: null,
-  unloggedDays: [],
+  unlogged: null,
   tomorrowHint: null,
   problem: null,
   activeGarments: 2,
@@ -80,6 +83,23 @@ export const demoProposal: TodayView = {
       },
     ],
   },
+};
+
+/** Three mornings went by unlogged after Thursday 3 September. */
+export const threeDayGap: UnloggedGap = {
+  from: localDate('2026-09-04'),
+  to: localDate('2026-09-06'),
+  count: 3,
+  lastLogged: localDate('2026-09-03'),
+  lastNames: ['Navy chinos', 'Blue Oxford shirt'],
+};
+
+export const oneDayGap: UnloggedGap = {
+  from: localDate('2026-09-06'),
+  to: localDate('2026-09-06'),
+  count: 1,
+  lastLogged: localDate('2026-09-05'),
+  lastNames: ['Navy chinos', 'Blue Oxford shirt'],
 };
 
 export let fixtureProposal: TodayView | undefined;

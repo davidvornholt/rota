@@ -35,6 +35,19 @@ export const BackfillInputSchema = Schema.Struct({
   copyFrom: LocalDateSchema,
 });
 
+/** Several past days written at once; a day arrives only with something on it. */
+export const LogDaysInputSchema = Schema.Struct({
+  days: Schema.Array(
+    Schema.Struct({
+      date: LocalDateSchema,
+      entries: Schema.Array(OutfitEntryInputSchema).pipe(
+        Schema.minItems(1),
+        Schema.maxItems(slotCount),
+      ),
+    }),
+  ).pipe(Schema.minItems(1)),
+});
+
 export const AlternativesInputSchema = Schema.Struct({
   slot: SlotSchema,
   currentIds: Schema.Array(Schema.UUID),
@@ -48,8 +61,10 @@ export const decodeLogOutfitInput =
   Schema.decodeUnknownSync(LogOutfitInputSchema);
 export const decodeBackfillInput =
   Schema.decodeUnknownSync(BackfillInputSchema);
+export const decodeLogDaysInput = Schema.decodeUnknownSync(LogDaysInputSchema);
 export const decodeAlternativesInput = Schema.decodeUnknownSync(
   AlternativesInputSchema,
 );
 
 export type LogOutfitInput = Schema.Schema.Type<typeof LogOutfitInputSchema>;
+export type LogDaysInput = Schema.Schema.Type<typeof LogDaysInputSchema>;

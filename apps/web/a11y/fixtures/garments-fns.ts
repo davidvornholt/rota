@@ -61,7 +61,7 @@ export const undecided: TodayView = {
   occasion: null,
   proposal: null,
   worn: null,
-  unloggedDays: [],
+  unlogged: null,
   tomorrowHint: null,
   problem: null,
   activeGarments: 1,

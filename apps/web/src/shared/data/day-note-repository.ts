@@ -2,10 +2,19 @@ import { SqlClient } from '@effect/sql';
 import { Effect, Schema } from 'effect';
 
 import type { LocalDate } from '#/shared/time/local-date.ts';
+import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import { readError, writeError } from './errors/data-errors.ts';
 
 const NoteRow = Schema.Struct({ occasion: Schema.String });
 const decodeNotes = Schema.decodeUnknown(Schema.Array(NoteRow));
+const DatedNoteRow = Schema.Struct({
+  date: Schema.propertySignature(LocalDateSchema).pipe(
+    Schema.fromKey('for_date'),
+  ),
+  occasion: Schema.String,
+});
+export type DayNote = Schema.Schema.Type<typeof DatedNoteRow>;
+const decodeDatedNotes = Schema.decodeUnknown(Schema.Array(DatedNoteRow));
 const readNote = readError('The day note');
 const writeNote = writeError('The day note');
 
@@ -22,6 +31,14 @@ export class DayNoteRepository extends Effect.Service<DayNoteRepository>()(
           Effect.mapError(readNote),
         );
 
+      /** The notes of a run of days, oldest first; days without one are simply absent. */
+      const readRange = (from: LocalDate, to: LocalDate) =>
+        sql`
+          select for_date, occasion from day_note
+          where for_date between ${from} and ${to}
+          order by for_date
+        `.pipe(Effect.flatMap(decodeDatedNotes), Effect.mapError(readNote));
+
       /** An empty note removes the row: no occasion is the absence of a note. */
       const save = (date: LocalDate, occasion: string) => {
         const trimmed = occasion.trim();
@@ -36,7 +53,7 @@ export class DayNoteRepository extends Effect.Service<DayNoteRepository>()(
         return statement.pipe(Effect.asVoid, Effect.mapError(writeNote));
       };
 
-      return { read, save };
+      return { read, readRange, save };
     }),
   },
 ) {}

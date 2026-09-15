@@ -16,6 +16,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as ApiHealthzRouteImport } from './routes/api/healthz'
 import { Route as AppHistoryIndexRouteImport } from './routes/_app/history.index'
 import { Route as AppHistoryDateRouteImport } from './routes/_app/history.$date'
+import { Route as AppHistoryCatchUpRouteImport } from './routes/_app/history.catch-up'
 import { Route as AppWardrobeIndexRouteImport } from './routes/_app/wardrobe.index'
 import { Route as AppWardrobeGarmentIdRouteImport } from './routes/_app/wardrobe.$garmentId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -57,6 +58,11 @@ const AppHistoryDateRoute = AppHistoryDateRouteImport.update({
   path: '/history/$date',
   getParentRoute: () => AppRoute,
 } as any)
+const AppHistoryCatchUpRoute = AppHistoryCatchUpRouteImport.update({
+  id: '/history/catch-up',
+  path: '/history/catch-up',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppWardrobeIndexRoute = AppWardrobeIndexRouteImport.update({
   id: '/wardrobe/',
   path: '/wardrobe/',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/api/healthz': typeof ApiHealthzRoute
   '/history/$date': typeof AppHistoryDateRoute
+  '/history/catch-up': typeof AppHistoryCatchUpRoute
   '/wardrobe/$garmentId': typeof AppWardrobeGarmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/garments/upload': typeof ApiGarmentsUploadRoute
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/api/healthz': typeof ApiHealthzRoute
   '/': typeof AppIndexRoute
   '/history/$date': typeof AppHistoryDateRoute
+  '/history/catch-up': typeof AppHistoryCatchUpRoute
   '/wardrobe/$garmentId': typeof AppWardrobeGarmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/garments/upload': typeof ApiGarmentsUploadRoute
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/api/healthz': typeof ApiHealthzRoute
   '/_app/': typeof AppIndexRoute
   '/_app/history/$date': typeof AppHistoryDateRoute
+  '/_app/history/catch-up': typeof AppHistoryCatchUpRoute
   '/_app/wardrobe/$garmentId': typeof AppWardrobeGarmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/garments/upload': typeof ApiGarmentsUploadRoute
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/api/healthz'
     | '/history/$date'
+    | '/history/catch-up'
     | '/wardrobe/$garmentId'
     | '/api/auth/$'
     | '/api/garments/upload'
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/api/healthz'
     | '/'
     | '/history/$date'
+    | '/history/catch-up'
     | '/wardrobe/$garmentId'
     | '/api/auth/$'
     | '/api/garments/upload'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/api/healthz'
     | '/_app/'
     | '/_app/history/$date'
+    | '/_app/history/catch-up'
     | '/_app/wardrobe/$garmentId'
     | '/api/auth/$'
     | '/api/garments/upload'
@@ -239,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHistoryDateRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/history/catch-up': {
+      id: '/_app/history/catch-up'
+      path: '/history/catch-up'
+      fullPath: '/history/catch-up'
+      preLoaderRoute: typeof AppHistoryCatchUpRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/wardrobe/': {
       id: '/_app/wardrobe/'
       path: '/wardrobe'
@@ -288,6 +307,7 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppHistoryDateRoute: typeof AppHistoryDateRoute
+  AppHistoryCatchUpRoute: typeof AppHistoryCatchUpRoute
   AppWardrobeGarmentIdRoute: typeof AppWardrobeGarmentIdRoute
   AppHistoryIndexRoute: typeof AppHistoryIndexRoute
   AppWardrobeIndexRoute: typeof AppWardrobeIndexRoute
@@ -297,6 +317,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
   AppHistoryDateRoute: AppHistoryDateRoute,
+  AppHistoryCatchUpRoute: AppHistoryCatchUpRoute,
   AppWardrobeGarmentIdRoute: AppWardrobeGarmentIdRoute,
   AppHistoryIndexRoute: AppHistoryIndexRoute,
   AppWardrobeIndexRoute: AppWardrobeIndexRoute,
