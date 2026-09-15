@@ -11,6 +11,9 @@ const formalityLabels = ['Casual', 'Smart', 'Formal'];
 const lightHelp = /Little insulation/u;
 const mediumHelp = /Some insulation/u;
 const formalHelp = /Dressy occasion clothing/u;
+const tooLarge = 413;
+/** A one-pixel PNG: the smallest picture the browser can decode and downscale before sending. */
+const onePixelPng = new URL('./fixtures/pixel.png', import.meta.url).pathname;
 
 test.beforeAll(async ({ browserName }, testInfo) => {
   server = await Effect.runPromise(
@@ -255,6 +258,60 @@ for (const mode of ['review', 'detail']) {
     await expect(name).toHaveValue('My corrected shirt');
   });
 }
+
+test('detail page replaces the photo, keeps edits, and recovers from a refusal', async ({
+  page,
+}, testInfo) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?detail`);
+  const retake = page.getByRole('button', {
+    name: 'Retake the photo',
+    exact: true,
+  });
+  const choose = page.getByRole('button', {
+    name: 'Choose a picture',
+    exact: true,
+  });
+  await expect(retake).toBeDisabled();
+  await expect(choose).toBeDisabled();
+  await page
+    .getByRole('button', { name: 'Finish render', exact: true })
+    .click();
+  await expect(retake).toBeEnabled();
+  await expect(choose).toBeEnabled();
+  const name = page.getByRole('textbox', { name: 'Name', exact: true });
+  await name.fill('My corrected shirt');
+  const answers = [
+    { status: tooLarge, body: 'That photo is too large.' },
+    { status: 200, body: '{"id":"demo-shirt"}' },
+  ];
+  await page.route('**/api/garments/demo-shirt/photo', async (route) => {
+    expect(route.request().method()).toBe('POST');
+    const answer = answers.shift();
+    await route.fulfill({
+      status: answer?.status,
+      body: answer?.body,
+      contentType: 'text/plain',
+    });
+  });
+  const picker = page.locator('input[aria-label="Choose a picture"]');
+  await picker.setInputFiles(onePixelPng);
+  await expect(page.getByText('That photo is too large.')).toBeVisible();
+  await expect(choose).toBeEnabled();
+  await expect(name).toHaveValue('My corrected shirt');
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await picker.setInputFiles(onePixelPng);
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Photo replaced.' }),
+  ).toContainText('regenerate it below');
+  await expect(page.getByText('That photo is too large.')).toHaveCount(0);
+  await expect(name).toHaveValue('My corrected shirt');
+  expect(answers).toHaveLength(0);
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath('detail-photo-replaced.png'),
+    fullPage: true,
+  });
+});
 
 test('colour icon tooltips support hover, focus, Escape, and disabled explanations', async ({
   page,

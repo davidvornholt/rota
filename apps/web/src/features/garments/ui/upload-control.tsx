@@ -1,9 +1,10 @@
-import { type ChangeEvent, useId, useRef, useState } from 'react';
+import { useState } from 'react';
 
 import { quietButtonClass, signalButtonClass } from '#/shared/ui/classes.ts';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { uploadEndpoint, uploadFieldName } from '../upload-contract.ts';
 import { downscaleForUpload } from './downscale-image.ts';
+import { PhotoPicker } from './photo-picker.tsx';
 
 type UploadState =
   | { readonly kind: 'idle' }
@@ -21,10 +22,6 @@ type UploadControlProps = {
  * together; the cards appear in the queue the moment the server has them.
  */
 export const UploadControl = ({ onUploaded }: UploadControlProps) => {
-  const cameraId = useId();
-  const libraryId = useId();
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const libraryInputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<UploadState>({ kind: 'idle' });
 
   const send = async (files: ReadonlyArray<File>) => {
@@ -62,12 +59,6 @@ export const UploadControl = ({ onUploaded }: UploadControlProps) => {
     }
   };
 
-  const onChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = '';
-    await send(files);
-  };
-
   const busy = state.kind === 'preparing' || state.kind === 'uploading';
   const photos = (count: number) => `${count} photo${count === 1 ? '' : 's'}`;
   let status: string | null = null;
@@ -80,44 +71,20 @@ export const UploadControl = ({ onUploaded }: UploadControlProps) => {
   return (
     <div>
       <div className="flex flex-wrap gap-3">
-        <input
-          accept="image/*"
-          capture="environment"
-          aria-label="Photograph a garment"
-          className="sr-only"
-          id={cameraId}
-          onChange={onChange}
-          ref={cameraInputRef}
-          type="file"
-        />
-        <input
-          accept="image/*"
-          className="sr-only"
-          aria-label="Choose photos"
-          id={libraryId}
-          multiple={true}
-          onChange={onChange}
-          ref={libraryInputRef}
-          type="file"
-        />
-        <button
-          aria-busy={busy}
+        <PhotoPicker
+          busy={busy}
+          camera={true}
           className={signalButtonClass}
-          disabled={busy}
-          onClick={() => cameraInputRef.current?.click()}
-          type="button"
-        >
-          Photograph a garment
-        </button>
-        <button
-          aria-busy={busy}
+          label="Photograph a garment"
+          onPick={send}
+        />
+        <PhotoPicker
+          busy={busy}
           className={quietButtonClass}
-          disabled={busy}
-          onClick={() => libraryInputRef.current?.click()}
-          type="button"
-        >
-          Choose photos
-        </button>
+          label="Choose photos"
+          multiple={true}
+          onPick={send}
+        />
       </div>
       {status === null ? null : (
         <p className="mt-3 text-ink-muted text-sm" role="status">

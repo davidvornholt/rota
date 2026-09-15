@@ -8,10 +8,13 @@ import {
 import type { UploadError } from '../errors/garment-errors.ts';
 import { uploadFieldName } from '../upload-contract.ts';
 import { garmentsRuntime } from './garments-runtime.ts';
-import { IngestService, validateUpload } from './ingest.ts';
+import { IngestService } from './ingest.ts';
+import { type Upload, validateUpload } from './photo-upload.ts';
 
 /** 202: the photos are stored; the reading continues after the answer. */
 const accepted = 202;
+const ok = 200;
+const badRequest = 400;
 
 const jsonResponse = (body: unknown, status: number): Response => {
   const headers = new Headers({ 'content-type': 'application/json' });
@@ -19,42 +22,47 @@ const jsonResponse = (body: unknown, status: number): Response => {
   return new Response(JSON.stringify(body), { status, headers });
 };
 
+const rejected = (message: string, status: number): Response =>
+  approvePrivateResponse(
+    new Response(message, { status, headers: privateResponseHeaders }),
+  );
+
 /**
- * Accepts the photos of an upload, answers as soon as each is stored, and
- * leaves the reading and rendering to run on. A rejected file fails the whole
- * request before anything is stored, so a batch never half-lands.
+ * The photos of a multipart request, checked before any byte is stored. A
+ * rejected file fails the whole request, so a batch never half-lands.
  */
-export const handleUpload = async (request: Request): Promise<Response> => {
+const readUploads = async (
+  request: Request,
+): Promise<ReadonlyArray<Upload> | Response> => {
   const form = await request.formData().catch(() => undefined);
   const files = form
     ?.getAll(uploadFieldName)
     .filter((entry): entry is File => entry instanceof File);
   if (files === undefined || files.length === 0) {
-    return approvePrivateResponse(
-      new Response('No photos were included.', {
-        status: 400,
-        headers: privateResponseHeaders,
-      }),
-    );
+    return rejected('No photos were included.', badRequest);
   }
-
   const uploads = await Promise.all(
     files.map(async (file) => ({
       bytes: new Uint8Array(await file.arrayBuffer()),
       mime: file.type,
     })),
   );
-
   const rejection = uploads
     .map(validateUpload)
     .find((error): error is UploadError => error !== undefined);
-  if (rejection !== undefined) {
-    return approvePrivateResponse(
-      new Response(rejection.message, {
-        status: rejection.httpStatus,
-        headers: privateResponseHeaders,
-      }),
-    );
+  return rejection === undefined
+    ? uploads
+    : rejected(rejection.message, rejection.httpStatus);
+};
+
+/**
+ * Accepts the photos of an upload, answers as soon as each is stored, and
+ * leaves the reading and rendering to run on.
+ */
+export const handleUpload = async (request: Request): Promise<Response> => {
+  const uploads = await readUploads(request);
+  if (uploads instanceof Response) {
+    return uploads;
   }
 
   const ids = await garmentsRuntime.run(
@@ -77,4 +85,29 @@ export const handleUpload = async (request: Request): Promise<Response> => {
     }),
   );
   return jsonResponse({ ids }, accepted);
+};
+
+/**
+ * Swaps the photo of one garment for the single photo in the request. The
+ * garment keeps its reading; a missing garment or a render in progress leaves
+ * as the typed failure's status through the authenticated boundary.
+ */
+export const handleReplacePhoto = async (
+  request: Request,
+  garmentId: string,
+): Promise<Response> => {
+  const uploads = await readUploads(request);
+  if (uploads instanceof Response) {
+    return uploads;
+  }
+  const [upload] = uploads;
+  if (upload === undefined || uploads.length !== 1) {
+    return rejected('Send exactly one photo.', badRequest);
+  }
+  await garmentsRuntime.run(
+    Effect.flatMap(IngestService, (ingest) =>
+      ingest.replacePhoto(garmentId, upload),
+    ),
+  );
+  return jsonResponse({ id: garmentId }, ok);
 };

@@ -19,6 +19,7 @@ import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { GarmentForm } from './garment-form.tsx';
+import { ReplacePhotoControl } from './replace-photo-control.tsx';
 import { StudioRenderControl } from './studio-render-control.tsx';
 import { useGarmentDetail } from './use-garment-detail.ts';
 
@@ -44,6 +45,7 @@ type PictureProps = {
   readonly garment: GarmentView;
   readonly onChoose: (choice: ImageChoice) => void;
   readonly choosing: boolean;
+  readonly replaceControl: ReactNode;
   readonly renderControl: ReactNode;
 };
 
@@ -52,6 +54,7 @@ const Picture = ({
   garment,
   onChoose,
   choosing,
+  replaceControl,
   renderControl,
 }: PictureProps) => (
   <div className="lg:sticky lg:top-8">
@@ -79,6 +82,7 @@ const Picture = ({
         </button>
       ) : null}
     </div>
+    <div className="mt-3">{replaceControl}</div>
     {renderControl}
     <dl className="mt-6 grid grid-cols-2 gap-x-6 border-rule border-b">
       <Fact
@@ -174,6 +178,7 @@ export const GarmentDetailPage = ({
     setSaved,
     save,
     choose,
+    replace,
     retire,
     restore,
     remove,
@@ -202,6 +207,16 @@ export const GarmentDetailPage = ({
             choosing={lifecyclePending}
             garment={garment}
             onChoose={(choice) => choose.mutate(choice)}
+            replaceControl={
+              <ReplacePhotoControl
+                complete={replace.isSuccess}
+                disabled={lifecyclePending}
+                error={replace.error}
+                hasStudio={garment.studio !== undefined}
+                onPick={(file) => replace.mutate(file)}
+                pending={replace.isPending}
+              />
+            }
             renderControl={
               <StudioRenderControl
                 context="wardrobe"

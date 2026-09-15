@@ -3,11 +3,8 @@ import { Effect } from 'effect';
 
 import { garmentsRuntime } from '#/features/garments/services/garments-runtime.ts';
 import { guardedRoute } from '#/shared/auth/route-guard.ts';
-import {
-  isMediaKey,
-  MediaStore,
-  mimeOfKey,
-} from '#/shared/media/media-store.ts';
+import { isMediaKey, mimeOfKey } from '#/shared/media/media-keys.ts';
+import { MediaStore } from '#/shared/media/media-store.ts';
 
 const notFound = () => new Response('Not found.', { status: 404 });
 const routePrefix = /^\/api\/media\//u;
