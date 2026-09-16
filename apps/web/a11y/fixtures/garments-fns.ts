@@ -1,10 +1,15 @@
 import { Effect } from 'effect';
 import type { GarmentEdit } from '#/features/garments/schemas/garment-input.ts';
 import type { TodayView } from '#/features/rota/schemas/today-view.ts';
+import type { Slot } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import { localDate } from '#/shared/time/local-date.ts';
-import { fixtureProposal, setFixtureProposal } from './today-proposal.ts';
+import {
+  fixtureProposal,
+  setFixtureProposal,
+  shirt,
+} from './today-proposal.ts';
 
 let current: GarmentView;
 export const setFixtureGarment = (value: GarmentView) => {
@@ -50,7 +55,37 @@ export const setImageChoiceFn = () => garmentFn();
 export const retireGarmentFn = () => garmentFn();
 export const restoreGarmentFn = () => garmentFn();
 
-export const alternativesFn = () => Effect.runPromise(Effect.succeed([]));
+/** Two layers to swap in: one the engine would rank, one it would not. */
+export const alternativesFn = ({
+  data,
+}: {
+  readonly data: { readonly slot: Slot };
+}) =>
+  Effect.runPromise(
+    Effect.succeed({
+      slot: data.slot,
+      ranked: [
+        {
+          ...shirt,
+          id: 'demo-jacket',
+          name: 'Wax jacket',
+          slots: [data.slot],
+          colors: [{ hex: '#4a3b2a' }],
+          daysSinceWorn: 9,
+        },
+      ],
+      others: [
+        {
+          ...shirt,
+          id: 'demo-cardigan',
+          name: 'Grey cardigan',
+          slots: [data.slot],
+          colors: [{ hex: '#8a8a8a' }],
+          daysSinceWorn: null,
+        },
+      ],
+    }),
+  );
 
 export const undecided: TodayView = {
   today: localDate('2026-09-07'),

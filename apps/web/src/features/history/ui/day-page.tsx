@@ -133,6 +133,7 @@ export const DayPage = ({ view, save }: DayPageProps) => {
             {slotOrder.map((slot) => (
               <SlotPicker
                 candidates={view.choices[slot]}
+                day={view.date}
                 chosen={view.choices[slot].find(
                   (garment) => garment.id === choice[slot],
                 )}

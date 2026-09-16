@@ -33,6 +33,7 @@ export const Dialog = ({
 }: DialogProps) => {
   const ref = useRef<HTMLDialogElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const openerRef = useRef<Element | null>(null);
   const titleId = useId();
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export const Dialog = ({
       return;
     }
     if (open && !dialog.open) {
+      openerRef.current = document.activeElement;
       dialog.showModal();
       // Land on the title, not on the close button `showModal` would pick as
       // the first focusable thing: the dialog announces itself, and nothing
@@ -51,6 +53,18 @@ export const Dialog = ({
     }
   }, [open]);
 
+  // A dialog unmounted while open (a pick that removes it) never fires
+  // `close`, so the browser does not return focus; do it by hand.
+  useEffect(
+    () => () => {
+      const opener = openerRef.current;
+      if (opener instanceof HTMLElement && opener.isConnected) {
+        opener.focus();
+      }
+    },
+    [],
+  );
+
   return (
     <dialog
       aria-labelledby={titleId}
@@ -60,7 +74,10 @@ export const Dialog = ({
         widthClass[size],
         'backdrop:bg-ink/40',
       ].join(' ')}
-      onClose={onClose}
+      onClose={() => {
+        openerRef.current = null;
+        onClose();
+      }}
       ref={ref}
     >
       <div className="max-h-[85svh] overflow-y-auto px-5 pt-5 pb-6 sm:px-8 sm:pt-6 sm:pb-8">

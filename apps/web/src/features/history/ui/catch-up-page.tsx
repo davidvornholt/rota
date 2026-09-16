@@ -117,6 +117,7 @@ const DayFieldset = ({
         <SlotPicker
           candidates={choices[slot]}
           chosen={choices[slot].find((garment) => garment.id === choice[slot])}
+          day={day.date}
           key={slot}
           onChange={(garmentId) => onChange({ ...choice, [slot]: garmentId })}
           slot={slot}
