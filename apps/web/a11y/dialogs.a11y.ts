@@ -6,6 +6,8 @@ import { startGarmentFixtureServer } from './garment-fixture-server.ts';
 
 let server: ViteDevServer;
 const fixtureUrl = () => server.resolvedUrls?.local[0];
+const waxJacketTile = /^Wax jacket/u;
+const greyCardiganTile = /^Grey cardigan/u;
 
 test.beforeAll(async ({ browserName }, testInfo) => {
   server = await Effect.runPromise(
@@ -63,6 +65,28 @@ test('edit and delete icons preserve dialog dismissal and explicit confirmation'
     page.getByText('Garment deleted', { exact: true }),
   ).toBeVisible();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
+});
+
+test('swapping a slot shows the alternatives as pictures and closes on a pick', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?outfit`);
+  const swap = page.getByRole('button', { name: 'Swap' });
+  await swap.click();
+  const dialog = page.getByRole('dialog');
+  await expect(
+    dialog.getByRole('heading', { name: 'Another over layer' }),
+  ).toBeFocused();
+  await expect(dialog.getByText('Suggested for today')).toBeVisible();
+  const jacket = dialog.getByRole('button', { name: waxJacketTile });
+  await expect(jacket).toContainText('9 days ago');
+  await expect(
+    dialog.getByRole('button', { name: greyCardiganTile }),
+  ).toContainText('never worn');
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await jacket.click();
+  await expect(dialog).toHaveCount(0);
+  await expect(swap).toBeFocused();
 });
 
 test('image close icon dismisses the enlarged picture and restores focus', async ({
