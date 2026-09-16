@@ -30,11 +30,16 @@ export type WornItemView = {
   readonly budget: number;
 };
 
-/** A day with no log between the last logged day and today, with the outfit before it. */
-export type UnloggedDay = {
-  readonly date: LocalDate;
-  readonly previousDate: LocalDate;
-  readonly previousNames: ReadonlyArray<string>;
+/**
+ * The blank days between the last logged day and today, with the outfit
+ * before them. Null when yesterday was logged or nothing has been logged yet.
+ */
+export type UnloggedGap = {
+  readonly from: LocalDate;
+  readonly to: LocalDate;
+  readonly count: number;
+  readonly lastLogged: LocalDate;
+  readonly lastNames: ReadonlyArray<string>;
 };
 
 export type TodayProblem = {
@@ -56,7 +61,7 @@ export type TodayView = {
   readonly occasion: string | null;
   readonly proposal: ProposalView | null;
   readonly worn: ReadonlyArray<WornItemView> | null;
-  readonly unloggedDays: ReadonlyArray<UnloggedDay>;
+  readonly unlogged: UnloggedGap | null;
   readonly tomorrowHint: string | null;
   readonly problem: TodayProblem | null;
   readonly activeGarments: number;

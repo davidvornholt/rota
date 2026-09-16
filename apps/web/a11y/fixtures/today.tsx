@@ -13,11 +13,20 @@ import { decisionCalls, undecided } from './garments-fns.ts';
 import {
   demoProposal,
   fixtureProposal,
+  oneDayGap,
   setFixtureProposal,
+  threeDayGap,
 } from './today-proposal.ts';
 
-if (new URLSearchParams(globalThis.location.search).has('proposal')) {
-  setFixtureProposal(demoProposal);
+const params = new URLSearchParams(globalThis.location.search);
+const gapOf = (mode: string | null) => {
+  if (mode === null) {
+    return null;
+  }
+  return mode === 'one' ? oneDayGap : threeDayGap;
+};
+if (params.has('proposal')) {
+  setFixtureProposal({ ...demoProposal, unlogged: gapOf(params.get('gap')) });
 }
 
 let loaderCalls = 0;

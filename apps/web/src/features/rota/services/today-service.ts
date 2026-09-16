@@ -30,7 +30,7 @@ import {
   problemOf,
   proposalView,
   tomorrowHint,
-  unloggedDaysBefore,
+  unloggedGapBefore,
   wardrobeEmptyProblem,
   wornOn,
 } from './today-view-assembly.ts';
@@ -67,7 +67,7 @@ type ViewParts = {
   readonly occasion: string | null;
   readonly worn: TodayView['worn'];
   readonly proposal: TodayView['proposal'];
-  readonly unloggedDays: TodayView['unloggedDays'];
+  readonly unlogged: TodayView['unlogged'];
   readonly activeGarments: number;
   readonly problem: TodayProblem | null;
 };
@@ -87,7 +87,7 @@ const assembleView = (parts: ViewParts): TodayView => {
     occasion: parts.occasion,
     proposal: parts.proposal,
     worn: parts.worn,
-    unloggedDays: parts.unloggedDays,
+    unlogged: parts.unlogged,
     tomorrowHint: tomorrowHint(parts.worn),
     problem: parts.problem ?? forecast.problem,
     activeGarments: parts.activeGarments,
@@ -159,14 +159,11 @@ export class TodayService extends Effect.Service<TodayService>()(
             occasion,
             worn,
             proposal: worn === null ? proposalView(latest, views) : null,
-            unloggedDays:
-              worn === null
-                ? unloggedDaysBefore(
-                    clock.today,
-                    log,
-                    new Map(all.map((garment) => [garment.id, garment.name])),
-                  )
-                : [],
+            unlogged: unloggedGapBefore(
+              clock.today,
+              log,
+              new Map(all.map((garment) => [garment.id, garment.name])),
+            ),
             activeGarments: active,
             problem:
               decisionProblem ?? (active === 0 ? wardrobeEmptyProblem : null),

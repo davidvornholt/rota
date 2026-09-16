@@ -7,6 +7,11 @@ import { startGarmentFixtureServer } from './garment-fixture-server.ts';
 let server: ViteDevServer;
 const fixtureUrl = () => server.resolvedUrls?.local[0];
 
+// Chromium's en-GB abbreviates September as "Sept", Node's as "Sep".
+const threeDayPromptName =
+  /^Friday 4 Sept? to Sunday 6 Sept?: what did you wear\?$/u;
+const oneDayPromptName = /^Sunday 6 Sept?: same as Sat\?$/u;
+
 test.beforeAll(async ({ browserName }, testInfo) => {
   server = await Effect.runPromise(
     startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
@@ -72,6 +77,35 @@ for (const failure of ['proxy', 'timeout'] as const) {
     expect(await scanWcag22AaViolations(page)).toEqual([]);
   });
 }
+
+test('a run of blank days is announced with a way to fill them in or leave them', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?proposal&gap`);
+  const prompt = page.getByRole('region', { name: threeDayPromptName });
+  await expect(prompt.getByText('3 days without a log')).toBeVisible();
+  const fill = prompt.getByRole('link', { name: 'Fill in 3 days' });
+  await expect(fill).toHaveAttribute('href', '/history/catch-up');
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await prompt.getByRole('button', { name: 'Leave it blank' }).click();
+  await expect(prompt).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Chinos and a shirt for today.' }),
+  ).toBeVisible();
+});
+
+test('one blank day is filled with a tap, or opens the catch-up page', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?proposal&gap=one`);
+  const prompt = page.getByRole('region', { name: oneDayPromptName });
+  await expect(
+    prompt.getByRole('link', { name: 'Something else' }),
+  ).toHaveAttribute('href', '/history/catch-up');
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await prompt.getByRole('button', { name: 'Same as Sat' }).click();
+  await expect(prompt).toHaveCount(0);
+});
 
 test('a failed automatic decision stays visible through refresh until retry or a new day state', async ({
   page,

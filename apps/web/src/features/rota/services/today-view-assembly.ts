@@ -9,23 +9,16 @@ import { effectiveWearBudget, slotOrder } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { Proposal } from '#/shared/data/proposal-repository.ts';
 import type { Settings } from '#/shared/data/settings-repository.ts';
+import { unloggedDaysBefore } from '#/shared/data/wear-log-gap.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
-import {
-  addDays,
-  daysBetween,
-  daysInRange,
-  type LocalDate,
-} from '#/shared/time/local-date.ts';
+import { addDays, type LocalDate } from '#/shared/time/local-date.ts';
 import { consecutiveWears, outfitOn } from '../rotation.ts';
 import type {
   ProposalView,
   TodayProblem,
-  UnloggedDay,
+  UnloggedGap,
   WornItemView,
 } from '../schemas/today-view.ts';
-
-/** Gaps older than this are history, not this morning's business. */
-const backfillHorizonDays = 7;
 
 export const wardrobeEmptyProblem: TodayProblem = {
   kind: 'wardrobe-empty',
@@ -109,28 +102,29 @@ export const wornOn = (
   return items.length === 0 ? null : items;
 };
 
-/** The days between the last logged one and today that have no log, with the outfit before them. */
-export const unloggedDaysBefore = (
+/** The blank days between the last logged one and today, with the outfit before them; null when there are none. */
+export const unloggedGapBefore = (
   today: LocalDate,
   log: ReadonlyArray<WearEntry>,
   names: ReadonlyMap<string, string>,
-): ReadonlyArray<UnloggedDay> => {
-  const past = log
-    .map((entry) => entry.wornOn)
-    .filter((date) => date < today)
-    .sort();
-  const last = past.at(-1);
-  if (last === undefined || daysBetween(last, today) > backfillHorizonDays) {
-    return [];
+): UnloggedGap | null => {
+  const days = unloggedDaysBefore(log, today);
+  const [from] = days;
+  const to = days.at(-1);
+  if (from === undefined || to === undefined) {
+    return null;
   }
-  const previousNames = Object.values(outfitOn(log, last)).map(
-    (id) => names.get(id) ?? 'unknown garment',
-  );
-  return daysInRange(addDays(last, 1), addDays(today, -1)).map((date) => ({
-    date,
-    previousDate: last,
-    previousNames,
-  }));
+  const lastLogged = addDays(from, -1);
+  return {
+    from,
+    to,
+    count: days.length,
+    lastLogged,
+    lastNames: slotOrder.flatMap((slot) => {
+      const id = outfitOn(log, lastLogged)[slot];
+      return id === undefined ? [] : [names.get(id) ?? 'unknown garment'];
+    }),
+  };
 };
 
 const listNames = (items: ReadonlyArray<WornItemView>) =>

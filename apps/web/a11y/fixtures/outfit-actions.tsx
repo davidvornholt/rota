@@ -62,7 +62,7 @@ export const OutfitActionsFixture = ({
       occasion: proposal.occasion,
       proposal,
       worn: null,
-      unloggedDays: [],
+      unlogged: null,
       tomorrowHint: null,
       problem: null,
       activeGarments: 1,

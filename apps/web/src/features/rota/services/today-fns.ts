@@ -9,6 +9,7 @@ import { outfitOn } from '../rotation.ts';
 import {
   decodeAlternativesInput,
   decodeBackfillInput,
+  decodeLogDaysInput,
   decodeLogOutfitInput,
   decodeOccasionInput,
   decodeProposalId,
@@ -147,6 +148,38 @@ export const backfillFn = createServerFn({ method: 'POST' })
           }
           yield* proposals.logOutfit(data.date, entries, 'backfill');
           return yield* todayView();
+        }),
+      ),
+  );
+
+/** Catching up: several past days written in one go, oldest first, each as the wearer's own word. */
+export const logDaysFn = createServerFn({ method: 'POST' })
+  .middleware([sessionRequired])
+  .validator((input: unknown) => decodeLogDaysInput(input))
+  .handler(
+    ({ data }): Promise<void> =>
+      rotaRuntime.run(
+        Effect.gen(function* () {
+          const clock = yield* readWardrobeClock();
+          const dates = data.days.map((day) => day.date);
+          if (dates.some((date) => date >= clock.today)) {
+            return yield* new ProposalStateError(
+              'Only days before today can be caught up on.',
+            );
+          }
+          if (new Set(dates).size !== dates.length) {
+            return yield* new ProposalStateError(
+              'A day was sent twice. Reload and try again.',
+            );
+          }
+          const proposals = yield* ProposalService;
+          yield* Effect.forEach(
+            [...data.days].sort((left, right) =>
+              left.date < right.date ? -1 : 1,
+            ),
+            (day) => proposals.logOutfit(day.date, day.entries, 'backfill'),
+            { discard: true },
+          );
         }),
       ),
   );

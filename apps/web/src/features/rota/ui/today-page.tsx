@@ -83,10 +83,10 @@ export const TodayPage = ({ initial }: { readonly initial: TodayView }) => {
         weather={view.weather}
       />
 
-      {view.unloggedDays.length > 0 && !dismissedBackfill ? (
+      {view.unlogged !== null && !dismissedBackfill ? (
         <div className="mt-6">
           <BackfillPrompt
-            days={view.unloggedDays}
+            gap={view.unlogged}
             onDismiss={() => setDismissedBackfill(true)}
             onSame={today.backfill}
             pending={today.backfilling}
