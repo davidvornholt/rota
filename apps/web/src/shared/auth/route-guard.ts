@@ -6,13 +6,19 @@ import { runSessionRequired } from './session-required.ts';
  * (401, or the sign-in redirect for a page-style request) becomes the answer.
  */
 export const guardedRoute =
-  (handle: (request: Request) => Promise<Response>) =>
-  async ({ request }: { readonly request: Request }): Promise<Response> => {
+  <Params>(handle: (request: Request, params: Params) => Promise<Response>) =>
+  async ({
+    request,
+    params,
+  }: {
+    readonly request: Request;
+    readonly params: Params;
+  }): Promise<Response> => {
     try {
       return await runSessionRequired({
         request,
         authorize: () => hasAuthorizedSession(request.headers),
-        next: () => handle(request),
+        next: () => handle(request, params),
         publishHeaders: () => undefined,
         publishStatus: () => undefined,
       });

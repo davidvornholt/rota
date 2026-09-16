@@ -13,6 +13,7 @@ import {
 } from '../services/garments-fns.ts';
 import { requestStudioRender } from '../services/studio-request.ts';
 import { editOf } from './garment-edit.ts';
+import { replacePhoto } from './replace-photo.ts';
 import { useGarmentPolling } from './use-garment-polling.ts';
 
 export const useGarmentDetail = (initial: GarmentView) => {
@@ -42,6 +43,14 @@ export const useGarmentDetail = (initial: GarmentView) => {
       setImageChoiceFn({ data: { id, imageChoice } }),
     onSuccess: apply,
   });
+  // Only the picture changed on the server; unsaved edits in the form stay.
+  const replace = useMutation({
+    mutationFn: (file: File) => replacePhoto({ id, file }),
+    onSuccess: (next) => {
+      setGarment(next);
+      router.invalidate().catch(() => undefined);
+    },
+  });
   const retire = useMutation({
     mutationFn: () => retireGarmentFn({ data: { id } }),
     onSuccess: apply,
@@ -67,6 +76,7 @@ export const useGarmentDetail = (initial: GarmentView) => {
   const failure = mutations.find((mutation) => mutation.isError)?.error;
   const lifecyclePending =
     retryStudio.isPending ||
+    replace.isPending ||
     isRendering(garment) ||
     mutations.some((mutation) => mutation.isPending);
 
@@ -78,6 +88,7 @@ export const useGarmentDetail = (initial: GarmentView) => {
     setSaved,
     save,
     choose,
+    replace,
     retire,
     restore,
     remove,
