@@ -16,7 +16,7 @@ import {
   peopleFn,
   recoverFn,
 } from '../services/people-fns.ts';
-import { AccessCode } from './access-code.tsx';
+import { AccessCode, type IssuedCode } from './access-code.tsx';
 import { PersonAccess } from './person-access.tsx';
 import { UsagePanel } from './usage-panel.tsx';
 
@@ -25,7 +25,7 @@ export const PeoplePage = () => {
   const queryClient = useQueryClient();
   const people = useQuery({ queryKey: ['people'], queryFn: () => peopleFn() });
   const [name, setName] = useState('');
-  const [issuedCode, setIssuedCode] = useState<string | null>(null);
+  const [issuedCode, setIssuedCode] = useState<IssuedCode | null>(null);
   const action = useMutation({
     mutationFn: async (operation: () => Promise<unknown>) => {
       await operation();
@@ -45,7 +45,11 @@ export const PeoplePage = () => {
           event.preventDefault();
           action.mutate(async () => {
             const result = await inviteFn({ data: { name } });
-            setIssuedCode(result.code);
+            setIssuedCode({
+              code: result.code,
+              name: name.trim(),
+              recovery: false,
+            });
             setName('');
           });
         }}
@@ -71,8 +75,8 @@ export const PeoplePage = () => {
       </form>
       {issuedCode ? (
         <AccessCode
-          code={issuedCode}
-          key={issuedCode}
+          value={issuedCode}
+          key={issuedCode.code}
           onHide={() => setIssuedCode(null)}
         />
       ) : null}
@@ -123,7 +127,11 @@ export const PeoplePage = () => {
                     const result = await recoverFn({
                       data: { memberId: person.id },
                     });
-                    setIssuedCode(result.code);
+                    setIssuedCode({
+                      code: result.code,
+                      name: person.name,
+                      recovery: person.registered,
+                    });
                   })
                 }
                 onToggle={() =>

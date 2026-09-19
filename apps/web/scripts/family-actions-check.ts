@@ -3,6 +3,12 @@ import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, type Page } from '@playwright/test';
 
 export const checkCodeActions = async (page: Page) => {
+  await expect(
+    page.getByRole('heading', {
+      name: 'Invitation for Alex (demo)',
+      exact: true,
+    }),
+  ).toBeFocused();
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.getByRole('button', { name: 'Copy code', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText('Code copied.');
@@ -65,4 +71,12 @@ export const checkPeopleActions = async (
   await manage.click();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await capture(page, 'family-admin-access-expanded-mobile');
+  await alex.getByRole('button', { name: 'Issue recovery code' }).click();
+  await expect(
+    page.getByRole('heading', {
+      name: 'Recovery code for Alex (demo)',
+      exact: true,
+    }),
+  ).toBeFocused();
+  await page.getByRole('button', { name: 'Hide code', exact: true }).click();
 };
