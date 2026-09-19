@@ -13,6 +13,7 @@ import {
 } from '#/shared/data/garment-types.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import { daysBetween, type LocalDate } from '#/shared/time/local-date.ts';
+import { careFromDates } from './garment-care.ts';
 
 export type GarmentImageView = {
   readonly url: string;
@@ -30,6 +31,8 @@ export type GarmentView = {
   readonly washedOn: LocalDate | null;
   readonly washedAfterWear: boolean;
   readonly inLaundry: boolean;
+  readonly readyOn: LocalDate | null;
+  readonly assumedCleanOn: LocalDate | null;
   readonly wearsSinceWash: number;
   readonly id: string;
   readonly status: GarmentStatus;
@@ -109,6 +112,7 @@ export type GarmentViewInput = {
   readonly garment: Garment;
   readonly studioProgress: StudioProgress | undefined;
   readonly facts: WearFacts | undefined;
+  readonly laundryDays: number;
   readonly categoryBudgets: Readonly<Record<string, number>>;
   readonly today: LocalDate;
   readonly urlFor: (key: string) => string;
@@ -126,6 +130,7 @@ export const toGarmentView = ({
   studioProgress,
   facts,
   categoryBudgets,
+  laundryDays,
   today,
   urlFor,
 }: GarmentViewInput): GarmentView => {
@@ -136,14 +141,10 @@ export const toGarmentView = ({
     id: garment.id,
     washedOn: garment.washedOn,
     washedAfterWear: garment.washedAfterWear,
-    inLaundry: garment.inLaundry,
-    wearsSinceWash:
-      facts?.dates.filter(
-        (date) =>
-          garment.washedOn === null ||
-          date > garment.washedOn ||
-          (date === garment.washedOn && !garment.washedAfterWear),
-      ).length ?? 0,
+    ...careFromDates(garment, facts?.dates ?? [], today, {
+      categoryBudgets,
+      laundryDays,
+    }),
     status: garment.status,
     name: garment.name,
     category: garment.category,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { Garment } from '#/shared/data/garment.ts';
-import { wearsSinceWash } from '#/shared/data/garment-care.ts';
+import { garmentCare } from '#/shared/data/garment-care.ts';
 import type { Slot } from '#/shared/data/garment-types.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
@@ -39,7 +39,8 @@ const garment = (
   processingError: null,
   washedOn: null,
   washedAfterWear: false,
-  inLaundry: false,
+  laundryStartedOn: null,
+  laundryReadyOn: null,
   studioError: null,
   retiredAt: null,
   createdAt: new Date('2026-01-01T00:00:00Z'),
@@ -67,11 +68,24 @@ describe('wears between washes', () => {
       worn('2026-09-03', 'tee', 'top'),
       worn('2026-08-31', 'jeans', 'bottom'),
     ];
-    expect(wearsSinceWash(log, garment('chinos', ['bottom']), today)).toBe(
-      threeDays,
-    );
-    expect(wearsSinceWash(log, garment('tee', ['top']), today)).toBe(1);
-    expect(wearsSinceWash(log, garment('jeans', ['bottom']), today)).toBe(1);
+    expect(
+      garmentCare(garment('chinos', ['bottom']), log, today, {
+        categoryBudgets: {},
+        laundryDays: 4,
+      }).wearsSinceWash,
+    ).toBe(threeDays);
+    expect(
+      garmentCare(garment('tee', ['top']), log, today, {
+        categoryBudgets: {},
+        laundryDays: 4,
+      }).wearsSinceWash,
+    ).toBe(1);
+    expect(
+      garmentCare(garment('jeans', ['bottom']), log, today, {
+        categoryBudgets: {},
+        laundryDays: 4,
+      }).wearsSinceWash,
+    ).toBe(1);
   });
 
   it('does not mistake unlogged days or a long rest for washing', () => {
@@ -79,23 +93,29 @@ describe('wears between washes', () => {
       worn('2026-09-01', 'chinos', 'bottom'),
       worn('2026-09-03', 'chinos', 'bottom'),
     ];
-    expect(wearsSinceWash(shortGap, garment('chinos', ['bottom']), today)).toBe(
-      2,
-    );
+    expect(
+      garmentCare(garment('chinos', ['bottom']), shortGap, today, {
+        categoryBudgets: {},
+        laundryDays: 4,
+      }).wearsSinceWash,
+    ).toBe(2);
 
     const longSilence = [
       worn('2026-08-20', 'chinos', 'bottom'),
       worn('2026-08-21', 'chinos', 'bottom'),
     ];
     expect(
-      wearsSinceWash(longSilence, garment('chinos', ['bottom']), today),
+      garmentCare(garment('chinos', ['bottom']), longSilence, today, {
+        categoryBudgets: {},
+        laundryDays: 4,
+      }).wearsSinceWash,
     ).toBe(2);
     expect(previousLoggedDay(longSilence, today)).toBeUndefined();
   });
 });
 
 describe('continuations', () => {
-  const settings = { cooldownDays: 7, categoryBudgets: {} };
+  const settings = { laundryDays: 4, cooldownDays: 7, categoryBudgets: {} };
 
   it('carries over garments with budget left and drops the ones that are spent', () => {
     const log = [
@@ -142,7 +162,7 @@ describe('continuations', () => {
 });
 
 describe('candidates', () => {
-  const settings = { cooldownDays: 7, categoryBudgets: {} };
+  const settings = { laundryDays: 4, cooldownDays: 7, categoryBudgets: {} };
   const wardrobe = [
     garment('rested', ['top']),
     garment('recent', ['top']),
@@ -254,7 +274,7 @@ describe('candidates', () => {
 });
 
 describe('daily variety and laundry', () => {
-  const settings = { cooldownDays: 0, categoryBudgets: {} };
+  const settings = { laundryDays: 4, cooldownDays: 0, categoryBudgets: {} };
   const top = garment('blue', ['top']);
   const white = garment('white', ['top']);
   const input = {
@@ -305,7 +325,16 @@ describe('daily variety and laundry', () => {
   it('excludes laundry regardless of rest days', () => {
     expect(
       candidatesFor(
-        { ...input, garments: [{ ...white, inLaundry: true }] },
+        {
+          ...input,
+          garments: [
+            {
+              ...white,
+              laundryStartedOn: today,
+              laundryReadyOn: localDate('2026-09-08'),
+            },
+          ],
+        },
         'top',
         new Set(),
       ),

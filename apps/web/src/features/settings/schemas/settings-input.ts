@@ -11,6 +11,7 @@ const shortestQuery = 2;
 const longestQuery = 80;
 const longestCooldown = 60;
 const lastHour = 23;
+const longestLaundry = 30;
 
 export const LocationQuerySchema = Schema.Struct({
   query: Schema.String.pipe(
@@ -27,6 +28,7 @@ const budgetDay = Schema.Int.pipe(Schema.between(1, longestWearBudget));
 
 export const RotationSettingsInputSchema = Schema.Struct({
   cleanTopAnchor: Schema.NullOr(LocalDateSchema),
+  laundryDays: Schema.Int.pipe(Schema.between(1, longestLaundry)),
   cooldownDays: Schema.Int.pipe(Schema.between(0, longestCooldown)),
   proposalHour: Schema.Int.pipe(Schema.between(0, lastHour)),
   categoryBudgets: Schema.Record({

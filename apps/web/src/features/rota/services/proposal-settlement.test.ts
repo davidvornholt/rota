@@ -42,6 +42,7 @@ const clock: WardrobeClock = {
   settings: {
     location: null,
     cleanTopAnchor: null,
+    laundryDays: 4,
     cooldownDays: 3,
     categoryBudgets: {},
     proposalHour: 5,

@@ -5,7 +5,7 @@
  */
 
 import type { Garment } from '#/shared/data/garment.ts';
-import { availableToWear, wearsSinceWash } from '#/shared/data/garment-care.ts';
+import { availableToWear, garmentCare } from '#/shared/data/garment-care.ts';
 import {
   effectiveWearBudget,
   hasWearBudget,
@@ -83,6 +83,7 @@ export const daysSinceWorn = (
 };
 
 export type RotationSettings = {
+  readonly laundryDays: number;
   readonly cooldownDays: number;
   readonly categoryBudgets: Readonly<Record<string, number>>;
 };
@@ -130,17 +131,17 @@ export const continuations = (
       garment === undefined ||
       !hasWearBudget(garment) ||
       input.excluded.has(garment.id) ||
-      !availableToWear(
-        garment,
-        input.log,
-        input.today,
-        input.settings.categoryBudgets,
-      )
+      !availableToWear(garment, input.log, input.today, input.settings)
     ) {
       return [];
     }
     const budget = effectiveWearBudget(garment, input.settings.categoryBudgets);
-    const worn = wearsSinceWash(input.log, garment, input.today);
+    const worn = garmentCare(
+      garment,
+      input.log,
+      input.today,
+      input.settings,
+    ).wearsSinceWash;
     if (worn >= budget) {
       return [];
     }
@@ -180,15 +181,11 @@ export const candidatesFor = (
 ): ReadonlyArray<Candidate> => {
   const all = input.garments.flatMap((garment): ReadonlyArray<Candidate> => {
     if (
-      !availableToWear(
-        garment,
-        input.log,
-        input.today,
-        input.settings.categoryBudgets,
-      ) ||
+      !availableToWear(garment, input.log, input.today, input.settings) ||
       (slot === 'top' &&
         input.cleanTop &&
-        wearsSinceWash(input.log, garment, input.today) > 0) ||
+        garmentCare(garment, input.log, input.today, input.settings)
+          .wearsSinceWash > 0) ||
       !garment.slots.includes(slot) ||
       input.excluded.has(garment.id) ||
       alreadyChosen.has(garment.id)
@@ -199,7 +196,12 @@ export const candidatesFor = (
     return [
       {
         garment,
-        wearsSinceWash: wearsSinceWash(input.log, garment, input.today),
+        wearsSinceWash: garmentCare(
+          garment,
+          input.log,
+          input.today,
+          input.settings,
+        ).wearsSinceWash,
         daysSinceWorn: rest,
         inCooldown:
           hasWearBudget(garment) &&

@@ -87,7 +87,7 @@ const OutfitPiece = ({
                   disabled={disabled}
                   onChange={() => onPin(garment.id)}
                 />
-                Keep
+                Keep this piece
               </label>
             )}
             <button
@@ -188,7 +188,7 @@ export const OutfitEditor = ({
               ),
             },
             {
-              heading: 'Wash before wearing',
+              heading: 'In laundry',
               garments: wardrobe.filter(
                 (garment) =>
                   garment.slots.includes(choosing) &&

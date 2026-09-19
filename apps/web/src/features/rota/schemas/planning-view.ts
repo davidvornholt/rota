@@ -7,6 +7,8 @@ export type PlanningView = {
   readonly actualToday: LocalDate;
   readonly plan: DayPlan;
   readonly cleanTop: boolean;
+  readonly laundryDays: number;
+  readonly laundry: ReadonlyArray<GarmentView>;
   readonly wardrobe: ReadonlyArray<GarmentView>;
   readonly outfits: ReadonlyArray<SavedOutfit>;
   readonly warnings: ReadonlyArray<string>;

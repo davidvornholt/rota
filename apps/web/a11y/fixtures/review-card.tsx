@@ -46,6 +46,8 @@ const garment: GarmentView = {
   washedOn: null,
   washedAfterWear: false,
   inLaundry: false,
+  readyOn: null,
+  assumedCleanOn: null,
   wearsSinceWash: 0,
   studioError: null,
   studioState: { status: 'rendering' },

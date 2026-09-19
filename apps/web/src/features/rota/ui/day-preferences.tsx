@@ -27,7 +27,7 @@ export const DayPreferences = ({
               .catch(() => undefined);
           }}
         />
-        Clean top {tomorrow ? 'tomorrow' : 'today'}
+        Freshly washed top {tomorrow ? 'tomorrow' : 'today'}
       </label>
       <details>
         <summary className="cursor-pointer py-2 text-ink-muted text-sm">

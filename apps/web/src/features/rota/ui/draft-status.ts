@@ -26,6 +26,28 @@ const concernFor = (
   }
   return [];
 };
+const availabilityMessage = (
+  selected: ReadonlyArray<GarmentView>,
+  expected: number,
+  actual: ReadonlyArray<GarmentView>,
+): string | null => {
+  if (selected.length !== expected) {
+    return 'A saved piece is no longer available. Choose a replacement.';
+  }
+  if (
+    selected.some(
+      (garment) =>
+        garment.inLaundry &&
+        !actual.find((item) => item.id === garment.id)?.inLaundry,
+    )
+  ) {
+    return 'A piece will need washing after today’s planned wear. Choose another for tomorrow.';
+  }
+  return selected.some((garment) => garment.inLaundry)
+    ? 'A piece is in the laundry. Choose another, or mark it back clean in Laundry.'
+    : null;
+};
+
 export const draftStatus = ({
   view,
   entries,
@@ -37,12 +59,17 @@ export const draftStatus = ({
     const garment = view.wardrobe.find((item) => item.id === entry.garmentId);
     return garment === undefined ? [] : [{ ...entry, garment }];
   });
-  const unavailable =
-    selected.length !== entries.length ||
-    selected.some(({ garment }) => garment.inLaundry);
-  const concerns = selected.flatMap(({ slot, garment }) =>
-    concernFor(slot, garment, view.cleanTop),
+  const unavailableMessage = availabilityMessage(
+    selected.map(({ garment }) => garment),
+    entries.length,
+    view.laundry,
   );
+  const unavailable = unavailableMessage !== null;
+  const concerns = unavailable
+    ? []
+    : selected.flatMap(({ slot, garment }) =>
+        concernFor(slot, garment, view.cleanTop),
+      );
   const saved =
     view.plan.entries !== null && sameEntries(entries, view.plan.entries);
   let suggestLabel = 'Suggest another';
@@ -60,6 +87,7 @@ export const draftStatus = ({
     tomorrow,
     complete: completeOutfit(entries),
     unavailable,
+    unavailableMessage,
     concerns,
     saved,
     suggestLabel,

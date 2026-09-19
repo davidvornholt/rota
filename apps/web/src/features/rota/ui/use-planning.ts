@@ -32,6 +32,23 @@ export const sameEntries = (
     ),
   );
 
+const successMessage = (change: PlanningChange): string => {
+  switch (change.action) {
+    case 'suggest':
+      return 'Outfit suggested. Your kept pieces stay.';
+    case 'plan':
+      return 'Outfit saved.';
+    case 'wear':
+      return 'Outfit logged.';
+    case 'save-outfit':
+      return 'Saved to your outfits.';
+    case 'care':
+      return change.care === 'washed' ? 'Back clean.' : 'Return date updated.';
+    default:
+      return 'Saved.';
+  }
+};
+
 export const usePlanning = (
   initial: PlanningView,
   seed: {
@@ -44,11 +61,14 @@ export const usePlanning = (
   const garment = initial.wardrobe.find((item) => item.id === seed.garment);
   const savedOutfit = initial.outfits.find((item) => item.id === seed.outfit);
   const slot = garment?.slots[0];
-  const [entries, setEntries] = useState<ReadonlyArray<OutfitEntry>>(() =>
-    garment !== undefined && slot !== undefined
+  const [entries, setEntries] = useState<ReadonlyArray<OutfitEntry>>(() => {
+    if (initial.day.worn !== null) {
+      return initialEntries(initial);
+    }
+    return garment !== undefined && slot !== undefined
       ? [{ slot, garmentId: garment.id }]
-      : (savedOutfit?.entries ?? initialEntries(initial)),
-  );
+      : (savedOutfit?.entries ?? initialEntries(initial));
+  });
   const [pinned, setPinned] = useState<ReadonlyArray<string>>(
     seed.garment === undefined ? [] : [seed.garment],
   );
@@ -65,7 +85,7 @@ export const usePlanning = (
         data: { date: view.day.today, change },
         fetch: serverFunctionFetch,
       }),
-    onSuccess: (next, change) => {
+    onSuccess: async (next, change) => {
       setView(next);
       if (change.action === 'suggest') {
         setEntries(
@@ -74,21 +94,27 @@ export const usePlanning = (
             garmentId: item.garment.id,
           })) ?? [],
         );
-        setMessage('Outfit suggested. Your kept pieces stay.');
-      } else if (change.action === 'plan') {
-        setMessage('Outfit saved.');
-      } else if (change.action === 'wear') {
-        setMessage('Outfit logged.');
-      } else if (change.action === 'save-outfit') {
-        setMessage('Saved to your outfits.');
-      } else if (change.action === 'care') {
-        setMessage(
-          change.care === 'washed' ? 'Marked washed.' : 'Moved to laundry.',
-        );
-      } else {
-        setMessage('Saved.');
       }
-      router.invalidate().catch(() => undefined);
+      setMessage(successMessage(change));
+      try {
+        const savedDay = change.action === 'plan' || change.action === 'wear';
+        if (
+          savedDay &&
+          (seed.garment !== undefined || seed.outfit !== undefined)
+        ) {
+          // A consumed seed must not remount from an older cached outfit.
+          router.clearCache({ filter: (match) => match.pathname === '/' });
+          await router.navigate({
+            to: '/',
+            search: { date: next.day.today },
+            replace: true,
+          });
+        } else {
+          await router.invalidate({ sync: true });
+        }
+      } catch {
+        setMessage('Saved. Refresh to see your outfit.');
+      }
     },
   });
   return {

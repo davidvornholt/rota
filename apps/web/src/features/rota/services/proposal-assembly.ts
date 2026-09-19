@@ -5,7 +5,7 @@
 
 import { Effect, Either } from 'effect';
 import type { Garment } from '#/shared/data/garment.ts';
-import { wearsSinceWash } from '#/shared/data/garment-care.ts';
+import { garmentCare } from '#/shared/data/garment-care.ts';
 import {
   effectiveWearBudget,
   type Slot,
@@ -106,7 +106,8 @@ const itemFor = (
   continued: aliased.continuation !== undefined,
   dayOfBudget:
     aliased.continuation?.dayOfBudget ??
-    wearsSinceWash(input.log, aliased.garment, input.today) + 1,
+    garmentCare(aliased.garment, input.log, input.today, input.settings)
+      .wearsSinceWash + 1,
   budget: effectiveWearBudget(aliased.garment, input.settings.categoryBudgets),
   reason: reason === '' ? `Chosen as ${alias}.` : reason,
 });
@@ -179,11 +180,19 @@ export const choicesWithPins = (
           required: true,
           candidates: input.garments
             .filter(
-              (garment) => garment.id === pin.garmentId && !garment.inLaundry,
+              (garment) =>
+                garment.id === pin.garmentId &&
+                !garmentCare(garment, input.log, input.today, input.settings)
+                  .inLaundry,
             )
             .map((garment) => ({
               garment,
-              wearsSinceWash: wearsSinceWash(input.log, garment, input.today),
+              wearsSinceWash: garmentCare(
+                garment,
+                input.log,
+                input.today,
+                input.settings,
+              ).wearsSinceWash,
               daysSinceWorn: null,
               inCooldown: false,
             })),

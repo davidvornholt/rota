@@ -81,8 +81,11 @@ export const GarmentFromRow = Schema.Struct({
   washedAfterWear: Schema.propertySignature(Schema.Boolean).pipe(
     Schema.fromKey('washed_after_wear'),
   ),
-  inLaundry: Schema.propertySignature(Schema.Boolean).pipe(
-    Schema.fromKey('in_laundry'),
+  laundryStartedOn: Schema.propertySignature(
+    Schema.NullOr(LocalDateSchema),
+  ).pipe(Schema.fromKey('laundry_started_on')),
+  laundryReadyOn: Schema.propertySignature(Schema.NullOr(LocalDateSchema)).pipe(
+    Schema.fromKey('laundry_ready_on'),
   ),
   colors: Schema.Array(GarmentColorSchema),
   pattern: Schema.String,

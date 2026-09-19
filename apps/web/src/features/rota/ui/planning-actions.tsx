@@ -51,12 +51,9 @@ export const PlanningActions = ({
           </label>
         </Notice>
       )}
-      {status.unavailable ? (
-        <Notice>
-          A piece is unavailable. Choose a replacement or mark it washed in
-          Laundry.
-        </Notice>
-      ) : null}
+      {status.unavailableMessage === null ? null : (
+        <Notice>{status.unavailableMessage}</Notice>
+      )}
       <div className="flex flex-col gap-3">
         <button
           className={status.complete ? quietButtonClass : signalButtonClass}

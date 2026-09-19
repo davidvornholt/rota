@@ -34,7 +34,7 @@ export const PlanningActionSchema = Schema.Struct({
         Schema.minItems(1),
         Schema.maxItems(maximumLaundryBatch),
       ),
-      care: Schema.Literal('laundry', 'washed'),
+      care: Schema.Literal('laundry', 'washed', 'postpone'),
     }),
     Schema.Struct({
       action: Schema.Literal('save-outfit'),

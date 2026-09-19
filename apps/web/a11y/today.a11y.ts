@@ -7,8 +7,6 @@ import { startGarmentFixtureServer } from './garment-fixture-server.ts';
 const whiteShirt = /^White cotton shirt/u;
 const trainers = /^White trainers/u;
 const bag = /^Tan leather bag/u;
-const blueShirt = /^Blue Oxford shirt/u;
-const chinos = /^Navy chinos/u;
 const badGateway = 502;
 const failedDependency = 424;
 const failedStatuses = [badGateway, failedDependency];
@@ -39,6 +37,44 @@ test('saving a history outfit leaves the recorded day unchanged', async ({
   await expect(
     page.getByRole('button', { name: 'Save the day' }),
   ).toBeDisabled();
+});
+
+test('a garment starting point replaces a cached plan and stays on today after wearing', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.getByRole('button', { name: 'Start with white shirt' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Complete outfit', exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Complete outfit', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Save for later today' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Plan saved', exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: 'Change White cotton shirt' }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole('button', { name: 'Change White cotton shirt' }),
+  ).toBeVisible();
+
+  await expect(
+    page.getByRole('button', { name: 'Change Navy chinos' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Plan saved', exact: true }),
+  ).toBeDisabled();
+  await page.getByRole('button', { name: 'Wear this', exact: true }).click();
+  await expect(page.getByText('Worn today', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Today', exact: true }),
+  ).toHaveAttribute('aria-current', 'page');
+  await page.reload();
+  await expect(page.getByText('Worn today', { exact: true })).toBeVisible();
 });
 
 test('tomorrow saves a plan, keeps it across day navigation and never logs it early', async ({
@@ -74,7 +110,7 @@ test('a chosen top stays while Rota completes the outfit, with optional shoes an
   await expect(
     page
       .getByRole('region', { name: 'Top', exact: true })
-      .getByRole('checkbox', { name: 'Keep' }),
+      .getByRole('checkbox', { name: 'Keep this piece' }),
   ).toBeChecked();
   await page
     .getByRole('button', { name: 'Remove bottom', exact: true })
@@ -145,21 +181,63 @@ test('saved outfits can be created, chosen, edited independently and deleted exp
   );
 });
 
-test('laundry is a bulk action and unavailable pieces cannot be worn', async ({
+test('tomorrow explains projected laundry without offering an unusable override', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow&projected`);
+  await expect(
+    page.getByText(
+      'A piece will need washing after today’s planned wear. Choose another for tomorrow.',
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('checkbox', { name: 'Use these pieces anyway' }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Save for tomorrow', exact: true }),
+  ).toBeDisabled();
+  await page.getByRole('button', { name: 'Laundry', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Back clean: Blue Oxford shirt' }),
+  ).toHaveCount(0);
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+});
+
+test('laundry shows return dates and handles early washing and late returns', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?returned`);
   await page.getByRole('button', { name: 'Laundry', exact: true }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('checkbox', { name: blueShirt }).check();
-  await dialog.getByRole('checkbox', { name: chinos }).check();
-  await dialog.getByRole('button', { name: 'Put in laundry' }).click();
+  await dialog
+    .getByRole('button', {
+      name: 'Still in laundry: Blue Oxford shirt',
+      exact: true,
+    })
+    .click();
+  await expect(
+    dialog.getByText('Expected 8 Sept', { exact: true }),
+  ).toBeVisible();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Wear this' })).toBeDisabled();
   await page.getByRole('button', { name: 'Laundry', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Select worn' }).click();
-  await dialog.getByRole('button', { name: 'Mark washed' }).click();
+  await dialog
+    .getByRole('button', { name: 'Back clean: Blue Oxford shirt', exact: true })
+    .click();
+  await dialog
+    .getByText('Send a piece to laundry early', { exact: true })
+    .click();
+  await dialog
+    .getByRole('combobox', { name: 'Piece', exact: true })
+    .selectOption('demo-chinos');
+  await dialog.getByRole('button', { name: 'Put in basket' }).click();
+  await expect(
+    dialog.getByText('Expected 11 Sept', { exact: true }),
+  ).toBeVisible();
+  await dialog
+    .getByRole('button', { name: 'Back clean: Navy chinos', exact: true })
+    .click();
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Wear this' })).toBeEnabled();
 });
@@ -217,6 +295,11 @@ test('clean-top cadence can be set and cleared without accessory wash budgets', 
   page,
 }) => {
   await page.goto(`${fixtureUrl()}a11y/fixtures/settings.html`);
+  const duration = page.getByRole('spinbutton', {
+    name: 'Laundry usually takes (days)',
+  });
+  await expect(duration).toHaveValue('4');
+  await duration.fill('3');
   const start = page.getByLabel('Clean top every other day, starting');
   await start.fill('2026-09-19');
   await page.getByRole('button', { name: 'Save rotation settings' }).click();

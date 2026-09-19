@@ -6,6 +6,7 @@ import type { serverFunctionFetch } from '#/shared/runtime/server-function-fetch
 import { addDays, localDate } from '#/shared/time/local-date.ts';
 import { demoProposal, shirt } from './today-proposal.ts';
 
+const laundryDays = 4;
 const bottom = {
   ...shirt,
   id: 'demo-chinos',
@@ -46,14 +47,36 @@ const outfitEntries = [
 ];
 const views = new Map<string, PlanningView>();
 export const planningFixture = (date: string): PlanningView => {
-  const existing = views.get(date);
+  const stored = sessionStorage.getItem(`planning-view-${date}`);
+  const existing =
+    views.get(date) ??
+    (stored === null ? undefined : (JSON.parse(stored) as PlanningView));
   if (existing !== undefined) {
     return existing;
   }
   const view: PlanningView = {
     day: { ...demoProposal, today: localDate(date) },
     actualToday: demoProposal.today,
-    wardrobe,
+    wardrobe: new URLSearchParams(globalThis.location.search).has('projected')
+      ? wardrobe.map((garment) =>
+          garment.id === shirt.id
+            ? {
+                ...garment,
+                inLaundry: true,
+                wearsSinceWash: 2,
+                readyOn: addDays(demoProposal.today, laundryDays),
+              }
+            : garment,
+        )
+      : wardrobe,
+    laundry: new URLSearchParams(globalThis.location.search).has('returned')
+      ? wardrobe.map((garment) =>
+          garment.id === shirt.id
+            ? { ...garment, assumedCleanOn: demoProposal.today }
+            : garment,
+        )
+      : wardrobe,
+    laundryDays,
     cleanTop: false,
     plan: emptyPlan,
     outfits: [
@@ -63,6 +86,33 @@ export const planningFixture = (date: string): PlanningView => {
   };
   views.set(date, view);
   return view;
+};
+const updateCare = (
+  view: PlanningView,
+  change: Extract<PlanningChange, { action: 'care' }>,
+): PlanningView => {
+  const clean = change.care === 'washed';
+  const readyOn = clean
+    ? null
+    : addDays(
+        view.actualToday,
+        change.care === 'postpone' ? 1 : view.laundryDays,
+      );
+  const updatePiece = (garment: PlanningView['wardrobe'][number]) =>
+    change.ids.includes(garment.id)
+      ? {
+          ...garment,
+          inLaundry: !clean,
+          readyOn,
+          assumedCleanOn: null,
+          wearsSinceWash: clean ? 0 : garment.wearsSinceWash,
+        }
+      : garment;
+  return {
+    ...view,
+    wardrobe: view.wardrobe.map(updatePiece),
+    laundry: view.laundry.map(updatePiece),
+  };
 };
 export const changePlanningFn = ({
   data,
@@ -151,19 +201,7 @@ export const changePlanningFn = ({
           next = { ...view, cleanTop: change.value };
           break;
         case 'care':
-          next = {
-            ...view,
-            wardrobe: view.wardrobe.map((garment) =>
-              change.ids.includes(garment.id)
-                ? {
-                    ...garment,
-                    inLaundry: change.care === 'laundry',
-                    wearsSinceWash:
-                      change.care === 'washed' ? 0 : garment.wearsSinceWash,
-                  }
-                : garment,
-            ),
-          };
+          next = updateCare(view, change);
           break;
         case 'save-outfit':
           next = {
@@ -184,6 +222,10 @@ export const changePlanningFn = ({
           break;
       }
       views.set(data.date, next);
+      sessionStorage.setItem(
+        `planning-view-${data.date}`,
+        JSON.stringify(next),
+      );
       return structuredClone(next);
     }),
   );

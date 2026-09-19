@@ -104,6 +104,7 @@ const loadAll = () =>
         garment,
         facts: facts.get(garment.id),
         categoryBudgets: clock.settings.categoryBudgets,
+        laundryDays: clock.settings.laundryDays,
         today: clock.today,
         urlFor: media.urlFor,
       }),

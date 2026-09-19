@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
-import { cleanTopOn } from '#/shared/data/garment-care.ts';
+import { cleanTopOn, garmentCare } from '#/shared/data/garment-care.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import {
   toGarmentView,
@@ -51,7 +51,22 @@ export const planningView = (clock: WardrobeClock) =>
           studioProgress: undefined,
           facts: facts.get(garment.id),
           categoryBudgets: clock.settings.categoryBudgets,
+          laundryDays: clock.settings.laundryDays,
           today: clock.today,
+          urlFor: media.urlFor,
+        }),
+      );
+    const actualFacts = wearFactsByGarment(history, clock.actualToday);
+    const laundry = all
+      .filter((garment) => garment.status === 'active')
+      .map((garment) =>
+        toGarmentView({
+          garment,
+          studioProgress: undefined,
+          facts: actualFacts.get(garment.id),
+          categoryBudgets: clock.settings.categoryBudgets,
+          laundryDays: clock.settings.laundryDays,
+          today: clock.actualToday,
           urlFor: media.urlFor,
         }),
       );
@@ -80,6 +95,8 @@ export const planningView = (clock: WardrobeClock) =>
       plan,
       cleanTop,
       wardrobe,
+      laundry,
+      laundryDays: clock.settings.laundryDays,
       outfits: saved,
       warnings,
     } satisfies PlanningView;
@@ -99,13 +116,20 @@ const applyEntryChange = (
       yield* proposals.complete(clock, change.entries);
       return;
     }
-    const unavailable = change.entries.some(
-      (entry) =>
-        all.find((garment) => garment.id === entry.garmentId)?.inLaundry,
-    );
+    const wearLog = yield* WearLogRepository;
+    const history = yield* wearLog.history();
+    const todayPlan = yield* outfits.plan(clock.actualToday);
+    const log = projectedLog(history, todayPlan, clock);
+    const unavailable = change.entries.some((entry) => {
+      const garment = all.find((item) => item.id === entry.garmentId);
+      return (
+        garment !== undefined &&
+        garmentCare(garment, log, clock.today, clock.settings).inLaundry
+      );
+    });
     if (unavailable) {
       return yield* new ProposalStateError(
-        'A selected piece is in the laundry. Mark it washed or choose another.',
+        'A selected piece is still in the laundry. Choose another or mark it back clean.',
       );
     }
     if (change.action === 'wear') {
@@ -150,7 +174,12 @@ export const changePlanning = (clock: WardrobeClock, change: PlanningChange) =>
         break;
       case 'care': {
         const garments = yield* GarmentRepository;
-        yield* garments.setCare(change.ids, change.care, clock.actualToday);
+        yield* garments.setCare(
+          change.ids,
+          change.care,
+          clock.actualToday,
+          clock.settings.laundryDays,
+        );
         break;
       }
       case 'save-outfit': {

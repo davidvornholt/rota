@@ -33,12 +33,17 @@ export const Route = createFileRoute('/_app/')({
     });
     if (
       deps.date === undefined &&
-      (deps.garment !== undefined || deps.outfit !== undefined) &&
-      view.day.worn !== null
+      (deps.garment !== undefined || deps.outfit !== undefined)
     ) {
       throw redirect({
         to: '/',
-        search: { ...deps, date: addDays(view.actualToday, 1) },
+        search: {
+          ...deps,
+          date:
+            view.day.worn === null
+              ? view.actualToday
+              : addDays(view.actualToday, 1),
+        },
       });
     }
     return view;

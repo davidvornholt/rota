@@ -22,6 +22,7 @@ import {
   saveRotationSettingsFn,
   searchLocationsFn,
 } from '../services/settings-fns.ts';
+import { LaundrySetting } from './laundry-setting.tsx';
 
 const budgetsOf = (
   settings: Settings,
@@ -193,6 +194,7 @@ const RotationSection = ({
   const headingId = useId();
   const [draft, setDraft] = useState<RotationSettingsInput>(() => ({
     cleanTopAnchor: settings.cleanTopAnchor,
+    laundryDays: settings.laundryDays,
     cooldownDays: settings.cooldownDays,
     proposalHour: settings.proposalHour,
     categoryBudgets: budgetsOf(settings),
@@ -201,6 +203,7 @@ const RotationSection = ({
   useEffect(() => {
     setDraft({
       cleanTopAnchor: settings.cleanTopAnchor,
+      laundryDays: settings.laundryDays,
       cooldownDays: settings.cooldownDays,
       proposalHour: settings.proposalHour,
       categoryBudgets: budgetsOf(settings),
@@ -230,7 +233,7 @@ const RotationSection = ({
         <div className="grid max-w-prose gap-6 sm:grid-cols-2">
           <div>
             <label className={labelClass} htmlFor={cooldownId}>
-              Rest days before a garment returns
+              Preferred days between repeats
             </label>
             <input
               className={[fieldClass, 'type-data mt-2'].join(' ')}
@@ -247,7 +250,7 @@ const RotationSection = ({
           </div>
           <div>
             <label className={labelClass} htmlFor={hourId}>
-              Hour the day is decided
+              Morning suggestion hour
             </label>
             <input
               className={[fieldClass, 'type-data mt-2'].join(' ')}
@@ -283,6 +286,10 @@ const RotationSection = ({
             Leave blank to choose each day.
           </span>
         </label>
+        <LaundrySetting
+          value={draft.laundryDays}
+          onChange={(laundryDays) => setDraft({ ...draft, laundryDays })}
+        />
         <fieldset>
           <legend className={labelClass}>
             Wears between washes, by category

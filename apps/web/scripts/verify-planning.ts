@@ -18,10 +18,13 @@ import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
 import { ProposalRepository } from '#/shared/data/proposal-repository.ts';
-import { defaultSettings } from '#/shared/data/settings-repository.ts';
+import {
+  defaultSettings,
+  SettingsRepository,
+} from '#/shared/data/settings-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
-import { localDate } from '#/shared/time/local-date.ts';
+import { addDays, localDate } from '#/shared/time/local-date.ts';
 
 const today = localDate('2026-09-19');
 const tomorrow = localDate('2026-09-20');
@@ -168,7 +171,79 @@ const verifyCare = Effect.gen(function* () {
   );
 });
 
+const verifyAutomaticLaundry = Effect.gen(function* () {
+  const returnDay = 2 + clock.settings.laundryDays;
+  const delayedDay = returnDay + 1;
+  const log = yield* WearLogRepository;
+  const garments = yield* GarmentRepository;
+  const later = (days: number) => ({
+    ...clock,
+    today: addDays(today, days),
+    actualToday: addDays(today, days),
+  });
+  const viewPiece = (dayClock: typeof clock) =>
+    planningView(dayClock).pipe(
+      Effect.map((view) =>
+        view.wardrobe.find((item) => item.id === otherTopId),
+      ),
+    );
+  yield* garments.setCare(
+    [otherTopId],
+    'washed',
+    today,
+    clock.settings.laundryDays,
+  );
+  yield* log.replaceDay(
+    addDays(today, 1),
+    [{ garmentId: otherTopId, slot: 'top' }],
+    'edited',
+  );
+  yield* log.replaceDay(
+    addDays(today, 2),
+    [{ garmentId: otherTopId, slot: 'top' }],
+    'edited',
+  );
+  assert.equal(
+    (yield* viewPiece(later(2)))?.inLaundry,
+    true,
+    'Final wear starts laundry automatically.',
+  );
+  assert.equal(
+    (yield* viewPiece(later(2)))?.readyOn,
+    addDays(today, returnDay),
+  );
+  assert.equal(
+    (yield* viewPiece({
+      ...later(returnDay - 1),
+      today: addDays(today, returnDay),
+    }))?.wearsSinceWash,
+    0,
+    'Tomorrow previews the automatic return.',
+  );
+  assert.equal(
+    (yield* viewPiece(later(returnDay)))?.inLaundry,
+    false,
+    'Elapsed turnaround makes the piece available.',
+  );
+  yield* changePlanning(later(returnDay), {
+    action: 'care',
+    care: 'postpone',
+    ids: [otherTopId],
+  });
+  assert.equal(
+    (yield* viewPiece(later(returnDay)))?.readyOn,
+    addDays(today, delayedDay),
+    'Still in laundry delays by one day.',
+  );
+  assert.equal((yield* viewPiece(later(delayedDay)))?.wearsSinceWash, 0);
+});
+
 const verify = Effect.gen(function* () {
+  const settings = yield* SettingsRepository;
+  const shorterLaundry = 3;
+  yield* settings.save({ ...defaultSettings, laundryDays: shorterLaundry });
+  assert.equal((yield* settings.read()).laundryDays, shorterLaundry);
+  yield* settings.save(defaultSettings);
   const sql = yield* SqlClient.SqlClient;
   yield* sql`insert into garment (id, status, name, category, slots) values
     (${topId}, 'active', 'Blue shirt', 'shirt', array['top']::garment_slot[]),
@@ -253,6 +328,7 @@ const verify = Effect.gen(function* () {
     'The scheduler preserves a saved plan.',
   );
   yield* verifyCare;
+  yield* verifyAutomaticLaundry;
   yield* changePlanning(clock, { action: 'delete-outfit', id: outfitId });
   assert.equal((yield* outfits.list()).length, 0);
 });
@@ -271,6 +347,7 @@ try {
   await Effect.runPromise(migrateDatabase(pool));
   const repositories = Layer.mergeAll(
     GarmentRepository.Default,
+    SettingsRepository.Default,
     OutfitRepository.Default,
     WearLogRepository.Default,
     ProposalRepository.Default,

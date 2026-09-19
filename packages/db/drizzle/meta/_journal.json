@@ -43,6 +43,13 @@
       "when": 1789812125092,
       "tag": "0005_volatile_shadow_king",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789815297026,
+      "tag": "0006_charming_wendigo",
+      "breakpoints": true
     }
   ]
 }

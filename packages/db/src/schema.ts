@@ -107,7 +107,8 @@ export const garment = pgTable(
     wearBudget: integer('wear_budget'),
     washedOn: date('washed_on'),
     washedAfterWear: boolean('washed_after_wear').notNull().default(false),
-    inLaundry: boolean('in_laundry').notNull().default(false),
+    laundryStartedOn: date('laundry_started_on'),
+    laundryReadyOn: date('laundry_ready_on'),
     colors: jsonb('colors').notNull().default([]),
     pattern: text('pattern').notNull().default(''),
     material: text('material').notNull().default(''),
@@ -253,12 +254,15 @@ export const weatherDay = pgTable('weather_day', {
  * The single settings row. `location` is null until the first-run setup picks
  * one; nothing weather-related runs before then.
  */
+const defaultLaundryDays = 4;
+
 export const settings = pgTable(
   'settings',
   {
     id: text('id').primaryKey().default('singleton'),
     location: jsonb('location'),
     cleanTopAnchor: date('clean_top_anchor'),
+    laundryDays: integer('laundry_days').notNull().default(defaultLaundryDays),
     cooldownDays: integer('cooldown_days')
       .notNull()
       .default(defaultCooldownDays),

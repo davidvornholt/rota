@@ -16,6 +16,19 @@ const params = new URLSearchParams(globalThis.location.search);
 const rootRoute = createRootRoute({
   component: () => (
     <main className="py-8">
+      <button
+        type="button"
+        onClick={() => {
+          router
+            .navigate({
+              to: '/',
+              search: { date: demoProposal.today, garment: 'demo-white' },
+            })
+            .catch(() => undefined);
+        }}
+      >
+        Start with white shirt
+      </button>
       <Outlet />
     </main>
   ),
@@ -25,16 +38,18 @@ const route = createRoute({
   path: '/',
   validateSearch: (search: Record<string, unknown>) => ({
     date: typeof search.date === 'string' ? search.date : demoProposal.today,
+    garment: typeof search.garment === 'string' ? search.garment : undefined,
     outfit: typeof search.outfit === 'string' ? search.outfit : undefined,
   }),
-  loaderDeps: ({ search }) => ({ date: search.date }),
+  loaderDeps: ({ search }) => search,
   loader: ({ deps }) => structuredClone(planningFixture(deps.date)),
   component: () => {
     const initial = route.useLoaderData<typeof router>();
     return (
       <TodayPage
-        key={initial.day.today}
+        key={`${initial.day.today}-${route.useSearch<typeof router>().garment ?? ''}-${route.useSearch<typeof router>().outfit ?? ''}`}
         initial={initial}
+        seed={route.useSearch<typeof router>().garment}
         savedOutfitId={route.useSearch<typeof router>().outfit}
       />
     );
@@ -44,9 +59,13 @@ const router = createRouter({
   routeTree: rootRoute.addChildren([route]),
   history: createMemoryHistory({
     initialEntries: [
-      `/?date=${params.has('tomorrow') ? tomorrow : demoProposal.today}`,
+      sessionStorage.getItem('planning-location') ??
+        `/?date=${params.has('tomorrow') ? tomorrow : demoProposal.today}${params.has('garment') ? `&garment=${params.get('garment')}` : ''}`,
     ],
   }),
+});
+router.subscribe('onResolved', () => {
+  sessionStorage.setItem('planning-location', router.state.location.href);
 });
 const root = document.querySelector('#root');
 if (root !== null) {

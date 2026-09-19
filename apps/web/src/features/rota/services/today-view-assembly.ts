@@ -5,7 +5,7 @@
  */
 
 import type { Garment } from '#/shared/data/garment.ts';
-import { wearsSinceWash } from '#/shared/data/garment-care.ts';
+import { garmentCare } from '#/shared/data/garment-care.ts';
 import { effectiveWearBudget, slotOrder } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { Proposal } from '#/shared/data/proposal-repository.ts';
@@ -95,7 +95,13 @@ export const wornOn = (
       {
         slot,
         garment: view,
-        dayOfBudget: wearsSinceWash(log, garment, date) + 1,
+        dayOfBudget:
+          garmentCare(
+            garment,
+            log.filter((entry) => entry.wornOn < date),
+            date,
+            settings,
+          ).wearsSinceWash + 1,
         budget: effectiveWearBudget(garment, settings.categoryBudgets),
       },
     ];

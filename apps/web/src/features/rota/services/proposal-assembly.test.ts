@@ -33,7 +33,8 @@ const garment = (id: string, slots: ReadonlyArray<Slot>): Garment => ({
   processingError: null,
   washedOn: null,
   washedAfterWear: false,
-  inLaundry: false,
+  laundryStartedOn: null,
+  laundryReadyOn: null,
   studioError: null,
   retiredAt: null,
   createdAt: new Date('2026-01-01T00:00:00Z'),
@@ -64,7 +65,7 @@ const input = (
   today: localDate('2026-09-07'),
   log: [],
   garments,
-  settings: { cooldownDays: 3, categoryBudgets: {} },
+  settings: { laundryDays: 4, cooldownDays: 3, categoryBudgets: {} },
   excluded: new Set(excluded),
 });
 
