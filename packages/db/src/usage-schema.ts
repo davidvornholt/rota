@@ -24,33 +24,3 @@ export const apiUsage = pgTable('api_usage', {
     .notNull()
     .defaultNow(),
 });
-
-/** Rates are entered by the owner from their provider contract; missing means unknown, never free. */
-export const apiPrice = pgTable('api_price', {
-  id: text('id').primaryKey(),
-  provider: text('provider').notNull(),
-  model: text('model').notNull(),
-  inputPerMillion: numeric('input_per_million', {
-    precision: 14,
-    scale: 6,
-  }).notNull(),
-  outputPerMillion: numeric('output_per_million', {
-    precision: 14,
-    scale: 6,
-  }).notNull(),
-  imageInputPerMillion: numeric('image_input_per_million', {
-    precision: 14,
-    scale: 6,
-  }).notNull(),
-  imageOutputPerMillion: numeric('image_output_per_million', {
-    precision: 14,
-    scale: 6,
-  }).notNull(),
-  cachedInputPerMillion: numeric('cached_input_per_million', {
-    precision: 14,
-    scale: 6,
-  }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});

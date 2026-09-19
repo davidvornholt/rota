@@ -1,6 +1,8 @@
 import { Data, Effect } from 'effect';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import { pool } from '#/shared/db/pool.ts';
+import { env } from '#/shared/env.ts';
+import { apiPrice } from './api-prices.ts';
 import {
   estimateUsd,
   foundryTokens,
@@ -50,14 +52,12 @@ export const makeUsageLedger = Effect.gen(function* () {
     if (!enabled.rowCount) {
       throw new UsageError({ message: 'This account no longer has access.' });
     }
-    const rates = await pool.query<TokenPrices & { id: string }>(
-      `select id, input_per_million::float as input,
-      output_per_million::float as output, image_input_per_million::float as "imageInput",
-      image_output_per_million::float as "imageOutput", cached_input_per_million::float as "cachedInput"
-      from api_price where provider = $1 and model = $2 order by created_at desc limit 1`,
-      [provider, model],
-    );
-    const [price] = rates.rows;
+    const price = apiPrice({
+      provider,
+      model,
+      location: env.GOOGLE_VERTEX_LOCATION,
+      at: new Date(),
+    });
     const id = crypto.randomUUID();
     await pool.query(
       `insert into api_usage (id, owner_id, provider, model, operation, price_snapshot)

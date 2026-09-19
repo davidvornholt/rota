@@ -1,30 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useId, useState } from 'react';
-import { fieldClass, quietButtonClass } from '#/shared/ui/classes.ts';
+import { fieldClass } from '#/shared/ui/classes.ts';
 import { Notice } from '#/shared/ui/notice.tsx';
-import { priceFn, pricesFn, usageFn } from '../services/people-fns.ts';
+import { usageFn } from '../services/people-fns.ts';
 
-const rateFields = [
-  ['input', 'Text input'],
-  ['output', 'Text output / thinking'],
-  ['imageInput', 'Image input'],
-  ['imageOutput', 'Image output'],
-  ['cachedInput', 'Cached input'],
-] as const;
 const defaultPeriod = 30;
 const costDecimals = 4;
 export const UsagePanel = () => {
   const formId = useId();
   const [days, setDays] = useState<7 | 30 | 365>(defaultPeriod);
-  const queryClient = useQueryClient();
   const usage = useQuery({
     queryKey: ['usage', days],
     queryFn: () => usageFn({ data: { days } }),
-  });
-  const prices = useQuery({ queryKey: ['prices'], queryFn: () => pricesFn() });
-  const price = useMutation({
-    mutationFn: priceFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['prices'] }),
   });
   const total =
     usage.data?.reduce((sum, row) => sum + Number(row.estimatedUsd), 0) ?? 0;
@@ -57,9 +44,10 @@ export const UsagePanel = () => {
         {unknown === 1 ? 'attempt' : 'attempts'} with unknown cost
       </p>
       <p className="mt-2 text-ink-muted text-sm">
-        Estimates use the rates saved when each request starts. Provider
-        invoices are authoritative. Missing usage, missing rates, and
-        interrupted requests stay unknown. Tracking starts with this release.
+        Estimates use published rates defined in code and saved with each
+        request. Provider invoices are authoritative. Missing usage or rates
+        stays unknown. Foundry image costs use OpenAI reference rates; your
+        Foundry invoice may differ.
       </p>
       {usage.isError ? (
         <Notice className="mt-4">
@@ -124,99 +112,6 @@ export const UsagePanel = () => {
           No API requests recorded in this period.
         </p>
       ) : null}
-      <details className="mt-8 border-rule border-t pt-5">
-        <summary className="cursor-pointer text-lg">API prices</summary>
-        <p className="mt-3 text-sm">
-          Enter your provider’s USD rates per million tokens. For Vertex, text
-          input includes image tokens and output includes thinking. Foundry
-          image tokens use the image rates. Changes apply to future requests.
-        </p>
-        <ul className="mt-4 space-y-2 text-sm">
-          {prices.data?.map((row) => (
-            <li key={row.id}>
-              {row.provider} · {row.model}: input {row.inputPerMillion}, output
-              {row.outputPerMillion}, image input {row.imageInputPerMillion},
-              image output {row.imageOutputPerMillion}, cached input $
-              {row.cachedInputPerMillion}
-            </li>
-          ))}
-        </ul>
-        <form
-          className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const fields = new FormData(event.currentTarget);
-            price.mutate({
-              data: {
-                provider:
-                  fields.get('provider') === 'vertex' ? 'vertex' : 'foundry',
-                model: String(fields.get('model')),
-                input: Number(fields.get('input')),
-                output: Number(fields.get('output')),
-                imageInput: Number(fields.get('imageInput')),
-                imageOutput: Number(fields.get('imageOutput')),
-                cachedInput: Number(fields.get('cachedInput')),
-              },
-            });
-          }}
-        >
-          <label htmlFor={`${formId}-price-provider`}>
-            Provider
-            <select
-              className={fieldClass}
-              id={`${formId}-price-provider`}
-              name="provider"
-            >
-              <option value="vertex">Vertex</option>
-              <option value="foundry">Foundry</option>
-            </select>
-          </label>
-          <label htmlFor={`${formId}-price-model`}>
-            Model / deployment
-            <input
-              className={fieldClass}
-              id={`${formId}-price-model`}
-              maxLength={100}
-              name="model"
-              required={true}
-            />
-          </label>
-          {rateFields.map(([name, label]) => (
-            <label htmlFor={`${formId}-price-${name}`} key={name}>
-              {label}
-              <input
-                className={fieldClass}
-                id={`${formId}-price-${name}`}
-                max={100_000}
-                min={0}
-                name={name}
-                required={true}
-                step="0.000001"
-                type="number"
-              />
-            </label>
-          ))}
-          <div className="flex items-end">
-            <button
-              className={quietButtonClass}
-              disabled={price.isPending}
-              type="submit"
-            >
-              Save prices
-            </button>
-          </div>
-        </form>
-        {price.isError || prices.isError ? (
-          <Notice className="mt-4" live={true}>
-            Prices could not be loaded or saved. Try again.
-          </Notice>
-        ) : null}
-        {price.isSuccess ? (
-          <p className="mt-4" role="status">
-            Prices saved for future requests.
-          </p>
-        ) : null}
-      </details>
     </section>
   );
 };

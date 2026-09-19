@@ -8,7 +8,6 @@ import {
   issueCode,
   setAccess,
 } from '../src/features/people/services/people-service.ts';
-import { makeUsageLedger } from '../src/shared/ai/usage-ledger.ts';
 import {
   codeDigest,
   resolveAccessCode,
@@ -24,6 +23,7 @@ import {
   checkPeopleActions,
 } from './family-actions-check.ts';
 import { checkRevocation, expectRevoked } from './family-revocation-check.ts';
+import { checkUsage } from './family-usage-check.ts';
 
 // This test creates fixtures only in the explicitly isolated development database.
 const databaseUrl = new URL(Bun.env.DATABASE_URL ?? '');
@@ -41,7 +41,6 @@ const hashLength = 64;
 const port = 3211;
 const origin = `http://localhost:${port}`;
 const mediaDirectory = '.media-family-check';
-const demoPriceId = crypto.randomUUID();
 const server = Bun.spawn(['bun', 'run', 'scripts/serve.ts'], {
   env: {
     ...Object.fromEntries(
@@ -301,47 +300,7 @@ try {
   ).toBeVisible();
   await scan(owner.page);
   await capture(owner.page, 'family-admin-wardrobe');
-  await pool.query(
-    `insert into api_price (id, provider, model, input_per_million, output_per_million,
-    image_input_per_million, image_output_per_million, cached_input_per_million) values ($1,'vertex','demo-model',1,5,0,0,0.1)`,
-    [demoPriceId],
-  );
-  const ledger = await Effect.runPromise(
-    makeUsageLedger.pipe(
-      Effect.provideService(WardrobeOwner, {
-        id: alex.id,
-        userId: alex.userId,
-        name: 'Alex (demo)',
-        admin: false,
-      }),
-    ),
-  );
-  const operation = {
-    provider: 'vertex' as const,
-    model: 'demo-model',
-    operation: 'Outfit suggestion',
-  };
-  await ledger.measure(
-    operation,
-    () =>
-      Promise.resolve({ promptTokenCount: 1000, candidatesTokenCount: 100 }),
-    (usage) => ({ usage, success: true }),
-  );
-  await expect(
-    ledger.measure(
-      operation,
-      () => Promise.reject(new Error('Simulated provider timeout')),
-      () => ({ usage: null, success: false }),
-    ),
-  ).rejects.toThrow();
-  const spending = await pool.query<{ status: string; cost: string | null }>(
-    'select status, estimated_usd as cost from api_usage where owner_id = $1 order by created_at',
-    [alex.id],
-  );
-  expect(spending.rows).toEqual([
-    { status: 'success', cost: '0.00150000' },
-    { status: 'failed', cost: null },
-  ]);
+  await checkUsage(alex);
   const recovery = await issueCode({ memberId: alex.id });
   const recovered = await newPage();
   await join(recovered.page, recovery.code);
@@ -392,6 +351,5 @@ try {
   await pool.query('delete from api_usage where owner_id = any($1::text[])', [
     createdMembers,
   ]);
-  await pool.query('delete from api_price where id = $1', [demoPriceId]);
   await pool.end();
 }
