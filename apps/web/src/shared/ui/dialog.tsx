@@ -72,7 +72,7 @@ export const Dialog = ({
         'm-0 mt-auto max-h-[90svh] w-full max-w-none overflow-y-auto overscroll-contain border border-ink bg-paper p-0 text-ink',
         'sm:m-auto sm:w-[calc(100%-2rem)]',
         widthClass[size],
-        'backdrop:bg-ink/40 motion-safe:open:animate-dialog-in',
+        'backdrop:bg-ink/40',
       ].join(' ')}
       onClose={() => {
         openerRef.current = null;
@@ -80,7 +80,7 @@ export const Dialog = ({
       }}
       ref={ref}
     >
-      <div className="px-5 pt-5 pb-6 sm:px-8 sm:pt-6 sm:pb-8">
+      <div className="px-5 pt-5 pb-6 motion-safe:animate-dialog-in sm:px-8 sm:pt-6 sm:pb-8">
         <div className="flex items-start justify-between gap-6 border-rule border-b pb-4">
           <div>
             {eyebrow === undefined ? null : (
