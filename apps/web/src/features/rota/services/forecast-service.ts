@@ -6,7 +6,7 @@
 
 import { Effect } from 'effect';
 
-import type { Settings } from '#/shared/data/settings-repository.ts';
+import type { Settings } from '#/shared/data/settings.ts';
 import {
   type WeatherDay,
   WeatherRepository,
@@ -52,6 +52,7 @@ export class ForecastService extends Effect.Service<ForecastService>()(
       const windowOf = (
         days: ReadonlyArray<WeatherDay>,
         today: LocalDate,
+        issuedOn: LocalDate,
       ): ForecastWindow | undefined => {
         const forToday = days.find((day) => day.date === today);
         if (forToday === undefined) {
@@ -62,7 +63,7 @@ export class ForecastService extends Effect.Service<ForecastService>()(
           yesterday: days.find((day) => day.date === addDays(today, -1)),
           tomorrow: days.find((day) => day.date === addDays(today, 1)),
           upcoming: days.filter((day) => day.date > today),
-          stale: forToday.issuedOn < today,
+          stale: forToday.issuedOn < issuedOn,
         };
       };
 
@@ -71,13 +72,17 @@ export class ForecastService extends Effect.Service<ForecastService>()(
        * fresh is stored; a failed fetch falls back to whatever is stored and
        * fails only when there is nothing at all.
        */
-      const ensure = (settings: Settings, today: LocalDate) =>
+      const ensure = (
+        settings: Settings,
+        today: LocalDate,
+        issuedOn: LocalDate,
+      ) =>
         Effect.gen(function* () {
-          const existing = windowOf(yield* stored(today), today);
+          const existing = windowOf(yield* stored(today), today, issuedOn);
           if (existing !== undefined && !existing.stale) {
             return existing;
           }
-          const refreshed = yield* refresh(settings, today).pipe(
+          const refreshed = yield* refresh(settings, issuedOn).pipe(
             Effect.map(() => true as const),
             Effect.catchTag('WeatherError', (error) =>
               existing === undefined
@@ -88,7 +93,7 @@ export class ForecastService extends Effect.Service<ForecastService>()(
           if (!refreshed) {
             return existing as ForecastWindow;
           }
-          const fresh = windowOf(yield* stored(today), today);
+          const fresh = windowOf(yield* stored(today), today, issuedOn);
           if (fresh === undefined) {
             return yield* new ForecastUnavailableError(
               'The forecast did not include today.',

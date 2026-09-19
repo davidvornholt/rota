@@ -4,7 +4,7 @@
  * import it without pulling the decoding machinery into the client bundle.
  */
 
-export type Slot = 'bottom' | 'under' | 'top' | 'over';
+export type Slot = 'bottom' | 'under' | 'top' | 'over' | 'shoes' | 'bag';
 
 /** Warmth and formality are both judged on a three-step scale. */
 export const scaleMinimum = 1;
@@ -18,6 +18,8 @@ export const slotOrder: ReadonlyArray<Slot> = [
   'under',
   'top',
   'over',
+  'shoes',
+  'bag',
 ];
 
 export const slotLabel: Readonly<Record<Slot, string>> = {
@@ -25,6 +27,8 @@ export const slotLabel: Readonly<Record<Slot, string>> = {
   under: 'Under layer',
   top: 'Top',
   over: 'Over layer',
+  shoes: 'Shoes',
+  bag: 'Bag',
 };
 
 export type GarmentStatus = 'processing' | 'review' | 'active' | 'retired';
@@ -51,6 +55,8 @@ export const garmentCategories = [
   'cardigan',
   'hoodie',
   'overshirt',
+  'shoes',
+  'handbag',
 ] as const;
 
 export type GarmentCategory = (typeof garmentCategories)[number];
@@ -61,6 +67,8 @@ export const categoryDefaults: Readonly<
     { readonly budget: number; readonly slots: ReadonlyArray<Slot> }
   >
 > = {
+  shoes: { budget: 1, slots: ['shoes'] },
+  handbag: { budget: 1, slots: ['bag'] },
   trousers: { budget: 4, slots: ['bottom'] },
   shorts: { budget: 4, slots: ['bottom'] },
   shirt: { budget: 2, slots: ['top', 'over'] },
@@ -92,3 +100,8 @@ export const effectiveWearBudget = (
     ? categoryDefaults[garment.category].budget
     : 2;
 };
+
+/** Accessories repeat freely and do not have a laundry wear allowance. */
+export const hasWearBudget = (garment: {
+  readonly category: string;
+}): boolean => garment.category !== 'shoes' && garment.category !== 'handbag';

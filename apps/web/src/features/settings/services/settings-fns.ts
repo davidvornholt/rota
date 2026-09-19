@@ -2,10 +2,8 @@ import { createServerFn } from '@tanstack/react-start';
 import { Effect, Layer } from 'effect';
 
 import { sessionRequired } from '#/shared/auth/auth-middleware.ts';
-import {
-  type Settings,
-  SettingsRepository,
-} from '#/shared/data/settings-repository.ts';
+import type { Settings } from '#/shared/data/settings.ts';
+import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { featureRuntime } from '#/shared/runtime/infrastructure.ts';
 import type { Location } from '#/shared/weather/location.ts';
 import { WeatherApi } from '#/shared/weather/open-meteo.ts';

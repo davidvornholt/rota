@@ -1,9 +1,6 @@
 import { Effect } from 'effect';
-
-import {
-  type Settings,
-  SettingsRepository,
-} from '#/shared/data/settings-repository.ts';
+import type { Settings } from '#/shared/data/settings.ts';
+import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { hourIn, type LocalDate, todayIn } from './local-date.ts';
 
 /** Until a location is chosen the wardrobe keeps Berlin time; the location's zone takes over from then on. */
@@ -16,6 +13,7 @@ export type WardrobeClock = {
   readonly settings: Settings;
   readonly timeZone: string;
   readonly today: LocalDate;
+  readonly actualToday: LocalDate;
   readonly hour: number;
 };
 
@@ -35,6 +33,7 @@ export const readWardrobeClock = (
         settings,
         timeZone,
         today: todayIn(timeZone, now),
+        actualToday: todayIn(timeZone, now),
         hour: hourIn(timeZone, now),
       };
     },

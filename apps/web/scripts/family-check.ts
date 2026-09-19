@@ -16,10 +16,8 @@ import {
 import { WardrobeOwner } from '../src/shared/auth/identity.ts';
 import { DayNoteRepository } from '../src/shared/data/day-note-repository.ts';
 import { GarmentRepository } from '../src/shared/data/garment-repository.ts';
-import {
-  defaultSettings,
-  SettingsRepository,
-} from '../src/shared/data/settings-repository.ts';
+import { defaultSettings } from '../src/shared/data/settings.ts';
+import { SettingsRepository } from '../src/shared/data/settings-repository.ts';
 import { pool } from '../src/shared/db/pool.ts';
 import {
   checkCodeActions,

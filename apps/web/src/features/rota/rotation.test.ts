@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import type { Garment } from '#/shared/data/garment.ts';
+import { garmentCare } from '#/shared/data/garment-care.ts';
 import type { Slot } from '#/shared/data/garment-types.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import {
   candidatesFor,
-  consecutiveWears,
   continuations,
   daysSinceWorn,
   previousLoggedDay,
@@ -37,6 +37,10 @@ const garment = (
   purchasedOn: null,
   imageChoice: 'studio',
   processingError: null,
+  washedOn: null,
+  washedAfterWear: false,
+  laundryStartedOn: null,
+  laundryReadyOn: null,
   studioError: null,
   retiredAt: null,
   createdAt: new Date('2026-01-01T00:00:00Z'),
@@ -55,8 +59,8 @@ const today = localDate('2026-09-04');
 const threeDays = 3;
 const fourDays = 4;
 
-describe('consecutive wear', () => {
-  it('counts back over logged days and stops at the first day the garment was off', () => {
+describe('wears between washes', () => {
+  it('counts all actual wears, including separate days', () => {
     const log = [
       worn('2026-09-01', 'chinos', 'bottom'),
       worn('2026-09-02', 'chinos', 'bottom'),
@@ -64,29 +68,54 @@ describe('consecutive wear', () => {
       worn('2026-09-03', 'tee', 'top'),
       worn('2026-08-31', 'jeans', 'bottom'),
     ];
-    expect(consecutiveWears(log, 'chinos', today)).toBe(threeDays);
-    expect(consecutiveWears(log, 'tee', today)).toBe(1);
-    expect(consecutiveWears(log, 'jeans', today)).toBe(0);
+    expect(
+      garmentCare(garment('chinos', ['bottom']), log, today, {
+        categoryBudgets: {},
+        laundryDays: 4,
+      }).wearsSinceWash,
+    ).toBe(threeDays);
+    expect(
+      garmentCare(garment('tee', ['top']), log, today, {
+        categoryBudgets: {},
+        laundryDays: 4,
+      }).wearsSinceWash,
+    ).toBe(1);
+    expect(
+      garmentCare(garment('jeans', ['bottom']), log, today, {
+        categoryBudgets: {},
+        laundryDays: 4,
+      }).wearsSinceWash,
+    ).toBe(1);
   });
 
-  it('walks across an unlogged day but not across a long silence', () => {
+  it('does not mistake unlogged days or a long rest for washing', () => {
     const shortGap = [
       worn('2026-09-01', 'chinos', 'bottom'),
       worn('2026-09-03', 'chinos', 'bottom'),
     ];
-    expect(consecutiveWears(shortGap, 'chinos', today)).toBe(2);
+    expect(
+      garmentCare(garment('chinos', ['bottom']), shortGap, today, {
+        categoryBudgets: {},
+        laundryDays: 4,
+      }).wearsSinceWash,
+    ).toBe(2);
 
     const longSilence = [
       worn('2026-08-20', 'chinos', 'bottom'),
       worn('2026-08-21', 'chinos', 'bottom'),
     ];
-    expect(consecutiveWears(longSilence, 'chinos', today)).toBe(0);
+    expect(
+      garmentCare(garment('chinos', ['bottom']), longSilence, today, {
+        categoryBudgets: {},
+        laundryDays: 4,
+      }).wearsSinceWash,
+    ).toBe(2);
     expect(previousLoggedDay(longSilence, today)).toBeUndefined();
   });
 });
 
 describe('continuations', () => {
-  const settings = { cooldownDays: 7, categoryBudgets: {} };
+  const settings = { laundryDays: 4, cooldownDays: 7, categoryBudgets: {} };
 
   it('carries over garments with budget left and drops the ones that are spent', () => {
     const log = [
@@ -97,6 +126,7 @@ describe('continuations', () => {
       worn('2026-09-03', 'oxford', 'top'),
     ];
     const result = continuations({
+      cleanTop: false,
       today,
       log,
       garments: [
@@ -117,6 +147,7 @@ describe('continuations', () => {
       worn('2026-09-03', 'chinos', 'bottom'),
     ];
     const result = continuations({
+      cleanTop: false,
       today,
       log,
       garments: [
@@ -131,7 +162,7 @@ describe('continuations', () => {
 });
 
 describe('candidates', () => {
-  const settings = { cooldownDays: 7, categoryBudgets: {} };
+  const settings = { laundryDays: 4, cooldownDays: 7, categoryBudgets: {} };
   const wardrobe = [
     garment('rested', ['top']),
     garment('recent', ['top']),
@@ -149,6 +180,7 @@ describe('candidates', () => {
   it('offers available rested garments for the slot, never-worn first', () => {
     const result = candidatesFor(
       {
+        cleanTop: false,
         today,
         log,
         garments: wardrobe,
@@ -163,13 +195,17 @@ describe('candidates', () => {
       'hot-only',
       'suede',
       'rested',
+      'recent',
     ]);
-    expect(result.every((c) => !c.inCooldown)).toBeTrue();
+    expect(result.filter((c) => c.inCooldown).map((c) => c.garment.id)).toEqual(
+      ['recent'],
+    );
   });
 
   it('falls back to cooldown garments when none are rested', () => {
     const result = candidatesFor(
       {
+        cleanTop: false,
         today,
         log,
         garments: [garment('recent', ['top'])],
@@ -195,7 +231,14 @@ describe('candidates', () => {
       garment('rain-sensitive', ['top'], { rainOk: false }),
     ];
     const result = candidatesFor(
-      { today, log: [], garments, settings, excluded: new Set() },
+      {
+        cleanTop: false,
+        today,
+        log: [],
+        garments,
+        settings,
+        excluded: new Set(),
+      },
       'top',
       new Set(),
     );
@@ -205,6 +248,7 @@ describe('candidates', () => {
   it('excludes unavailable, rejected and already offered garments', () => {
     const result = candidatesFor(
       {
+        cleanTop: false,
         today,
         log: [],
         settings,
@@ -226,5 +270,96 @@ describe('candidates', () => {
   it('measures days since worn against the day being dressed', () => {
     expect(daysSinceWorn(log, 'recent', today)).toBe(2);
     expect(daysSinceWorn(log, 'never', today)).toBeNull();
+  });
+});
+
+describe('daily variety and laundry', () => {
+  const settings = { laundryDays: 4, cooldownDays: 0, categoryBudgets: {} };
+  const top = garment('blue', ['top']);
+  const white = garment('white', ['top']);
+  const input = {
+    today,
+    cleanTop: false,
+    settings,
+    excluded: new Set<string>(),
+    garments: [top, white],
+    log: [worn('2026-09-03', 'blue', 'top')],
+  };
+  it('never automatically repeats yesterday’s top, even when it is the only one', () => {
+    expect(
+      candidatesFor(input, 'top', new Set()).map((item) => item.garment.id),
+    ).toEqual(['white']);
+    expect(
+      candidatesFor({ ...input, garments: [top] }, 'top', new Set()),
+    ).toEqual([]);
+  });
+  it('reuses a top on separate days and only a wash resets its allowance', () => {
+    const log = [
+      worn('2026-09-01', 'blue', 'top'),
+      worn('2026-09-03', 'white', 'top'),
+    ];
+    expect(
+      candidatesFor({ ...input, log }, 'top', new Set()).map(
+        (item) => item.garment.id,
+      ),
+    ).toEqual(['blue']);
+    expect(
+      candidatesFor(
+        { ...input, log: [...log, worn('2026-08-20', 'blue', 'top')] },
+        'top',
+        new Set(),
+      ),
+    ).toEqual([]);
+    expect(
+      candidatesFor({ ...input, log, cleanTop: true }, 'top', new Set()),
+    ).toEqual([]);
+    const washed = { ...top, washedOn: localDate('2026-09-02') };
+    expect(
+      candidatesFor(
+        { ...input, garments: [washed], log, cleanTop: true },
+        'top',
+        new Set(),
+      ).map((item) => item.garment.id),
+    ).toEqual(['blue']);
+  });
+  it('excludes laundry regardless of rest days', () => {
+    expect(
+      candidatesFor(
+        {
+          ...input,
+          garments: [
+            {
+              ...white,
+              laundryStartedOn: today,
+              laundryReadyOn: localDate('2026-09-08'),
+            },
+          ],
+        },
+        'top',
+        new Set(),
+      ),
+    ).toEqual([]);
+  });
+  it('allows shoes and bags to repeat without a wash allowance', () => {
+    for (const [slot, category] of [
+      ['shoes', 'shoes'],
+      ['bag', 'handbag'],
+    ] as const) {
+      const accessory = garment('accessory', [slot], { category });
+      const log = ['2026-09-01', '2026-09-02', '2026-09-03'].map((date) =>
+        worn(date, accessory.id, slot),
+      );
+      expect(
+        candidatesFor(
+          {
+            ...input,
+            garments: [accessory, { ...accessory, id: 'unworn' }],
+            log,
+          },
+          slot,
+          new Set(),
+        ).map((item) => item.garment.id),
+      ).toEqual(['unworn', 'accessory']);
+    }
   });
 });

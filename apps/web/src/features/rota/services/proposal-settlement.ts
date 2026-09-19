@@ -5,12 +5,12 @@
  */
 
 import { Effect } from 'effect';
-import type { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import type {
   DataReadError,
   DataWriteError,
   NotFoundError,
 } from '#/shared/data/errors/data-errors.ts';
+import type { OutfitRepository } from '#/shared/data/outfit-repository.ts';
 import type {
   Proposal,
   ProposalRepository,
@@ -22,17 +22,18 @@ import type {
 } from '#/shared/data/wear-log-repository.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
-import {
-  type ProposalAnswerError,
-  type ProposalGenerationError,
+import type {
+  ProposalAnswerError,
+  ProposalGenerationError,
   ProposalStateError,
-  type SlotEmptyError,
+  SlotEmptyError,
 } from '../errors/rota-errors.ts';
 import type { ForecastService, ForecastWindow } from './forecast-service.ts';
 import type { GenerateOptions } from './proposal-service.ts';
 
 /** Everything that can stop a proposal being made once the forecast is in hand. */
 export type GenerateError =
+  | ProposalStateError
   | SlotEmptyError
   | ProposalAnswerError
   | ProposalGenerationError
@@ -40,11 +41,9 @@ export type GenerateError =
   | DataWriteError
   | NotFoundError;
 
-export type RerollScope = 'boundary' | 'all';
-
 export type SettlementDeps = {
+  readonly outfits: OutfitRepository;
   readonly proposals: ProposalRepository;
-  readonly notes: DayNoteRepository;
   readonly wearLog: WearLogRepository;
   readonly forecasts: ForecastService;
   readonly generate: (
@@ -53,84 +52,6 @@ export type SettlementDeps = {
     options: GenerateOptions,
   ) => Effect.Effect<Proposal, GenerateError>;
 };
-
-const pendingOrFail = (proposal: Proposal) =>
-  proposal.status === 'pending'
-    ? Effect.succeed(proposal)
-    : Effect.fail(
-        new ProposalStateError(
-          'That proposal has already been decided. Reload to see today.',
-        ),
-      );
-
-/** One tap: the proposal becomes the day's log. */
-export const confirm = ({ proposals, wearLog }: SettlementDeps, id: string) =>
-  Effect.gen(function* () {
-    const proposal = yield* pendingOrFail(yield* proposals.byId(id));
-    yield* wearLog.replaceDay(
-      proposal.forDate,
-      proposal.payload.items.map((item) => ({
-        garmentId: item.garmentId,
-        slot: item.slot,
-      })),
-      'proposed',
-    );
-    yield* proposals.setStatus(id, 'confirmed');
-  });
-
-/**
- * Pick again. `boundary` re-picks only what the engine chose
- * freshly and prefers the rotation where it suits today; `all` turns down every slot. Either way
- * the garments just turned down stay out for the rest of the day, unless
- * nothing else could fill their slot. The old proposal is retired only once
- * the new one exists, so a failed attempt leaves the wearer with what they had.
- */
-export const reroll = (
-  { proposals, forecasts, generate }: SettlementDeps,
-  clock: WardrobeClock,
-  id: string,
-  scope: RerollScope,
-) =>
-  Effect.gen(function* () {
-    const proposal = yield* pendingOrFail(yield* proposals.byId(id));
-    if (proposal.forDate !== clock.today) {
-      return yield* new ProposalStateError('That proposal is for another day.');
-    }
-    const turnedDown = proposal.payload.items
-      .filter((item) => scope === 'all' || !item.continued)
-      .map((item) => item.garmentId);
-    const excluded = new Set([
-      ...proposal.payload.excludedGarmentIds,
-      ...turnedDown,
-    ]);
-    const forecast = yield* forecasts.ensure(clock.settings, clock.today);
-    const next = yield* generate(clock, forecast, {
-      excluded,
-      releaseAll: scope === 'all',
-    });
-    yield* proposals.setStatus(id, 'rejected');
-    return next;
-  });
-
-export const saveOccasion = (
-  { proposals, notes, forecasts, generate }: SettlementDeps,
-  clock: WardrobeClock,
-  occasion: string,
-) =>
-  Effect.gen(function* () {
-    yield* notes.save(clock.today, occasion);
-    const latest = yield* proposals.latestForDate(clock.today);
-    if (latest?.status !== 'pending') {
-      return;
-    }
-    const forecast = yield* forecasts.ensure(clock.settings, clock.today);
-    // Inserting the replacement retires the previous proposal atomically.
-    // A failed attempt keeps both the saved note and the existing outfit.
-    yield* generate(clock, forecast, {
-      excluded: new Set(latest.payload.excludedGarmentIds),
-      releaseAll: false,
-    });
-  });
 
 /**
  * The wearer's own word for a day: an override before confirming, a

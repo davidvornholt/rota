@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { Link, useRouter } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 import { slotOrder } from '#/shared/data/garment-types.ts';
 import {
@@ -26,6 +26,7 @@ import { SlotPicker } from './slot-picker.tsx';
 import { weatherLine } from './weather-line.ts';
 
 type DayPageProps = {
+  readonly renderSaveOutfit: (entries: DayEntries) => ReactNode;
   readonly view: DayView;
   /** Writes the day; the route wires the wear-log service in. */
   readonly save: (date: LocalDate, entries: DayEntries) => Promise<unknown>;
@@ -97,7 +98,7 @@ const saveLabel = (pending: boolean, entries: DayEntries) => {
  * garments that fit it; the picture beside it is what is chosen. Saving writes
  * the whole day, so the rotation reads the corrected truth.
  */
-export const DayPage = ({ view, save }: DayPageProps) => {
+export const DayPage = ({ view, save, renderSaveOutfit }: DayPageProps) => {
   const router = useRouter();
   const [choice, setChoice] = useState<Choice>(() => choiceOf(view));
   const [saved, setSaved] = useState(false);
@@ -122,53 +123,58 @@ export const DayPage = ({ view, save }: DayPageProps) => {
       {view.date > view.today ? (
         <Notice className="mt-8">This day has not happened yet.</Notice>
       ) : (
-        <form
-          className="mt-8"
-          onSubmit={(event) => {
-            event.preventDefault();
-            write.mutate();
-          }}
-        >
-          <ul className="border-rule border-b">
-            {slotOrder.map((slot) => (
-              <SlotPicker
-                candidates={view.choices[slot]}
-                day={view.date}
-                chosen={view.choices[slot].find(
-                  (garment) => garment.id === choice[slot],
-                )}
-                key={slot}
-                onChange={(garmentId) => {
-                  setSaved(false);
-                  setChoice((current) => ({ ...current, [slot]: garmentId }));
-                }}
-                slot={slot}
-              />
-            ))}
-          </ul>
-          {write.isError ? (
-            <Notice className="mt-4" live={true}>
-              {write.error instanceof Error && write.error.message !== ''
-                ? write.error.message
-                : 'The day could not be saved. Try again.'}
-            </Notice>
-          ) : null}
-          <div className="mt-6 flex flex-wrap items-center gap-4">
-            <button
-              aria-busy={write.isPending}
-              className={inkButtonClass}
-              disabled={write.isPending || !changed}
-              type="submit"
-            >
-              {saveLabel(write.isPending, entries)}
-            </button>
-            {saved ? (
-              <span className="text-ink-muted text-sm" role="status">
-                Saved
-              </span>
+        <>
+          <form
+            className="mt-8"
+            onSubmit={(event) => {
+              event.preventDefault();
+              write.mutate();
+            }}
+          >
+            <ul className="border-rule border-b">
+              {slotOrder.map((slot) => (
+                <SlotPicker
+                  candidates={view.choices[slot]}
+                  day={view.date}
+                  chosen={view.choices[slot].find(
+                    (garment) => garment.id === choice[slot],
+                  )}
+                  key={slot}
+                  onChange={(garmentId) => {
+                    setSaved(false);
+                    setChoice((current) => ({ ...current, [slot]: garmentId }));
+                  }}
+                  slot={slot}
+                />
+              ))}
+            </ul>
+            {write.isError ? (
+              <Notice className="mt-4" live={true}>
+                {write.error instanceof Error && write.error.message !== ''
+                  ? write.error.message
+                  : 'The day could not be saved. Try again.'}
+              </Notice>
             ) : null}
+            <div className="mt-6 flex flex-wrap items-center gap-4">
+              <button
+                aria-busy={write.isPending}
+                className={inkButtonClass}
+                disabled={write.isPending || !changed}
+                type="submit"
+              >
+                {saveLabel(write.isPending, entries)}
+              </button>
+              {saved ? (
+                <span className="text-ink-muted text-sm" role="status">
+                  Saved
+                </span>
+              ) : null}
+            </div>
+          </form>
+          <div className="mt-3 flex items-center gap-4">
+            {renderSaveOutfit(entries)}
           </div>
-        </form>
+        </>
       )}
     </div>
   );

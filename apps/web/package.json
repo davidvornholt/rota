@@ -18,6 +18,7 @@
     "lint:fix": "biome check --write --error-on-warnings .",
     "test": "bun test",
     "test:a11y": "playwright test --config playwright.config.ts",
+    "test:planning-db": "bun --env-file=.env.local run scripts/verify-planning.ts",
     "test:family": "bun --env-file=.env.local run scripts/family-check.ts"
   },
   "dependencies": {

@@ -1,37 +1,8 @@
 import { SqlClient } from '@effect/sql';
 import { Effect, Schema } from 'effect';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
-
-import { LocationSchema } from '#/shared/weather/open-meteo.ts';
 import { readError, writeError } from './errors/data-errors.ts';
-
-export const SettingsSchema = Schema.Struct({
-  location: Schema.NullOr(LocationSchema),
-  cooldownDays: Schema.Number,
-  categoryBudgets: Schema.Record({ key: Schema.String, value: Schema.Number }),
-  proposalHour: Schema.Number,
-});
-export type Settings = Schema.Schema.Type<typeof SettingsSchema>;
-
-const SettingsFromRow = Schema.Struct({
-  location: Schema.NullOr(LocationSchema),
-  cooldownDays: Schema.propertySignature(Schema.Number).pipe(
-    Schema.fromKey('cooldown_days'),
-  ),
-  categoryBudgets: Schema.propertySignature(
-    Schema.Record({ key: Schema.String, value: Schema.Number }),
-  ).pipe(Schema.fromKey('category_budgets')),
-  proposalHour: Schema.propertySignature(Schema.Number).pipe(
-    Schema.fromKey('proposal_hour'),
-  ),
-});
-
-export const defaultSettings: Settings = {
-  location: null,
-  cooldownDays: 7,
-  categoryBudgets: {},
-  proposalHour: 5,
-};
+import { defaultSettings, type Settings, SettingsFromRow } from './settings.ts';
 
 const decodeSettings = Schema.decodeUnknown(Schema.Array(SettingsFromRow));
 const readSettings = readError('The settings');
@@ -47,7 +18,7 @@ export class SettingsRepository extends Effect.Service<SettingsRepository>()(
       /** The settings row, or the defaults until the first save creates it. */
       const read = () =>
         sql`
-          select location, cooldown_days, category_budgets, proposal_hour
+          select location, laundry_days, clean_top_anchor, cooldown_days, category_budgets, proposal_hour
           from settings where owner_id = ${owner.id}
         `.pipe(
           Effect.flatMap(decodeSettings),
@@ -57,14 +28,18 @@ export class SettingsRepository extends Effect.Service<SettingsRepository>()(
 
       const save = (settings: Settings) =>
         sql`
-          insert into settings (id, owner_id, location, cooldown_days, category_budgets, proposal_hour)
+          insert into settings (id, owner_id, location, laundry_days, clean_top_anchor, cooldown_days, category_budgets, proposal_hour)
           values (${owner.id}, ${owner.id},
                   ${settings.location === null ? null : JSON.stringify(settings.location)}::jsonb,
+                  ${settings.laundryDays},
+                  ${settings.cleanTopAnchor},
                   ${settings.cooldownDays},
                   ${JSON.stringify(settings.categoryBudgets)}::jsonb,
                   ${settings.proposalHour})
           on conflict (owner_id) do update
             set location = excluded.location,
+                clean_top_anchor = excluded.clean_top_anchor,
+                laundry_days = excluded.laundry_days,
                 cooldown_days = excluded.cooldown_days,
                 category_budgets = excluded.category_budgets,
                 proposal_hour = excluded.proposal_hour,

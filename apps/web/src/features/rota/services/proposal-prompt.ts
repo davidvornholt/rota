@@ -13,6 +13,7 @@ import {
   warmthInstruction,
 } from '#/shared/data/garment-scales.ts';
 import {
+  hasWearBudget,
   type Slot,
   slotLabel,
   slotOrder,
@@ -41,6 +42,7 @@ export type RecentDay = {
 
 export type PromptInput = {
   readonly today: LocalDate;
+  readonly cleanTop: boolean;
   readonly weather: WeatherDay;
   readonly yesterday: WeatherDay | undefined;
   readonly upcoming: ReadonlyArray<WeatherDay>;
@@ -70,6 +72,7 @@ export const proposalSystemPrompt = [
   "You are the valet behind Rota, a one-person wardrobe app. Choose today's outfit from the available wardrobe for the supplied forecast and the wearer's note.",
   "Rotation is a preference: keep continuing garments when appropriate, but weather and the note take priority. You may replace any or all of them. Explain a replacement in the new garment's reason.",
   "Judge the outfit as a whole. Choose only the offered aliases. The forecast covers 05:00–20:00 in the wardrobe location's time zone.",
+  'Shoes and handbags are optional and may repeat freely.',
   'Write for the wearer in plain, specific, second-person English. No exclamation marks, no emoji, no sales tone.',
 ].join(' ');
 
@@ -78,6 +81,8 @@ const slotPrefix: Readonly<Record<Slot, string>> = {
   under: 'U',
   top: 'T',
   over: 'O',
+  shoes: 'S',
+  bag: 'G',
 };
 
 const restWords = (days: number | null): string =>
@@ -146,6 +151,11 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
     }
   };
 
+  say(
+    input.cleanTop
+      ? 'Choose a clean top. Cleanliness is already reflected in the offered candidates.'
+      : 'Prefer a partly worn top with allowance left when it suits the outfit, so clothes get their second wear.',
+  );
   say(
     `Today is ${formatWeekday(input.today)} ${formatDayMonth(input.today)}. Forecast: ${weatherSentence(input.weather)}.`,
   );
@@ -216,7 +226,7 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
         continuation: undefined,
       });
       say(
-        `${alias} (${label}) — ${candidate.garment.name}: ${describeGarment(candidate.garment)}; ${restWords(candidate.daysSinceWorn)}${candidate.inCooldown ? '; worn recently, only if nothing else works' : ''}.`,
+        `${alias} (${label}) — ${candidate.garment.name}: ${describeGarment(candidate.garment)}; ${restWords(candidate.daysSinceWorn)}${hasWearBudget(candidate.garment) ? `; ${candidate.wearsSinceWash} wears since washing` : ''}${candidate.inCooldown ? '; worn recently, only if nothing else works' : ''}.`,
       );
       show(alias, candidate.garment);
     });
@@ -226,7 +236,7 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
   }
 
   say(
-    `Decide today's outfit. Fill ${slotOrder.join(', ')} with aliases (under and over may be null). Then write the headline and one reason per chosen garment.`,
+    `Decide today's outfit. Fill ${slotOrder.join(', ')} with aliases (under, over, shoes and bag may be null). Then write the headline and one reason per chosen garment.`,
   );
 
   return { parts, aliases };

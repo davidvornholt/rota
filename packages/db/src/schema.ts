@@ -29,6 +29,8 @@ export const garmentSlot = pgEnum('garment_slot', [
   'under',
   'top',
   'over',
+  'shoes',
+  'bag',
 ]);
 
 /**
@@ -106,6 +108,10 @@ export const garment = pgTable(
     rainOk: boolean('rain_ok').notNull().default(true),
     formality: integer('formality').notNull().default(scaleMiddle),
     wearBudget: integer('wear_budget'),
+    washedOn: date('washed_on'),
+    washedAfterWear: boolean('washed_after_wear').notNull().default(false),
+    laundryStartedOn: date('laundry_started_on'),
+    laundryReadyOn: date('laundry_ready_on'),
     colors: jsonb('colors').notNull().default([]),
     pattern: text('pattern').notNull().default(''),
     material: text('material').notNull().default(''),
@@ -267,12 +273,16 @@ export const weatherDay = pgTable(
  * Settings for one wardrobe. `location` is null until the first-run setup picks
  * one; nothing weather-related runs before then.
  */
+const defaultLaundryDays = 4;
+
 export const settings = pgTable(
   'settings',
   {
     id: text('id').primaryKey().default('singleton'),
     ownerId: text('owner_id').notNull(),
     location: jsonb('location'),
+    cleanTopAnchor: date('clean_top_anchor'),
+    laundryDays: integer('laundry_days').notNull().default(defaultLaundryDays),
     cooldownDays: integer('cooldown_days')
       .notNull()
       .default(defaultCooldownDays),
@@ -295,4 +305,32 @@ export const settings = pgTable(
       sql`${table.proposalHour} between 0 and 23`,
     ),
   ],
+);
+
+/** A reusable combination; edits to a day's outfit never mutate this record. */
+export const savedOutfit = pgTable('saved_outfit', {
+  ownerId: text('owner_id').notNull(),
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  entries: jsonb('entries').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/** A decision for a date is separate from actual wear and from generated suggestions. */
+export const dayPlan = pgTable(
+  'day_plan',
+  {
+    ownerId: text('owner_id').notNull(),
+    forDate: date('for_date').notNull(),
+    entries: jsonb('entries'),
+    cleanTop: boolean('clean_top'),
+    basedOn: text('based_on'),
+    forecast: jsonb('forecast'),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.ownerId, table.forDate] })],
 );

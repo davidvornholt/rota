@@ -49,6 +49,7 @@ const garmentViews = () =>
           garment: row,
           facts: facts.get(row.id),
           categoryBudgets: clock.settings.categoryBudgets,
+          laundryDays: clock.settings.laundryDays,
           today: clock.today,
           urlFor: media.urlFor,
           studioProgress: studioProgress.get(row.id),

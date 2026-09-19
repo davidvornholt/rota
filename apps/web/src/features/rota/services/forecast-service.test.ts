@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { Effect, Layer } from 'effect';
-import { defaultSettings } from '#/shared/data/settings-repository.ts';
+import { defaultSettings } from '#/shared/data/settings.ts';
 import {
   type WeatherDay,
   WeatherRepository,
@@ -45,6 +45,7 @@ const setup = (
     ReadonlyArray<DailyForecast>,
     WeatherError
   > = Effect.succeed([day]),
+  target = today,
 ) => {
   let stored = initial;
   const forecast = mock(() => response);
@@ -81,7 +82,7 @@ const setup = (
   );
   const result = Effect.gen(function* () {
     const service = yield* ForecastService;
-    return yield* service.ensure(settings, today);
+    return yield* service.ensure(settings, target, today);
   }).pipe(Effect.provide(layer));
   return { result, forecast, store };
 };
@@ -116,4 +117,18 @@ describe('forecast cache', () => {
       left: { _tag: 'ForecastUnavailableError' },
     });
   });
+});
+
+it('treats tomorrow’s forecast as fresh when issued today', async () => {
+  const tomorrow = localDate('2026-09-06');
+  const { result, forecast } = setup(
+    [{ ...day, date: tomorrow }],
+    Effect.succeed([]),
+    tomorrow,
+  );
+  const window = await Effect.runPromise(result);
+  expect(window.stale).toBeFalse();
+  expect(window.today.date).toBe(tomorrow);
+  expect(window.today.issuedOn).toBe(today);
+  expect(forecast).not.toHaveBeenCalled();
 });

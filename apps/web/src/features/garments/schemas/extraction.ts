@@ -72,9 +72,12 @@ export const extractionJsonSchema = {
     ),
     slots: {
       type: 'array',
-      items: { type: 'string', enum: ['bottom', 'under', 'top', 'over'] },
+      items: {
+        type: 'string',
+        enum: ['bottom', 'under', 'top', 'over', 'shoes', 'bag'],
+      },
       description:
-        'Every place this garment can be worn. bottom = trousers or shorts. under = beneath a top (undershirt). top = the visible torso layer. over = above a top (jumper, cardigan, overshirt; a shirt can also be an over layer above a tee).',
+        'Every place this garment can be worn. bottom = trousers or shorts. under = beneath a top (undershirt). top = the visible torso layer. over = above a top (jumper, cardigan, overshirt; a shirt can also be an over layer above a tee). shoes = footwear, including a pair. bag = a handbag or other bag.',
     },
     warmth: {
       type: 'integer',
@@ -98,7 +101,7 @@ export const extractionJsonSchema = {
       minimum: 1,
       maximum: 10,
       description:
-        'How many days in a row this can be worn before washing, judged from material and how close to the skin it sits. Undershirts and tees 1–2, shirts 2, trousers and jumpers 4–5, wool outer layers up to 7.',
+        'How many separate wears before washing (not necessarily consecutive); use 1 for shoes and bags, whose allowance is ignored. For clothing, judged from material and how close to the skin it sits. Undershirts and tees 1–2, shirts 2, trousers and jumpers 4–5, wool outer layers up to 7.',
     },
     colors: {
       type: 'array',

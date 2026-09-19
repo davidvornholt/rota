@@ -32,7 +32,9 @@ for (const mode of ['compact', 'full']) {
     const base = fixtureUrl();
     expect(base).toBeDefined();
     await page.goto(`${base}a11y/fixtures/garment-form.html?${mode}`);
-    const budget = page.getByRole('spinbutton', { name: 'Days in a row' });
+    const budget = page.getByRole('spinbutton', {
+      name: 'Wears between washes',
+    });
     await budget.fill('4');
     await expect(budget).toHaveValue('4');
     const colours = page.getByRole('group', { name: 'Colours', exact: true });
@@ -350,7 +352,7 @@ test('optional outfit removal keeps the add action available', async ({
   await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?outfit`);
   const remove = page.getByRole('button', { name: 'Remove over layer' });
   await remove.focus();
-  await expect(page.getByRole('tooltip')).toHaveText('Remove over layer');
+  await expect(remove).toHaveAccessibleName('Remove over layer');
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await page.keyboard.press('Enter');
   await expect(remove).toHaveCount(0);

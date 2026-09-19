@@ -1,12 +1,12 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { useEffect, useId, useState } from 'react';
-
 import {
   categoryDefaults,
   garmentCategories,
 } from '#/shared/data/garment-types.ts';
-import type { Settings } from '#/shared/data/settings-repository.ts';
+import type { Settings } from '#/shared/data/settings.ts';
+import { localDate } from '#/shared/time/local-date.ts';
 import {
   fieldClass,
   frameClass,
@@ -22,6 +22,7 @@ import {
   saveRotationSettingsFn,
   searchLocationsFn,
 } from '../services/settings-fns.ts';
+import { LaundrySetting } from './laundry-setting.tsx';
 
 const budgetsOf = (
   settings: Settings,
@@ -192,6 +193,8 @@ const RotationSection = ({
   const hourId = useId();
   const headingId = useId();
   const [draft, setDraft] = useState<RotationSettingsInput>(() => ({
+    cleanTopAnchor: settings.cleanTopAnchor,
+    laundryDays: settings.laundryDays,
     cooldownDays: settings.cooldownDays,
     proposalHour: settings.proposalHour,
     categoryBudgets: budgetsOf(settings),
@@ -199,6 +202,8 @@ const RotationSection = ({
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     setDraft({
+      cleanTopAnchor: settings.cleanTopAnchor,
+      laundryDays: settings.laundryDays,
       cooldownDays: settings.cooldownDays,
       proposalHour: settings.proposalHour,
       categoryBudgets: budgetsOf(settings),
@@ -228,7 +233,7 @@ const RotationSection = ({
         <div className="grid max-w-prose gap-6 sm:grid-cols-2">
           <div>
             <label className={labelClass} htmlFor={cooldownId}>
-              Rest days before a garment returns
+              Preferred days between repeats
             </label>
             <input
               className={[fieldClass, 'type-data mt-2'].join(' ')}
@@ -245,7 +250,7 @@ const RotationSection = ({
           </div>
           <div>
             <label className={labelClass} htmlFor={hourId}>
-              Hour the day is decided
+              Morning suggestion hour
             </label>
             <input
               className={[fieldClass, 'type-data mt-2'].join(' ')}
@@ -261,41 +266,71 @@ const RotationSection = ({
             />
           </div>
         </div>
+        <label className="block max-w-sm text-sm">
+          Clean top every other day, starting
+          <input
+            className={[fieldClass, 'mt-2'].join(' ')}
+            type="date"
+            value={draft.cleanTopAnchor ?? ''}
+            onChange={(event) =>
+              setDraft({
+                ...draft,
+                cleanTopAnchor:
+                  event.target.value === ''
+                    ? null
+                    : localDate(event.target.value),
+              })
+            }
+          />
+          <span className="mt-2 block text-ink-muted text-xs">
+            Leave blank to choose each day.
+          </span>
+        </label>
+        <LaundrySetting
+          value={draft.laundryDays}
+          onChange={(laundryDays) => setDraft({ ...draft, laundryDays })}
+        />
         <fieldset>
-          <legend className={labelClass}>Days in a row, by category</legend>
+          <legend className={labelClass}>
+            Wears between washes, by category
+          </legend>
           <p className="mt-1 max-w-prose text-ink-muted text-sm">
             A garment can carry its own number, set on its page; these are the
             defaults.
           </p>
           <ul className="mt-3 grid max-w-2xl grid-cols-2 gap-x-6 sm:grid-cols-3 lg:grid-cols-5">
-            {garmentCategories.map((category) => {
-              const id = `budget-${category}`;
-              return (
-                <li className="border-rule border-t py-2" key={category}>
-                  <label className="text-ink text-sm" htmlFor={id}>
-                    {category}
-                  </label>
-                  <input
-                    className={[fieldClass, 'type-data mt-1'].join(' ')}
-                    id={id}
-                    inputMode="numeric"
-                    max={30}
-                    min={1}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        categoryBudgets: {
-                          ...draft.categoryBudgets,
-                          [category]: Number(event.target.value),
-                        },
-                      })
-                    }
-                    type="number"
-                    value={draft.categoryBudgets[category]}
-                  />
-                </li>
-              );
-            })}
+            {garmentCategories
+              .filter(
+                (category) => category !== 'shoes' && category !== 'handbag',
+              )
+              .map((category) => {
+                const id = `budget-${category}`;
+                return (
+                  <li className="border-rule border-t py-2" key={category}>
+                    <label className="text-ink text-sm" htmlFor={id}>
+                      {category}
+                    </label>
+                    <input
+                      className={[fieldClass, 'type-data mt-1'].join(' ')}
+                      id={id}
+                      inputMode="numeric"
+                      max={30}
+                      min={1}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          categoryBudgets: {
+                            ...draft.categoryBudgets,
+                            [category]: Number(event.target.value),
+                          },
+                        })
+                      }
+                      type="number"
+                      value={draft.categoryBudgets[category]}
+                    />
+                  </li>
+                );
+              })}
           </ul>
         </fieldset>
         {save.isError ? (

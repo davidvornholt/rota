@@ -13,6 +13,7 @@ import {
 } from '#/shared/data/garment-types.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import { daysBetween, type LocalDate } from '#/shared/time/local-date.ts';
+import { careFromDates } from './garment-care.ts';
 
 export type GarmentImageView = {
   readonly url: string;
@@ -27,6 +28,12 @@ export const isRendering = (garment: {
 }): boolean => studioIsBusy(garment.studioState);
 
 export type GarmentView = {
+  readonly washedOn: LocalDate | null;
+  readonly washedAfterWear: boolean;
+  readonly inLaundry: boolean;
+  readonly readyOn: LocalDate | null;
+  readonly assumedCleanOn: LocalDate | null;
+  readonly wearsSinceWash: number;
   readonly id: string;
   readonly status: GarmentStatus;
   readonly name: string;
@@ -63,6 +70,7 @@ export type GarmentView = {
 const centsPerUnit = 100;
 
 export type WearFacts = {
+  readonly dates: ReadonlyArray<LocalDate>;
   readonly wears: number;
   readonly lastWornOn: LocalDate | null;
 };
@@ -75,10 +83,12 @@ export const wearFactsByGarment = (
   const facts = new Map<string, WearFacts>();
   for (const entry of log.filter((candidate) => candidate.wornOn <= today)) {
     const current = facts.get(entry.garmentId) ?? {
+      dates: [],
       wears: 0,
       lastWornOn: null,
     };
     facts.set(entry.garmentId, {
+      dates: [...current.dates, entry.wornOn],
       wears: current.wears + 1,
       lastWornOn:
         current.lastWornOn === null || entry.wornOn > current.lastWornOn
@@ -102,6 +112,7 @@ export type GarmentViewInput = {
   readonly garment: Garment;
   readonly studioProgress: StudioProgress | undefined;
   readonly facts: WearFacts | undefined;
+  readonly laundryDays: number;
   readonly categoryBudgets: Readonly<Record<string, number>>;
   readonly today: LocalDate;
   readonly urlFor: (key: string) => string;
@@ -119,6 +130,7 @@ export const toGarmentView = ({
   studioProgress,
   facts,
   categoryBudgets,
+  laundryDays,
   today,
   urlFor,
 }: GarmentViewInput): GarmentView => {
@@ -127,6 +139,12 @@ export const toGarmentView = ({
   const lastWornOn = facts?.lastWornOn ?? null;
   return {
     id: garment.id,
+    washedOn: garment.washedOn,
+    washedAfterWear: garment.washedAfterWear,
+    ...careFromDates(garment, facts?.dates ?? [], today, {
+      categoryBudgets,
+      laundryDays,
+    }),
     status: garment.status,
     name: garment.name,
     category: garment.category,

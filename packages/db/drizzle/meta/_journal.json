@@ -43,6 +43,13 @@
       "when": 1789812773608,
       "tag": "0005_high_rawhide_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789833032260,
+      "tag": "0006_fat_eternity",
+      "breakpoints": true
     }
   ]
 }

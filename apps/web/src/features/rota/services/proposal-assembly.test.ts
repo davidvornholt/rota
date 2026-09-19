@@ -31,6 +31,10 @@ const garment = (id: string, slots: ReadonlyArray<Slot>): Garment => ({
   purchasedOn: null,
   imageChoice: 'studio',
   processingError: null,
+  washedOn: null,
+  washedAfterWear: false,
+  laundryStartedOn: null,
+  laundryReadyOn: null,
   studioError: null,
   retiredAt: null,
   createdAt: new Date('2026-01-01T00:00:00Z'),
@@ -57,10 +61,11 @@ const input = (
   garments: ReadonlyArray<Garment>,
   excluded: ReadonlyArray<string>,
 ): RotationInput => ({
+  cleanTop: false,
   today: localDate('2026-09-07'),
   log: [],
   garments,
-  settings: { cooldownDays: 3, categoryBudgets: {} },
+  settings: { laundryDays: 4, cooldownDays: 3, categoryBudgets: {} },
   excluded: new Set(excluded),
 });
 
@@ -82,8 +87,9 @@ describe('slotChoicesFor', () => {
       })),
     };
     const continuing = continuations(rotation);
-    expect(continuing.map((c) => c.garment.id)).toEqual(['shorts', 'tee']);
+    expect(continuing.map((c) => c.garment.id)).toEqual(['shorts']);
     const prompt = buildProposalPrompt({
+      cleanTop: false,
       today: rotation.today,
       weather: { ...warm, high: 18.9, low: 15.8, precipitationProbability: 78 },
       yesterday: { ...warm, high: 32.2 },
@@ -100,7 +106,7 @@ describe('slotChoicesFor', () => {
       'C1',
       'B1',
     ]);
-    expect(schema.properties.outfit.properties.top.enum).toEqual(['C2', 'T1']);
+    expect(schema.properties.outfit.properties.top.enum).toEqual(['T1']);
     expect(schema.properties.outfit.properties.under.enum).toEqual([null]);
     expect(schema.properties.outfit.properties.bottom.enum).not.toContain(
       'shorts',
@@ -108,7 +114,14 @@ describe('slotChoicesFor', () => {
     const items = await Effect.runPromise(
       answerToItems(
         {
-          outfit: { bottom: 'B1', top: 'T1', under: null, over: null },
+          outfit: {
+            bottom: 'B1',
+            top: 'T1',
+            under: null,
+            shoes: null,
+            bag: null,
+            over: null,
+          },
           headline: 'Chinos and a shirt for the cooler meeting.',
           reasons: [],
         },
@@ -122,7 +135,14 @@ describe('slotChoicesFor', () => {
       Effect.either(
         answerToItems(
           {
-            outfit: { bottom: 'T1', top: 'B1', under: null, over: null },
+            outfit: {
+              bottom: 'T1',
+              top: 'B1',
+              under: null,
+              shoes: null,
+              bag: null,
+              over: null,
+            },
             headline: '',
             reasons: [],
           },
@@ -145,6 +165,7 @@ describe('slotChoicesFor', () => {
       },
     ];
     const prompt = buildProposalPrompt({
+      cleanTop: false,
       today: rotation.today,
       weather: warm,
       yesterday: undefined,
@@ -212,6 +233,7 @@ it('shows an original image once while offering the garment in each eligible slo
     data: new TextEncoder().encode('original image bytes'),
   };
   const prompt = buildProposalPrompt({
+    cleanTop: false,
     today: rotation.today,
     weather: warm,
     yesterday: undefined,

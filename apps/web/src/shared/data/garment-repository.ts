@@ -2,7 +2,7 @@ import { SqlClient, type Statement } from '@effect/sql';
 import { Effect, Schema } from 'effect';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 
-import type { LocalDate } from '#/shared/time/local-date.ts';
+import { addDays, type LocalDate } from '#/shared/time/local-date.ts';
 import { notFound, readError, writeError } from './errors/data-errors.ts';
 import { GarmentFromRow, type GarmentImage } from './garment.ts';
 import type {
@@ -63,7 +63,7 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
       const selectGarments = (where: Statement.Fragment) => sql`
         select g.id, g.status, g.name, g.category, g.subcategory,
                array_to_json(g.slots) as slots,
-               g.warmth, g.rain_ok, g.formality, g.wear_budget, g.colors,
+               g.warmth, g.rain_ok, g.formality, g.wear_budget, g.washed_on, g.washed_after_wear, g.laundry_started_on, g.laundry_ready_on, g.colors,
                g.pattern, g.material, g.fit, g.sleeve, g.brand,
                g.notes, g.price, g.purchased_on, g.image_choice,
                g.processing_error, g.studio_error, g.retired_at, g.created_at,
@@ -197,7 +197,23 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
           Effect.mapError(writeGarment),
         );
 
+      const setCare = (
+        ids: ReadonlyArray<string>,
+        action: 'laundry' | 'washed' | 'postpone',
+        date: LocalDate,
+        laundryDays: number,
+      ) =>
+        sql`update garment set laundry_started_on = ${action === 'washed' ? null : date}::date,
+          laundry_ready_on = ${action === 'washed' ? null : addDays(date, action === 'postpone' ? 1 : laundryDays)}::date,
+          washed_on = case when ${action === 'washed'} then ${date}::date else washed_on end,
+          washed_after_wear = case when ${action === 'washed'} then exists (select 1 from wear_log where garment_id = garment.id and worn_on = ${date}) else washed_after_wear end, updated_at = now()
+          where owner_id = ${owner.id} and id in ${sql.in(ids)} and status = 'active'`.pipe(
+          Effect.asVoid,
+          Effect.mapError(writeGarment),
+        );
+
       return {
+        setCare,
         list,
         byId,
         create,
