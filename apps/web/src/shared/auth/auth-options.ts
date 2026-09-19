@@ -32,6 +32,6 @@ export const createAuthOptions = ({
     },
     user: { validateUserInfo: createGitHubAccountGate(allowedGitHubAccountId) },
     /** Provider access tokens are encrypted with `secret` before they are stored. */
-    account: { encryptOAuthTokens: true },
+    account: { encryptOAuthTokens: true, accountLinking: { enabled: false } },
     plugins: [tanstackStartCookies()],
   }) satisfies BetterAuthOptions;

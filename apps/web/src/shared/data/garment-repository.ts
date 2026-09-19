@@ -1,5 +1,6 @@
 import { SqlClient, type Statement } from '@effect/sql';
 import { Effect, Schema } from 'effect';
+import { WardrobeOwner } from '#/shared/auth/identity.ts';
 
 import { addDays, type LocalDate } from '#/shared/time/local-date.ts';
 import { notFound, readError, writeError } from './errors/data-errors.ts';
@@ -43,6 +44,7 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
   {
     effect: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
+      const owner = yield* WardrobeOwner;
 
       /**
        * The two stored images folded into one JSON object keyed by kind, so
@@ -67,7 +69,7 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
                g.processing_error, g.studio_error, g.retired_at, g.created_at,
                ${imagesJson} as images
         from garment g
-        ${where}
+        where g.owner_id = ${owner.id} ${where}
         order by g.created_at desc
       `;
 
@@ -80,7 +82,7 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
       const list = () => query(sql``);
 
       const byId = (id: string) =>
-        query(sql`where g.id = ${id}`).pipe(
+        query(sql`and g.id = ${id}`).pipe(
           Effect.flatMap((rows) => {
             const [garment] = rows;
             return garment === undefined
@@ -96,7 +98,8 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
       ) =>
         sql`
           insert into garment_image (garment_id, kind, storage_key, mime, width, height, bytes)
-          values (${garmentId}, ${kind}, ${image.key}, ${image.mime}, ${image.width}, ${image.height}, ${image.bytes})
+          select ${garmentId}, ${kind}, ${image.key}, ${image.mime}, ${image.width}, ${image.height}, ${image.bytes}
+          where exists (select 1 from garment where id = ${garmentId} and owner_id = ${owner.id})
           on conflict (garment_id, kind) do update
             set storage_key = excluded.storage_key, mime = excluded.mime,
                 width = excluded.width, height = excluded.height,
@@ -107,7 +110,7 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
       const create = (original: StoredImage) =>
         Effect.gen(function* () {
           const rows = yield* sql`
-            insert into garment default values returning id
+            insert into garment (owner_id) values (${owner.id}) returning id
           `.pipe(Effect.mapError(writeGarment));
           const id = rows[0]?.id;
           if (typeof id !== 'string') {
@@ -152,25 +155,25 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
               extraction = ${JSON.stringify(extraction)}::jsonb,
               processing_error = null,
               status = 'review'
-          where id = ${id}
+          where id = ${id} and owner_id = ${owner.id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
       const update = (id: string, attributes: GarmentAttributes) =>
         sql`
-          update garment ${attributeUpdate(attributes)} where id = ${id}
+          update garment ${attributeUpdate(attributes)} where id = ${id} and owner_id = ${owner.id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
       const markProcessingError = (id: string, message: string) =>
         sql`
           update garment
           set processing_error = ${message}, status = 'review', updated_at = now()
-          where id = ${id}
+          where id = ${id} and owner_id = ${owner.id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
       const setStudioError = (id: string, message: string | null) =>
         sql`
           update garment set studio_error = ${message}, updated_at = now()
-          where id = ${id}
+          where id = ${id} and owner_id = ${owner.id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
       const setStatus = (id: string, status: GarmentStatus) =>
@@ -179,17 +182,17 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
           set status = ${status},
               retired_at = case when ${status} = 'retired' then now() else null end,
               updated_at = now()
-          where id = ${id}
+          where id = ${id} and owner_id = ${owner.id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
       const setImageChoice = (id: string, choice: ImageChoice) =>
         sql`
           update garment set image_choice = ${choice}, updated_at = now()
-          where id = ${id}
+          where id = ${id} and owner_id = ${owner.id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
       const remove = (id: string) =>
-        sql`delete from garment where id = ${id}`.pipe(
+        sql`delete from garment where id = ${id} and owner_id = ${owner.id}`.pipe(
           Effect.asVoid,
           Effect.mapError(writeGarment),
         );
@@ -204,7 +207,7 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
           laundry_ready_on = ${action === 'washed' ? null : addDays(date, action === 'postpone' ? 1 : laundryDays)}::date,
           washed_on = case when ${action === 'washed'} then ${date}::date else washed_on end,
           washed_after_wear = case when ${action === 'washed'} then exists (select 1 from wear_log where garment_id = garment.id and worn_on = ${date}) else washed_after_wear end, updated_at = now()
-          where id in ${sql.in(ids)} and status = 'active'`.pipe(
+          where owner_id = ${owner.id} and id in ${sql.in(ids)} and status = 'active'`.pipe(
           Effect.asVoid,
           Effect.mapError(writeGarment),
         );

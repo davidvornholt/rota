@@ -14,6 +14,7 @@ import { ProposalService } from '#/features/rota/services/proposal-service.ts';
 import { TodayService } from '#/features/rota/services/today-service.ts';
 import { GeminiError } from '#/shared/ai/errors/ai-errors.ts';
 import { Gemini } from '#/shared/ai/gemini.ts';
+import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
@@ -25,7 +26,14 @@ import {
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import { addDays, localDate } from '#/shared/time/local-date.ts';
+import { verifyPlanningIsolation } from './verify-planning-isolation.ts';
 
+const owner = {
+  id: 'planning-demo',
+  userId: 'planning-demo',
+  name: 'Demo',
+  admin: false,
+};
 const today = localDate('2026-09-19');
 const tomorrow = localDate('2026-09-20');
 const clock = {
@@ -245,10 +253,10 @@ const verify = Effect.gen(function* () {
   assert.equal((yield* settings.read()).laundryDays, shorterLaundry);
   yield* settings.save(defaultSettings);
   const sql = yield* SqlClient.SqlClient;
-  yield* sql`insert into garment (id, status, name, category, slots) values
-    (${topId}, 'active', 'Blue shirt', 'shirt', array['top']::garment_slot[]),
-    (${otherTopId}, 'active', 'White shirt', 'shirt', array['top']::garment_slot[]),
-    (${bottomId}, 'active', 'Navy trousers', 'trousers', array['bottom']::garment_slot[])`;
+  yield* sql`insert into garment (owner_id, id, status, name, category, slots) values
+    (${owner.id}, ${topId}, 'active', 'Blue shirt', 'shirt', array['top']::garment_slot[]),
+    (${owner.id}, ${otherTopId}, 'active', 'White shirt', 'shirt', array['top']::garment_slot[]),
+    (${owner.id}, ${bottomId}, 'active', 'Navy trousers', 'trousers', array['bottom']::garment_slot[])`;
   const outfits = yield* OutfitRepository;
   const log = yield* WearLogRepository;
   const proposals = yield* ProposalService;
@@ -352,7 +360,10 @@ try {
     WearLogRepository.Default,
     ProposalRepository.Default,
     DayNoteRepository.Default,
-  ).pipe(Layer.provideMerge(pgClientLayer(pool)));
+  ).pipe(
+    Layer.provideMerge(pgClientLayer(pool)),
+    Layer.provide(Layer.succeed(WardrobeOwner, owner)),
+  );
   const infrastructure = Layer.mergeAll(
     repositories,
     forecastLayer,
@@ -364,6 +375,7 @@ try {
     Layer.provideMerge(infrastructure),
   );
   await Effect.runPromise(verify.pipe(Effect.provide(services)));
+  await verifyPlanningIsolation(pool);
   await Effect.runPromise(
     Effect.logInfo(
       'Planning integration passed: migrations, suggestions, pinned garments, saved outfits, plans, wear, weather changes and laundry.',

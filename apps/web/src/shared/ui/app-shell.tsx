@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Link,
   Outlet,
@@ -6,9 +6,9 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 import { type RefObject, useEffect, useId, useRef } from 'react';
-
 import { authClient } from '#/shared/auth/auth-client.ts';
 import { rejectAuthError } from '#/shared/auth/auth-response.ts';
+import { currentPersonFn } from '#/shared/auth/session-fn.ts';
 import {
   frameClass,
   linkButtonClass,
@@ -59,6 +59,11 @@ const focusMainAfterNavigation = (target: HTMLElement): void => {
 };
 
 export const AppShell = () => {
+  const person = useQuery({
+    queryKey: ['current-person'],
+    queryFn: () => currentPersonFn(),
+  });
+  const queryClient = useQueryClient();
   const mainId = useId();
   const router = useRouter();
   const mainRef = useRef<HTMLElement>(null);
@@ -82,7 +87,11 @@ export const AppShell = () => {
   const signOutStartedRef: RefObject<boolean> = useRef(false);
   const signOut = useMutation({
     mutationFn: () => authClient.signOut().then(rejectAuthError),
-    onSuccess: () => router.navigate({ to: '/login' }),
+    onSuccess: async () => {
+      queryClient.clear();
+      await router.invalidate();
+      await router.navigate({ to: '/login' });
+    },
     onSettled: () => {
       signOutStartedRef.current = false;
     },
@@ -132,7 +141,17 @@ export const AppShell = () => {
             'flex items-center justify-between py-5 text-ink-faint text-sm',
           ].join(' ')}
         >
-          <span>Rota · a garment rota for one</span>
+          <div className="flex flex-wrap items-center gap-4">
+            <span>Rota · your wardrobe in rotation</span>
+            <Link className={linkButtonClass} to="/account">
+              Passkeys
+            </Link>
+            {person.data?.admin ? (
+              <Link className={linkButtonClass} to="/people">
+                People
+              </Link>
+            ) : null}
+          </div>
           <button
             aria-busy={signOut.isPending}
             className={linkButtonClass}

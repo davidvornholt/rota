@@ -1,1 +1,0 @@
-ALTER TABLE "garment" ADD COLUMN "washed_after_wear" boolean DEFAULT false NOT NULL;

@@ -20,7 +20,7 @@ export type StudioRenderInput = {
   readonly instructions: string;
 };
 
-/** 3:4 portrait; both edges multiples of 16, as GPT-Image-2 requires. */
+/** 3:4 portrait; both edges multiples of 16, as GPT-Image-2.5 Flare requires. */
 export const studioRenderSize = { width: 1200, height: 1600 } as const;
 
 /** The paper colour the studio ground takes when transparency is refused. */
@@ -54,6 +54,7 @@ export type StudioConnection = {
   readonly endpoint: string;
   readonly apiKey: string;
   readonly deployment: string;
+  readonly request: (url: string, init: RequestInit) => Promise<Response>;
 };
 
 /** The edit answer: one base64 image per requested picture, renamed off the wire. */
@@ -95,12 +96,11 @@ export const requestEdit = (
         `${studioRenderSize.width}x${studioRenderSize.height}`,
       );
       form.append('quality', 'high');
-      form.append('input_fidelity', 'high');
       form.append('output_format', 'png');
       if (attempt.transparent) {
         form.append('background', 'transparent');
       }
-      const response = await fetch(
+      const response = await connection.request(
         `${connection.endpoint.replace(trailingSlash, '')}/openai/v1/images/edits?api-version=preview`,
         {
           method: 'POST',

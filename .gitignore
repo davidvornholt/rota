@@ -39,3 +39,4 @@ apps/web/scripts/tmp/
 # Playwright output from the a11y scan.
 playwright-report
 test-results
+/apps/web/.media-family-check/

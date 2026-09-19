@@ -4,10 +4,9 @@ import type {
   ValidateUserInfoSource,
 } from 'better-auth';
 
-import { authorizeSession, createGitHubAccountGate } from './authorization.ts';
+import { createGitHubAccountGate } from './authorization.ts';
 
 const allowedAccountId = '157214705';
-const session = { user: { name: 'David' } };
 
 const gate = createGitHubAccountGate(allowedAccountId);
 
@@ -92,51 +91,5 @@ describe('GitHub account gate', () => {
     const code = rejection?.error ?? '';
     expect(new URLSearchParams({ error: code }).get('error')).toBe(code);
     expect(encodeURIComponent(code)).toBe(code);
-  });
-});
-
-describe('GitHub session authorization', () => {
-  it('accepts a session linked to the configured GitHub account', async () => {
-    const result = await authorizeSession({
-      allowedAccountId,
-      getSession: () => Promise.resolve(session),
-      getAccounts: () =>
-        Promise.resolve([
-          { providerId: 'github', accountId: allowedAccountId },
-        ]),
-      revokeSession: () => Promise.reject(new Error('must not revoke')),
-    });
-    expect(result).toBe(session);
-  });
-
-  it('revokes a session linked to a different account ID', async () => {
-    let revoked = false;
-    const result = await authorizeSession({
-      allowedAccountId,
-      getSession: () => Promise.resolve(session),
-      getAccounts: () =>
-        Promise.resolve([{ providerId: 'github', accountId: '999999999' }]),
-      revokeSession: () => {
-        revoked = true;
-        return Promise.resolve();
-      },
-    });
-    expect(result).toBeNull();
-    expect(revoked).toBeTrue();
-  });
-
-  it('does not query accounts without a session', async () => {
-    let queriedAccounts = false;
-    const result = await authorizeSession({
-      allowedAccountId,
-      getSession: () => Promise.resolve(null),
-      getAccounts: () => {
-        queriedAccounts = true;
-        return Promise.resolve([]);
-      },
-      revokeSession: () => Promise.resolve(),
-    });
-    expect(result).toBeNull();
-    expect(queriedAccounts).toBeFalse();
   });
 });

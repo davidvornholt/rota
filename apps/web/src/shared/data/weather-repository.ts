@@ -1,5 +1,6 @@
 import { SqlClient } from '@effect/sql';
 import { Effect, Schema } from 'effect';
+import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import type { DailyForecast } from '#/shared/weather/hourly-forecast.ts';
@@ -41,13 +42,14 @@ export class WeatherRepository extends Effect.Service<WeatherRepository>()(
   {
     effect: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
+      const owner = yield* WardrobeOwner;
 
       const readRange = (from: LocalDate, to: LocalDate) =>
         sql`
           select for_date, issued_on, location_label, high, low,
                  precipitation_probability, precipitation_mm, wind_kmh, weather_code
           from weather_day
-          where for_date between ${from} and ${to}
+          where owner_id = ${owner.id} and for_date between ${from} and ${to}
           order by for_date
         `.pipe(Effect.flatMap(decodeDays), Effect.mapError(readWeather));
 
@@ -57,6 +59,7 @@ export class WeatherRepository extends Effect.Service<WeatherRepository>()(
           select for_date, issued_on, location_label, high, low,
                  precipitation_probability, precipitation_mm, wind_kmh, weather_code
           from weather_day
+          where owner_id = ${owner.id}
           order by for_date
         `.pipe(Effect.flatMap(decodeDays), Effect.mapError(readWeather));
 
@@ -71,11 +74,11 @@ export class WeatherRepository extends Effect.Service<WeatherRepository>()(
             Effect.forEach(
               days,
               (day) => sql`
-                insert into weather_day (for_date, issued_on, location_label, high, low,
+                insert into weather_day (owner_id, for_date, issued_on, location_label, high, low,
                   precipitation_probability, precipitation_mm, wind_kmh, weather_code)
-                values (${day.date}, ${issuedOn}, ${locationLabel}, ${day.high}, ${day.low},
+                values (${owner.id}, ${day.date}, ${issuedOn}, ${locationLabel}, ${day.high}, ${day.low},
                   ${day.precipitationProbability}, ${day.precipitationMm}, ${day.windKmh}, ${day.weatherCode})
-                on conflict (for_date) do update
+                on conflict (owner_id, for_date) do update
                   set issued_on = excluded.issued_on, fetched_at = now(),
                       location_label = excluded.location_label,
                       high = excluded.high, low = excluded.low,

@@ -1,5 +1,6 @@
 import { SqlClient } from '@effect/sql';
 import { Effect, Schema } from 'effect';
+import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import { readError, writeError } from './errors/data-errors.ts';
@@ -41,12 +42,13 @@ export class WearLogRepository extends Effect.Service<WearLogRepository>()(
   {
     effect: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
+      const owner = yield* WardrobeOwner;
 
       const listBetween = (from: LocalDate, to: LocalDate) =>
         sql`
           select worn_on, garment_id, slot, source
           from wear_log
-          where worn_on between ${from} and ${to}
+          where owner_id = ${owner.id} and worn_on between ${from} and ${to}
           order by worn_on, slot
         `.pipe(Effect.flatMap(decodeEntries), Effect.mapError(readLog));
 
@@ -57,6 +59,7 @@ export class WearLogRepository extends Effect.Service<WearLogRepository>()(
         sql`
           select worn_on, garment_id, slot, source
           from wear_log
+          where owner_id = ${owner.id}
           order by worn_on, slot
         `.pipe(Effect.flatMap(decodeEntries), Effect.mapError(readLog));
 
@@ -73,11 +76,12 @@ export class WearLogRepository extends Effect.Service<WearLogRepository>()(
         sql
           .withTransaction(
             Effect.gen(function* () {
-              yield* sql`delete from wear_log where worn_on = ${date}`;
+              yield* sql`delete from wear_log where owner_id = ${owner.id} and worn_on = ${date}`;
               for (const entry of entries) {
                 yield* sql`
-                  insert into wear_log (worn_on, garment_id, slot, source)
-                  values (${date}, ${entry.garmentId}, ${entry.slot}, ${source})
+                  insert into wear_log (owner_id, worn_on, garment_id, slot, source)
+                  select ${owner.id}, ${date}, ${entry.garmentId}, ${entry.slot}, ${source}
+                  where exists (select 1 from garment where id = ${entry.garmentId} and owner_id = ${owner.id})
                 `;
               }
             }),

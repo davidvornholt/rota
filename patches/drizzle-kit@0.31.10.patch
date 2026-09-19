@@ -1,0 +1,16 @@
+diff --git a/bin.cjs b/bin.cjs
+index 07274ea6f53fd54a129b3d338892feda6e995cff..36f648f836d385de03eee4a5c6e9a35eb696faba 100755
+--- a/bin.cjs
++++ b/bin.cjs
+@@ -24860,6 +24860,11 @@ ${BREAKPOINT}ALTER TABLE ${tableNameWithSchema} ADD CONSTRAINT "${statement.newC
+       }
+       convert(statement) {
+         const { tableName, columnName, schema: schema6 } = statement;
++        // Rota's initial generated migration uses PostgreSQL's default inline-PK names.
++        // Limit this workaround to those verified constraints; other schemas keep the upstream behavior.
++        if ((!schema6 || schema6 === "public") && ["day_note", "weather_day"].includes(tableName)) {
++          return `ALTER TABLE "public"."${tableName}" DROP CONSTRAINT "${tableName}_pkey";`;
++        }
+         return `/* 
+     Unfortunately in current drizzle-kit version we can't automatically get name for primary key.
+     We are working on making it available!

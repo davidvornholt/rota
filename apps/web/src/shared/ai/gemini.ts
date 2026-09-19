@@ -2,9 +2,11 @@ import { GoogleGenAI } from '@google/genai';
 import { Effect } from 'effect';
 import { env } from '#/shared/env.ts';
 import { makeGenerateJson } from './gemini-request.ts';
+import { makeUsageLedger } from './usage-ledger.ts';
 
 export class Gemini extends Effect.Service<Gemini>()('shared/Gemini', {
-  sync: () => {
+  effect: Effect.gen(function* () {
+    const ledger = yield* makeUsageLedger;
     const client = new GoogleGenAI({
       vertexai: true,
       project: env.GOOGLE_VERTEX_PROJECT,
@@ -18,7 +20,28 @@ export class Gemini extends Effect.Service<Gemini>()('shared/Gemini', {
     });
     const model = env.GEMINI_MODEL;
 
-    const generateJson = makeGenerateJson(client.models, model);
+    const generateJson: ReturnType<typeof makeGenerateJson> = (input) =>
+      makeGenerateJson(
+        {
+          generateContent: (params) =>
+            ledger.measure(
+              {
+                provider: 'vertex',
+                model,
+                operation:
+                  input.purpose === 'outfit'
+                    ? 'Outfit suggestion'
+                    : 'Garment analysis',
+              },
+              () => client.models.generateContent(params),
+              (answer) => ({
+                usage: answer.usageMetadata ?? null,
+                success: true,
+              }),
+            ),
+        },
+        model,
+      )(input);
     return { generateJson, model };
-  },
+  }),
 }) {}

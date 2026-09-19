@@ -1,4 +1,5 @@
-import { hasAuthorizedSession } from './session.ts';
+import { asIdentity, type Identity } from './identity.ts';
+import { authorizedIdentity } from './session.ts';
 import { runSessionRequired } from './session-required.ts';
 
 /**
@@ -14,11 +15,20 @@ export const guardedRoute =
     readonly request: Request;
     readonly params: Params;
   }): Promise<Response> => {
+    let identity: Identity | null = null;
     try {
       return await runSessionRequired({
         request,
-        authorize: () => hasAuthorizedSession(request.headers),
-        next: () => handle(request, params),
+        authorize: async () => {
+          identity = await authorizedIdentity(request.headers);
+          return identity !== null;
+        },
+        next: () => {
+          if (!identity) {
+            throw new Error('Missing identity.');
+          }
+          return asIdentity(identity, () => handle(request, params));
+        },
         publishHeaders: () => undefined,
         publishStatus: () => undefined,
       });

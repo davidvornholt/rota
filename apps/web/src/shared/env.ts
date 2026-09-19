@@ -13,8 +13,6 @@ const s3Variables = {
   S3_BUCKET: z.string().min(1).optional(),
   S3_ACCESS_KEY_ID: z.string().min(1).optional(),
   S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
-  /** Public base URL of the bucket's custom domain; without it the app serves media itself. */
-  MEDIA_PUBLIC_BASE_URL: z.url().optional(),
 };
 
 const mediaStore = z.discriminatedUnion('MEDIA_STORE', [
@@ -30,7 +28,6 @@ const mediaStore = z.discriminatedUnion('MEDIA_STORE', [
     S3_BUCKET: z.string().min(1),
     S3_ACCESS_KEY_ID: z.string().min(1),
     S3_SECRET_ACCESS_KEY: z.string().min(1),
-    MEDIA_PUBLIC_BASE_URL: z.url().optional(),
   }),
 ]);
 

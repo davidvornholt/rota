@@ -9,6 +9,8 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  // biome-ignore lint/suspicious/noDeprecatedImports: Only the positional overload is deprecated; both uses below pass the supported columns object.
+  primaryKey,
   real,
   text,
   timestamp,
@@ -95,6 +97,7 @@ const defaultProposalHour = 5;
 export const garment = pgTable(
   'garment',
   {
+    ownerId: text('owner_id').notNull(),
     id: uuid('id').primaryKey().defaultRandom(),
     status: garmentStatus('status').notNull().default('processing'),
     name: text('name').notNull().default(''),
@@ -179,6 +182,7 @@ export const garmentImage = pgTable(
 export const wearLog = pgTable(
   'wear_log',
   {
+    ownerId: text('owner_id').notNull(),
     id: uuid('id').primaryKey().defaultRandom(),
     wornOn: date('worn_on').notNull(),
     garmentId: uuid('garment_id')
@@ -191,7 +195,11 @@ export const wearLog = pgTable(
       .defaultNow(),
   },
   (table) => [
-    uniqueIndex('wear_log_day_slot_unique').on(table.wornOn, table.slot),
+    uniqueIndex('wear_log_day_slot_unique').on(
+      table.ownerId,
+      table.wornOn,
+      table.slot,
+    ),
     index('wear_log_garment_idx').on(table.garmentId, table.wornOn),
   ],
 );
@@ -205,6 +213,7 @@ export const wearLog = pgTable(
 export const proposal = pgTable(
   'proposal',
   {
+    ownerId: text('owner_id').notNull(),
     id: uuid('id').primaryKey().defaultRandom(),
     forDate: date('for_date').notNull(),
     status: proposalStatus('status').notNull().default('pending'),
@@ -222,36 +231,46 @@ export const proposal = pgTable(
 );
 
 /** The free-text occasion note for a day, when there is one. */
-export const dayNote = pgTable('day_note', {
-  forDate: date('for_date').primaryKey(),
-  occasion: text('occasion').notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const dayNote = pgTable(
+  'day_note',
+  {
+    ownerId: text('owner_id').notNull(),
+    forDate: date('for_date').notNull(),
+    occasion: text('occasion').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.ownerId, table.forDate] })],
+);
 
 /**
  * The forecast a day was decided on. One row per calendar day, replaced when a
  * fresher forecast arrives. `issued_on` is the day the forecast was fetched, so
  * a proposal made on yesterday's forecast can say so.
  */
-export const weatherDay = pgTable('weather_day', {
-  forDate: date('for_date').primaryKey(),
-  issuedOn: date('issued_on').notNull(),
-  fetchedAt: timestamp('fetched_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  locationLabel: text('location_label').notNull(),
-  high: real('high').notNull(),
-  low: real('low').notNull(),
-  precipitationProbability: integer('precipitation_probability').notNull(),
-  precipitationMm: real('precipitation_mm').notNull(),
-  windKmh: real('wind_kmh').notNull(),
-  weatherCode: integer('weather_code').notNull(),
-});
+export const weatherDay = pgTable(
+  'weather_day',
+  {
+    ownerId: text('owner_id').notNull(),
+    forDate: date('for_date').notNull(),
+    issuedOn: date('issued_on').notNull(),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    locationLabel: text('location_label').notNull(),
+    high: real('high').notNull(),
+    low: real('low').notNull(),
+    precipitationProbability: integer('precipitation_probability').notNull(),
+    precipitationMm: real('precipitation_mm').notNull(),
+    windKmh: real('wind_kmh').notNull(),
+    weatherCode: integer('weather_code').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.ownerId, table.forDate] })],
+);
 
 /**
- * The single settings row. `location` is null until the first-run setup picks
+ * Settings for one wardrobe. `location` is null until the first-run setup picks
  * one; nothing weather-related runs before then.
  */
 const defaultLaundryDays = 4;
@@ -260,6 +279,7 @@ export const settings = pgTable(
   'settings',
   {
     id: text('id').primaryKey().default('singleton'),
+    ownerId: text('owner_id').notNull(),
     location: jsonb('location'),
     cleanTopAnchor: date('clean_top_anchor'),
     laundryDays: integer('laundry_days').notNull().default(defaultLaundryDays),
@@ -275,7 +295,7 @@ export const settings = pgTable(
       .defaultNow(),
   },
   (table) => [
-    check('settings_singleton', sql`${table.id} = 'singleton'`),
+    uniqueIndex('settings_owner_unique').on(table.ownerId),
     check(
       'settings_cooldown_range',
       sql`${table.cooldownDays} between 0 and 60`,
@@ -289,6 +309,7 @@ export const settings = pgTable(
 
 /** A reusable combination; edits to a day's outfit never mutate this record. */
 export const savedOutfit = pgTable('saved_outfit', {
+  ownerId: text('owner_id').notNull(),
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   entries: jsonb('entries').notNull(),
@@ -298,13 +319,18 @@ export const savedOutfit = pgTable('saved_outfit', {
 });
 
 /** A decision for a date is separate from actual wear and from generated suggestions. */
-export const dayPlan = pgTable('day_plan', {
-  forDate: date('for_date').primaryKey(),
-  entries: jsonb('entries'),
-  cleanTop: boolean('clean_top'),
-  basedOn: text('based_on'),
-  forecast: jsonb('forecast'),
-  updatedAt: timestamp('updated_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const dayPlan = pgTable(
+  'day_plan',
+  {
+    ownerId: text('owner_id').notNull(),
+    forDate: date('for_date').notNull(),
+    entries: jsonb('entries'),
+    cleanTop: boolean('clean_top'),
+    basedOn: text('based_on'),
+    forecast: jsonb('forecast'),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.ownerId, table.forDate] })],
+);
