@@ -13,8 +13,6 @@ const maxNameLength = 80;
 const weekDays = 7;
 const monthDays = 30;
 const yearDays = 365;
-const maxRate = 100_000;
-const maxModelLength = 100;
 
 export type Person = {
   id: string;
@@ -35,16 +33,6 @@ export type UsageSummary = {
   failures: number;
   unknownCosts: number;
   estimatedUsd: string;
-};
-export type Price = {
-  id: string;
-  provider: string;
-  model: string;
-  inputPerMillion: string;
-  outputPerMillion: string;
-  imageInputPerMillion: string;
-  imageOutputPerMillion: string;
-  cachedInputPerMillion: string;
 };
 export const peopleFn = createServerFn({ method: 'GET' })
   .middleware([sessionRequired])
@@ -110,51 +98,6 @@ export const usageFn = createServerFn({ method: 'GET' })
       return result.rows;
     }),
   );
-export const pricesFn = createServerFn({ method: 'GET' })
-  .middleware([sessionRequired])
-  .handler(() =>
-    peopleOperation(async () => {
-      const result =
-        await pool.query<Price>(`select distinct on (provider, model) id, provider, model,
-    input_per_million as "inputPerMillion", output_per_million as "outputPerMillion",
-    image_input_per_million as "imageInputPerMillion", image_output_per_million as "imageOutputPerMillion",
-    cached_input_per_million as "cachedInputPerMillion" from api_price order by provider, model, created_at desc`);
-      return result.rows;
-    }),
-  );
-const rate = z.coerce.number().min(0).max(maxRate);
-export const priceFn = createServerFn({ method: 'POST' })
-  .middleware([sessionRequired])
-  .inputValidator(
-    z.object({
-      provider: z.enum(['vertex', 'foundry']),
-      model: z.string().trim().min(1).max(maxModelLength),
-      input: rate,
-      output: rate,
-      imageInput: rate,
-      imageOutput: rate,
-      cachedInput: rate,
-    }),
-  )
-  .handler(({ data }) =>
-    peopleOperation(async () => {
-      await pool.query(
-        `insert into api_price (id, provider, model, input_per_million, output_per_million,
-      image_input_per_million, image_output_per_million, cached_input_per_million) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [
-          crypto.randomUUID(),
-          data.provider,
-          data.model,
-          data.input,
-          data.output,
-          data.imageInput,
-          data.imageOutput,
-          data.cachedInput,
-        ],
-      );
-    }),
-  );
-
 export type AdminGarment = {
   id: string;
   name: string;

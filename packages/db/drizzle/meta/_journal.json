@@ -50,6 +50,13 @@
       "when": 1789833032260,
       "tag": "0006_fat_eternity",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789837375198,
+      "tag": "0007_dizzy_red_skull",
+      "breakpoints": true
     }
   ]
 }
