@@ -8,13 +8,13 @@ import {
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { pool } from '#/shared/db/pool.ts';
 import { env } from '#/shared/env.ts';
+import { authPool, withAccessTransaction } from './access-transaction.ts';
 import { createAuthOptions } from './auth-options.ts';
 import { familyPasskeys } from './passkeys.ts';
 
 const schema = { account, passkey, session, user, verification };
-const db = drizzle(pool, { schema });
+const db = drizzle(authPool, { schema });
 
 const options = createAuthOptions({
   allowedGitHubAccountId: env.GITHUB_ALLOWED_ACCOUNT_ID,
@@ -27,5 +27,8 @@ const options = createAuthOptions({
 export const auth = betterAuth({
   ...options,
   plugins: [familyPasskeys(env.BETTER_AUTH_URL), ...options.plugins],
-  database: drizzleAdapter(db, { provider: 'pg' }),
+  database: drizzleAdapter(db, { provider: 'pg', transaction: false }),
 });
+
+export const handleAuth = (request: Request) =>
+  withAccessTransaction(() => auth.handler(request));

@@ -21,6 +21,7 @@ import {
   SettingsRepository,
 } from '../src/shared/data/settings-repository.ts';
 import { pool } from '../src/shared/db/pool.ts';
+import { checkRevocation, expectRevoked } from './family-revocation-check.ts';
 
 // This test creates fixtures only in the explicitly isolated development database.
 const databaseUrl = new URL(Bun.env.DATABASE_URL ?? '');
@@ -84,6 +85,10 @@ const newPage = async () => {
   );
   return { page, context, cdp, authenticatorId };
 };
+const signIn = (page: Page) =>
+  page
+    .getByRole('button', { name: 'Sign in with a passkey', exact: true })
+    .click();
 const join = async (page: Page, code: string) => {
   await page.goto(`${origin}/join`);
   await page.getByLabel('Invitation or recovery code').fill(code);
@@ -114,6 +119,7 @@ const makePerson = async (name: string) => {
 };
 
 try {
+  await checkRevocation();
   await expect
     .poll(async () => {
       try {
@@ -348,10 +354,11 @@ try {
   await setAccess(alex.id, false);
   await recovered.page.goto(`${origin}/wardrobe`);
   await expect(recovered.page).toHaveURL(`${origin}/login`);
+  await signIn(recovered.page);
+  await expect(recovered.page.getByRole('alert')).toBeVisible();
+  await expectRevoked(alex.userId);
   await setAccess(alex.id, true);
-  await recovered.page
-    .getByRole('button', { name: 'Sign in with a passkey', exact: true })
-    .click();
+  await signIn(recovered.page);
   await expect(recovered.page).toHaveURL(`${origin}/`);
   await owner.page.goto(`${origin}/people`);
   await scan(owner.page);

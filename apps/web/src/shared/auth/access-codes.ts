@@ -1,5 +1,5 @@
 import { APIError } from 'better-auth/api';
-import { pool } from '#/shared/db/pool.ts';
+import { authPool, withAccessTransaction } from './access-transaction.ts';
 
 const hexRadix = 16;
 const hexDigits = 2;
@@ -30,7 +30,7 @@ export const resolveAccessCode = async (code: string | null) => {
   if (!code || code.length > maxCodeLength) {
     throw invalidCode();
   }
-  const result = await pool.query<{ userId: string; name: string }>(
+  const result = await authPool.query<{ userId: string; name: string }>(
     `
     select m.user_id as "userId", m.name from access_code c join member m on m.id = c.member_id
     where c.digest = $1 and c.expires_at > now() and m.enabled and not m.admin
@@ -45,10 +45,8 @@ export const resolveAccessCode = async (code: string | null) => {
 };
 
 /** Consume only after WebAuthn verification. Concurrent redemption has exactly one winner. */
-export const consumeAccessCode = async (code: string, userId: string) => {
-  const client = await pool.connect();
-  try {
-    await client.query('begin');
+export const consumeAccessCode = (code: string, userId: string) =>
+  withAccessTransaction(async (client) => {
     const result = await client.query<{ kind: string }>(
       `
       delete from access_code c using member m
@@ -64,11 +62,4 @@ export const consumeAccessCode = async (code: string, userId: string) => {
       await client.query('delete from session where user_id = $1', [userId]);
       await client.query('delete from passkey where user_id = $1', [userId]);
     }
-    await client.query('commit');
-  } catch (error) {
-    await client.query('rollback');
-    throw error;
-  } finally {
-    client.release();
-  }
-};
+  });

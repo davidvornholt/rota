@@ -1,7 +1,7 @@
 import { Data, Effect } from 'effect';
 import { codeDigest, newAccessCode } from '#/shared/auth/access-codes.ts';
+import { withAccessTransaction } from '#/shared/auth/access-transaction.ts';
 import { currentIdentity } from '#/shared/auth/identity.ts';
-import { pool } from '#/shared/db/pool.ts';
 
 export class PeopleError extends Data.TaggedError('PeopleError')<{
   readonly message: string;
@@ -34,11 +34,9 @@ export const peopleOperation = <A>(work: () => Promise<A>) =>
 export const issueCode = async (input: {
   readonly name?: string;
   readonly memberId?: string;
-}) => {
-  const client = await pool.connect();
-  const code = newAccessCode();
-  try {
-    await client.query('begin');
+}) =>
+  withAccessTransaction(async (client) => {
+    const code = newAccessCode();
     let id = input.memberId;
     if (id) {
       const member = await client.query(
@@ -68,20 +66,11 @@ export const issueCode = async (input: {
       on conflict (member_id) do update set digest = excluded.digest, kind = excluded.kind, expires_at = excluded.expires_at`,
       [await codeDigest(code), id, input.memberId ? 'recovery' : 'invitation'],
     );
-    await client.query('commit');
     return { code, memberId: id };
-  } catch (error) {
-    await client.query('rollback');
-    throw error;
-  } finally {
-    client.release();
-  }
-};
+  });
 
-export const setAccess = async (id: string, enabled: boolean) => {
-  const client = await pool.connect();
-  try {
-    await client.query('begin');
+export const setAccess = (id: string, enabled: boolean) =>
+  withAccessTransaction(async (client) => {
     const result = await client.query<{ userId: string }>(
       'update member set enabled = $2 where id = $1 and not admin returning user_id as "userId"',
       [id, enabled],
@@ -96,11 +85,4 @@ export const setAccess = async (id: string, enabled: boolean) => {
       ]);
       await client.query('delete from access_code where member_id = $1', [id]);
     }
-    await client.query('commit');
-  } catch (error) {
-    await client.query('rollback');
-    throw error;
-  } finally {
-    client.release();
-  }
-};
+  });
