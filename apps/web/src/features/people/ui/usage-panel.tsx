@@ -53,8 +53,8 @@ export const UsagePanel = () => {
         </label>
       </div>
       <p className="mt-6 text-xl">
-        USD {total.toFixed(costDecimals)} estimated · {unknown} attempts with
-        unknown cost
+        USD {total.toFixed(costDecimals)} estimated · {unknown}{' '}
+        {unknown === 1 ? 'attempt' : 'attempts'} with unknown cost
       </p>
       <p className="mt-2 text-ink-muted text-sm">
         Estimates use the rates saved when each request starts. Provider
@@ -66,8 +66,13 @@ export const UsagePanel = () => {
           Usage could not be loaded. Refresh to try again.
         </Notice>
       ) : null}
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full text-left text-sm">
+      <section
+        aria-label="API usage"
+        className="mt-6 overflow-x-auto"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: The scrollable table needs keyboard access on narrow screens.
+        tabIndex={0}
+      >
+        <table className="w-full min-w-160 text-left text-sm">
           <caption className="sr-only">
             API usage by person and operation
           </caption>
@@ -113,7 +118,7 @@ export const UsagePanel = () => {
             ))}
           </tbody>
         </table>
-      </div>
+      </section>
       {usage.data?.length === 0 ? (
         <p className="mt-4 text-ink-muted">
           No API requests recorded in this period.

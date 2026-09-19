@@ -4,7 +4,6 @@ import { useId, useState } from 'react';
 import {
   fieldClass,
   frameClass,
-  linkButtonClass,
   quietButtonClass,
   signalButtonClass,
 } from '#/shared/ui/classes.ts';
@@ -17,6 +16,8 @@ import {
   peopleFn,
   recoverFn,
 } from '../services/people-fns.ts';
+import { AccessCode } from './access-code.tsx';
+import { PersonAccess } from './person-access.tsx';
 import { UsagePanel } from './usage-panel.tsx';
 
 export const PeoplePage = () => {
@@ -61,7 +62,7 @@ export const PeoplePage = () => {
           />
         </label>
         <button
-          className={signalButtonClass}
+          className={issuedCode ? quietButtonClass : signalButtonClass}
           disabled={action.isPending}
           type="submit"
         >
@@ -69,33 +70,11 @@ export const PeoplePage = () => {
         </button>
       </form>
       {issuedCode ? (
-        <section
-          aria-label="Access code"
-          className="mt-6 border border-rule-strong p-5"
-        >
-          <h2 className="text-lg">Share this code directly</h2>
-          <p className="mt-2 text-sm">
-            Ask them to open Rota, choose “Set up or recover access”, and paste
-            this code. It expires in 24 hours and works once. Recovery replaces
-            all their existing passkeys and signs out their other sessions.
-          </p>
-          <label className="mt-4 block" htmlFor={`${formId}-issued-code`}>
-            Access code
-            <input
-              className={fieldClass}
-              id={`${formId}-issued-code`}
-              readOnly={true}
-              value={issuedCode}
-            />
-          </label>
-          <button
-            className={linkButtonClass}
-            onClick={() => setIssuedCode(null)}
-            type="button"
-          >
-            Hide code
-          </button>
-        </section>
+        <AccessCode
+          code={issuedCode}
+          key={issuedCode}
+          onHide={() => setIssuedCode(null)}
+        />
       ) : null}
       {action.isError ? (
         <Notice className="mt-4" live={true}>
@@ -116,7 +95,7 @@ export const PeoplePage = () => {
             <div>
               <h2 className="text-xl">{person.name}</h2>
               <p className="mt-1 text-ink-muted text-sm">
-                {personStatus(person)}· Last active:{' '}
+                {personStatus(person)} · Last active:{' '}
                 {person.lastActiveAt
                   ? new Date(person.lastActiveAt).toLocaleDateString()
                   : 'Not yet'}
@@ -128,62 +107,39 @@ export const PeoplePage = () => {
                 </p>
               ) : null}
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-start gap-x-5 gap-y-2">
               <Link
-                className={linkButtonClass}
+                className={quietButtonClass}
                 params={{ memberId: person.id }}
                 to="/people/$memberId"
               >
                 View wardrobe
               </Link>
-              {person.admin ? null : (
-                <>
-                  <button
-                    className={quietButtonClass}
-                    disabled={action.isPending || !person.enabled}
-                    onClick={() =>
-                      action.mutate(async () => {
-                        const result = await recoverFn({
-                          data: { memberId: person.id },
-                        });
-                        setIssuedCode(result.code);
-                      })
-                    }
-                    type="button"
-                  >
-                    Issue recovery code
-                  </button>
-                  <button
-                    className={quietButtonClass}
-                    disabled={action.isPending}
-                    onClick={() =>
-                      action.mutate(() =>
-                        accessFn({
-                          data: { id: person.id, enabled: !person.enabled },
-                        }),
-                      )
-                    }
-                    type="button"
-                  >
-                    {person.enabled ? 'Suspend access' : 'Restore access'}
-                  </button>
-                </>
-              )}
-              {person.codeExpiresAt ? (
-                <button
-                  className={linkButtonClass}
-                  disabled={action.isPending}
-                  onClick={() =>
-                    action.mutate(async () => {
-                      await cancelCodeFn({ data: { id: person.id } });
-                      setIssuedCode(null);
-                    })
-                  }
-                  type="button"
-                >
-                  Cancel code
-                </button>
-              ) : null}
+              <PersonAccess
+                person={person}
+                pending={action.isPending}
+                onRecover={() =>
+                  action.mutate(async () => {
+                    const result = await recoverFn({
+                      data: { memberId: person.id },
+                    });
+                    setIssuedCode(result.code);
+                  })
+                }
+                onToggle={() =>
+                  action.mutate(() =>
+                    accessFn({
+                      data: { id: person.id, enabled: !person.enabled },
+                    }),
+                  )
+                }
+                onCancel={() =>
+                  action.mutate(async () => {
+                    await cancelCodeFn({ data: { id: person.id } });
+                    setIssuedCode(null);
+                  })
+                }
+              />
             </div>
           </li>
         ))}

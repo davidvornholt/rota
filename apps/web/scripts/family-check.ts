@@ -21,6 +21,10 @@ import {
   SettingsRepository,
 } from '../src/shared/data/settings-repository.ts';
 import { pool } from '../src/shared/db/pool.ts';
+import {
+  checkCodeActions,
+  checkPeopleActions,
+} from './family-actions-check.ts';
 import { checkRevocation, expectRevoked } from './family-revocation-check.ts';
 
 // This test creates fixtures only in the explicitly isolated development database.
@@ -153,6 +157,7 @@ try {
   });
   await expect(codeField).toBeVisible();
   const invitationCode = await codeField.inputValue();
+  await checkCodeActions(owner.page);
   const invited = await pool.query<{ id: string; userId: string }>(
     `select m.id, m.user_id as "userId" from member m join access_code c on c.member_id = m.id where c.digest = $1`,
     [await codeDigest(invitationCode)],
@@ -362,12 +367,7 @@ try {
   await expect(recovered.page).toHaveURL(`${origin}/`);
   await owner.page.goto(`${origin}/people`);
   await scan(owner.page);
-  await capture(owner.page, 'family-admin-people');
-  await owner.page.getByText('API prices', { exact: true }).click();
-  await scan(owner.page);
-  await owner.page.setViewportSize({ width: 390, height: 844 });
-  await scan(owner.page);
-  await capture(owner.page, 'family-admin-people-mobile');
+  await checkPeopleActions(owner.page, capture);
   process.stdout.write(
     'Family check passed: registration, recovery, session revocation, tenant isolation, costs, and accessibility.\n',
   );
