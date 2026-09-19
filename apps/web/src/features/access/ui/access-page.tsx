@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { Link, useRouter } from '@tanstack/react-router';
+import { Link, useHydrated, useRouter } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 import { authClient } from '#/shared/auth/auth-client.ts';
 import { rejectAuthError } from '#/shared/auth/auth-response.ts';
@@ -19,6 +19,7 @@ export const SignInPage = ({
   readonly oauthError?: string;
 }) => {
   const router = useRouter();
+  const hydrated = useHydrated();
   const signIn = useMutation({
     mutationFn: async () => {
       await authClient.signIn.passkey().then(rejectAuthError);
@@ -54,7 +55,7 @@ export const SignInPage = ({
         </p>
         <button
           className={`${signalButtonClass} mt-10`}
-          disabled={signIn.isPending || github.isPending}
+          disabled={!hydrated || signIn.isPending || github.isPending}
           onClick={() => signIn.mutate()}
           type="button"
         >
@@ -81,7 +82,7 @@ export const SignInPage = ({
           <summary className="cursor-pointer">Administrator sign-in</summary>
           <button
             className={linkButtonClass}
-            disabled={github.isPending || signIn.isPending}
+            disabled={!hydrated || github.isPending || signIn.isPending}
             onClick={() => github.mutate()}
             type="button"
           >
@@ -96,6 +97,7 @@ export const SignInPage = ({
 export const JoinPage = () => {
   const formId = useId();
   const router = useRouter();
+  const hydrated = useHydrated();
   const [code, setCode] = useState('');
   const register = useMutation({
     mutationFn: async () => {
@@ -150,7 +152,7 @@ export const JoinPage = () => {
             </label>
             <button
               className={signalButtonClass}
-              disabled={register.isPending}
+              disabled={!hydrated || register.isPending}
               type="submit"
             >
               {register.isPending
