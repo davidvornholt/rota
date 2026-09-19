@@ -1,5 +1,5 @@
 import type { GarmentView } from '#/shared/data/garment-view.ts';
-import type { DayPlan, SavedOutfit } from '#/shared/data/outfit-repository.ts';
+import type { DayPlan, SavedOutfit } from '#/shared/data/outfit.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import type { TodayView } from './today-view.ts';
 export type PlanningView = {

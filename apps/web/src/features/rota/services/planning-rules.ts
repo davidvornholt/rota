@@ -1,9 +1,6 @@
 import { Effect } from 'effect';
 import type { Garment } from '#/shared/data/garment.ts';
-import type {
-  DayPlan,
-  ForecastSnapshot,
-} from '#/shared/data/outfit-repository.ts';
+import type { DayPlan, ForecastSnapshot } from '#/shared/data/outfit.ts';
 import type {
   OutfitEntry,
   WearEntry,

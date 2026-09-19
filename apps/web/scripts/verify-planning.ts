@@ -19,10 +19,8 @@ import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
 import { ProposalRepository } from '#/shared/data/proposal-repository.ts';
-import {
-  defaultSettings,
-  SettingsRepository,
-} from '#/shared/data/settings-repository.ts';
+import { defaultSettings } from '#/shared/data/settings.ts';
+import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import { addDays, localDate } from '#/shared/time/local-date.ts';

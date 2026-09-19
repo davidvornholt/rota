@@ -6,7 +6,7 @@
 
 import { Effect } from 'effect';
 
-import type { Settings } from '#/shared/data/settings-repository.ts';
+import type { Settings } from '#/shared/data/settings.ts';
 import {
   type WeatherDay,
   WeatherRepository,

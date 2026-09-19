@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import type { SavedOutfit } from '#/shared/data/outfit-repository.ts';
+import type { SavedOutfit } from '#/shared/data/outfit.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import { addDays } from '#/shared/time/local-date.ts';

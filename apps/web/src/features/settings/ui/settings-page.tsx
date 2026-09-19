@@ -5,7 +5,7 @@ import {
   categoryDefaults,
   garmentCategories,
 } from '#/shared/data/garment-types.ts';
-import type { Settings } from '#/shared/data/settings-repository.ts';
+import type { Settings } from '#/shared/data/settings.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import {
   fieldClass,

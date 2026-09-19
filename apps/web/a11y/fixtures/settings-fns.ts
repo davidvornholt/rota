@@ -1,9 +1,6 @@
 import { Effect } from 'effect';
 import type { RotationSettingsInput } from '#/features/settings/schemas/settings-input.ts';
-import {
-  defaultSettings,
-  type Settings,
-} from '#/shared/data/settings-repository.ts';
+import { defaultSettings, type Settings } from '#/shared/data/settings.ts';
 import type { Location } from '#/shared/weather/location.ts';
 export let settings: Settings = {
   ...defaultSettings,

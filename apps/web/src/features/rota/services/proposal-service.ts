@@ -14,10 +14,8 @@ import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { displayImage, type Garment } from '#/shared/data/garment.ts';
 import { cleanTopOn } from '#/shared/data/garment-care.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
-import {
-  OutfitRepository,
-  type SavedOutfit,
-} from '#/shared/data/outfit-repository.ts';
+import type { SavedOutfit } from '#/shared/data/outfit.ts';
+import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
 import {
   type ProposalPayload,
   ProposalRepository,

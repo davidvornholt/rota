@@ -1,9 +1,6 @@
 import { Effect } from 'effect';
-
-import {
-  type Settings,
-  SettingsRepository,
-} from '#/shared/data/settings-repository.ts';
+import type { Settings } from '#/shared/data/settings.ts';
+import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { hourIn, type LocalDate, todayIn } from './local-date.ts';
 
 /** Until a location is chosen the wardrobe keeps Berlin time; the location's zone takes over from then on. */

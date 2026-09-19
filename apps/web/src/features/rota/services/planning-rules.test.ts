@@ -1,8 +1,8 @@
 import { expect, it } from 'bun:test';
 import { Effect } from 'effect';
 import { cleanTopOn } from '#/shared/data/garment-care.ts';
-import { emptyPlan } from '#/shared/data/outfit-repository.ts';
-import { defaultSettings } from '#/shared/data/settings-repository.ts';
+import { emptyPlan } from '#/shared/data/outfit.ts';
+import { defaultSettings } from '#/shared/data/settings.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import {

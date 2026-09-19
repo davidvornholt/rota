@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import type { PlanningChange } from '#/features/rota/schemas/planning-input.ts';
 import type { PlanningView } from '#/features/rota/schemas/planning-view.ts';
-import { emptyPlan } from '#/shared/data/outfit-repository.ts';
+import { emptyPlan } from '#/shared/data/outfit.ts';
 import type { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import { addDays, localDate } from '#/shared/time/local-date.ts';
 import { demoProposal, shirt } from './today-proposal.ts';

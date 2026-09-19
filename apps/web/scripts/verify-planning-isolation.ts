@@ -6,10 +6,8 @@ import { Effect, Layer, ManagedRuntime } from 'effect';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
-import {
-  defaultSettings,
-  SettingsRepository,
-} from '#/shared/data/settings-repository.ts';
+import { defaultSettings } from '#/shared/data/settings.ts';
+import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 
 const isolationRuntime = (pool: ReturnType<typeof createPool>, id: string) =>

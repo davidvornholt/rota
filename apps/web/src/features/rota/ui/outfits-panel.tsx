@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
-import type { SavedOutfit } from '#/shared/data/outfit-repository.ts';
+import type { SavedOutfit } from '#/shared/data/outfit.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import {
   fieldClass,

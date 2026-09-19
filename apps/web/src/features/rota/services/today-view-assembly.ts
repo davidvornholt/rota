@@ -9,7 +9,7 @@ import { garmentCare } from '#/shared/data/garment-care.ts';
 import { effectiveWearBudget, slotOrder } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { Proposal } from '#/shared/data/proposal-repository.ts';
-import type { Settings } from '#/shared/data/settings-repository.ts';
+import type { Settings } from '#/shared/data/settings.ts';
 import { unloggedDaysBefore } from '#/shared/data/wear-log-gap.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import { addDays, type LocalDate } from '#/shared/time/local-date.ts';

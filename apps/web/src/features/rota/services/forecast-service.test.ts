@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { Effect, Layer } from 'effect';
-import { defaultSettings } from '#/shared/data/settings-repository.ts';
+import { defaultSettings } from '#/shared/data/settings.ts';
 import {
   type WeatherDay,
   WeatherRepository,

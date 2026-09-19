@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { OutfitEntriesSchema } from '#/shared/data/outfit-repository.ts';
+import { OutfitEntriesSchema } from '#/shared/data/outfit.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 
 const maximumLaundryBatch = 500;
