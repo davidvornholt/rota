@@ -37,7 +37,10 @@ const people: Array<Person> = [
 ];
 
 export const peopleFn = () => Effect.runPromise(Effect.succeed(people));
-export const usageFn = () => globalThis.location.pathname.endsWith('/usage.html') ? demoUsageFn() : Effect.runPromise(Effect.succeed<Array<UsageSummary>>([]));
+export const usageFn = () =>
+  globalThis.location.pathname.endsWith('/usage.html')
+    ? demoUsageFn()
+    : Effect.runPromise(Effect.succeed<Array<UsageSummary>>([]));
 export const accessFn = () => Effect.runPromise(Effect.void);
 export const cancelCodeFn = () => Effect.runPromise(Effect.void);
 export const inviteFn = () =>
