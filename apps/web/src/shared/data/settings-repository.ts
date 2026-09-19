@@ -1,11 +1,13 @@
 import { SqlClient } from '@effect/sql';
 import { Effect, Schema } from 'effect';
 
+import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import { LocationSchema } from '#/shared/weather/open-meteo.ts';
 import { readError, writeError } from './errors/data-errors.ts';
 
 export const SettingsSchema = Schema.Struct({
   location: Schema.NullOr(LocationSchema),
+  cleanTopAnchor: Schema.NullOr(LocalDateSchema),
   cooldownDays: Schema.Number,
   categoryBudgets: Schema.Record({ key: Schema.String, value: Schema.Number }),
   proposalHour: Schema.Number,
@@ -14,6 +16,9 @@ export type Settings = Schema.Schema.Type<typeof SettingsSchema>;
 
 const SettingsFromRow = Schema.Struct({
   location: Schema.NullOr(LocationSchema),
+  cleanTopAnchor: Schema.propertySignature(Schema.NullOr(LocalDateSchema)).pipe(
+    Schema.fromKey('clean_top_anchor'),
+  ),
   cooldownDays: Schema.propertySignature(Schema.Number).pipe(
     Schema.fromKey('cooldown_days'),
   ),
@@ -27,6 +32,7 @@ const SettingsFromRow = Schema.Struct({
 
 export const defaultSettings: Settings = {
   location: null,
+  cleanTopAnchor: null,
   cooldownDays: 7,
   categoryBudgets: {},
   proposalHour: 5,
@@ -45,7 +51,7 @@ export class SettingsRepository extends Effect.Service<SettingsRepository>()(
       /** The settings row, or the defaults until the first save creates it. */
       const read = () =>
         sql`
-          select location, cooldown_days, category_budgets, proposal_hour
+          select location, clean_top_anchor, cooldown_days, category_budgets, proposal_hour
           from settings where id = 'singleton'
         `.pipe(
           Effect.flatMap(decodeSettings),
@@ -55,14 +61,16 @@ export class SettingsRepository extends Effect.Service<SettingsRepository>()(
 
       const save = (settings: Settings) =>
         sql`
-          insert into settings (id, location, cooldown_days, category_budgets, proposal_hour)
+          insert into settings (id, location, clean_top_anchor, cooldown_days, category_budgets, proposal_hour)
           values ('singleton',
                   ${settings.location === null ? null : JSON.stringify(settings.location)}::jsonb,
+                  ${settings.cleanTopAnchor},
                   ${settings.cooldownDays},
                   ${JSON.stringify(settings.categoryBudgets)}::jsonb,
                   ${settings.proposalHour})
           on conflict (id) do update
             set location = excluded.location,
+                clean_top_anchor = excluded.clean_top_anchor,
                 cooldown_days = excluded.cooldown_days,
                 category_budgets = excluded.category_budgets,
                 proposal_hour = excluded.proposal_hour,

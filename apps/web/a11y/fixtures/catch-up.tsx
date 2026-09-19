@@ -63,6 +63,8 @@ const threeDays: CatchUpView = {
     },
   ],
   choices: {
+    shoes: [],
+    bag: [],
     bottom: [chinos, jeans],
     under: [],
     top: [shirt, tee],

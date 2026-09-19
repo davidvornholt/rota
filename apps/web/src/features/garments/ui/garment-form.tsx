@@ -7,6 +7,7 @@ import {
   categoryDefaults,
   type GarmentCategory,
   garmentCategories,
+  hasWearBudget,
   longestWearBudget,
   type Slot,
   slotLabel,
@@ -174,10 +175,7 @@ export const GarmentForm = ({
     onChange({
       ...value,
       category,
-      slots:
-        value.slots.length === 0
-          ? categoryDefaults[category].slots
-          : value.slots,
+      slots: categoryDefaults[category].slots,
     });
 
   return (
@@ -210,17 +208,19 @@ export const GarmentForm = ({
         />
       </div>
       <div className="grid items-start gap-6 sm:grid-cols-2">
-        <div>
-          <NumberField
-            inputMode="numeric"
-            label="Days in a row"
-            max={longestWearBudget}
-            min={1}
-            onChange={(next) => set('wearBudget', next)}
-            placeholder={`Category default: ${categoryBudget}`}
-            value={value.wearBudget}
-          />
-        </div>
+        {hasWearBudget(value) ? (
+          <div>
+            <NumberField
+              inputMode="numeric"
+              label="Wears between washes"
+              max={longestWearBudget}
+              min={1}
+              onChange={(next) => set('wearBudget', next)}
+              placeholder={`Category default: ${categoryBudget}`}
+              value={value.wearBudget}
+            />
+          </div>
+        ) : null}
         <ColourFields
           colors={value.colors}
           onChange={(next) => set('colors', next)}

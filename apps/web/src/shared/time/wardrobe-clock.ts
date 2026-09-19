@@ -16,6 +16,7 @@ export type WardrobeClock = {
   readonly settings: Settings;
   readonly timeZone: string;
   readonly today: LocalDate;
+  readonly actualToday: LocalDate;
   readonly hour: number;
 };
 
@@ -35,6 +36,7 @@ export const readWardrobeClock = (
         settings,
         timeZone,
         today: todayIn(timeZone, now),
+        actualToday: todayIn(timeZone, now),
         hour: hourIn(timeZone, now),
       };
     },

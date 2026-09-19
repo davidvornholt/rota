@@ -1,130 +1,144 @@
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
-
-import {
-  frameClass,
-  quietButtonClass,
-  signalButtonClass,
-} from '#/shared/ui/classes.ts';
+import { frameClass, linkButtonClass } from '#/shared/ui/classes.ts';
 import { Notice } from '#/shared/ui/notice.tsx';
-import type { TodayView } from '../schemas/today-view.ts';
+import type { PlanningView } from '../schemas/planning-view.ts';
+import { backfillFn } from '../services/today-fns.ts';
 import { BackfillPrompt } from './backfill-prompt.tsx';
-import { OccasionNote } from './occasion-note.tsx';
-import { Deciding, ProposalSection } from './proposal-section.tsx';
-import { ProblemSection, ReceiptSection } from './receipt-section.tsx';
-import { type TodayController, useToday } from './use-today.ts';
+import { completeOutfit } from './draft-status.ts';
+import { LaundryPanel } from './laundry-panel.tsx';
+import { OutfitEditor } from './outfit-editor.tsx';
+import { OutfitsPanel } from './outfits-panel.tsx';
+import { PlanningActions } from './planning-actions.tsx';
+import { PlanningHeading, PlanningNavigation } from './planning-header.tsx';
+import { usePlanning } from './use-planning.ts';
 import { WeatherStrip } from './weather-strip.tsx';
 
-const failureMessage = (error: unknown): string =>
-  error instanceof Error && error.message !== ''
-    ? error.message
-    : 'That did not go through. Try again.';
-
-const AskForOne = ({ onAsk }: { readonly onAsk: () => void }) => (
-  <section className="mt-8 max-w-prose">
-    <p className="type-eyebrow">Today</p>
-    <p className="type-display mt-2 text-3xl text-ink">
-      No proposal for today yet.
-    </p>
-    <p className="mt-6">
-      <button className={signalButtonClass} onClick={onAsk} type="button">
-        Ask for one
-      </button>
-    </p>
-  </section>
-);
-
-/** Whichever of the day's states applies: dressed, proposed, deciding, stuck, or idle. */
-const DayBody = ({ today }: { readonly today: TodayController }) => {
-  const { view } = today;
-  if (view.worn !== null) {
-    return (
-      <ReceiptSection
-        justLogged={today.justLogged}
-        view={view}
-        worn={view.worn}
-      />
-    );
-  }
-  if (view.problem !== null) {
-    return (
-      <ProblemSection
-        onRetry={today.decide}
-        problem={view.problem}
-        retrying={today.deciding}
-      />
-    );
-  }
-  if (view.proposal !== null) {
-    return <ProposalSection proposal={view.proposal} today={today} />;
-  }
-  if (today.deciding || today.needsDecision) {
-    return <Deciding />;
-  }
-  return <AskForOne onAsk={today.decide} />;
-};
-
-export const TodayPage = ({ initial }: { readonly initial: TodayView }) => {
-  const today = useToday(initial);
-  const { view } = today;
-  const [dismissedBackfill, setDismissedBackfill] = useState(false);
-  const noteBelow = view.worn !== null || view.problem !== null;
-  const wardrobeActionShown =
-    view.worn === null &&
-    (view.problem?.kind === 'wardrobe-empty' ||
-      view.problem?.kind === 'slot-empty');
-
+type Panel = 'outfits' | 'save' | 'laundry' | null;
+export const TodayPage = ({
+  initial,
+  seed,
+  savedOutfitId,
+  panel,
+}: {
+  readonly initial: PlanningView;
+  readonly seed?: string;
+  readonly savedOutfitId?: string;
+  readonly panel?: 'outfits' | 'laundry';
+}) => {
+  const controller = usePlanning(initial, {
+    garment: seed,
+    outfit: savedOutfitId,
+  });
+  const { view, entries, busy } = controller;
+  const [open, setOpen] = useState<Panel>(panel ?? null);
+  const [dismissed, setDismissed] = useState(false);
+  const [backfillError, setBackfillError] = useState('');
+  const [backfilling, setBackfilling] = useState(false);
+  const worn = view.day.worn !== null;
+  const { failure } = controller;
+  const complete = completeOutfit(entries);
   return (
     <div className={frameClass}>
+      <PlanningNavigation controller={controller} onPanel={setOpen} />
       <WeatherStrip
-        locationLabel={view.locationLabel}
-        stale={view.forecastStale}
-        today={view.today}
-        weather={view.weather}
+        locationLabel={view.day.locationLabel}
+        stale={view.day.forecastStale}
+        today={view.day.today}
+        weather={view.day.weather}
       />
-
-      {view.unlogged !== null && !dismissedBackfill ? (
+      {view.day.unlogged === null || dismissed ? null : (
         <div className="mt-6">
           <BackfillPrompt
-            gap={view.unlogged}
-            onDismiss={() => setDismissedBackfill(true)}
-            onSame={today.backfill}
-            pending={today.backfilling}
+            gap={view.day.unlogged}
+            onDismiss={() => setDismissed(true)}
+            pending={busy || backfilling}
+            onSame={(gap) => {
+              setBackfilling(true);
+              setBackfillError('');
+              backfillFn({ data: { date: gap.from, copyFrom: gap.lastLogged } })
+                .then(() => {
+                  setDismissed(true);
+                  controller.refresh();
+                })
+                .catch((error: unknown) =>
+                  setBackfillError(
+                    error instanceof Error
+                      ? error.message
+                      : 'Could not log the day. Try again.',
+                  ),
+                )
+                .finally(() => setBackfilling(false));
+            }}
           />
         </div>
-      ) : null}
-
-      {today.failure === undefined ? null : (
-        <Notice className="mt-6" live={true}>
-          {failureMessage(today.failure)}
-          {today.previousSuggestionShown ? (
-            <span className="block">
-              Your previous suggestion is still shown below.
-            </span>
-          ) : null}
+      )}
+      {backfillError === '' ? null : (
+        <Notice live={true}>{backfillError}</Notice>
+      )}
+      {failure === null ? null : (
+        <Notice className="mt-5" live={true}>
+          {failure instanceof Error
+            ? failure.message
+            : 'Could not save. Try again.'}
         </Notice>
       )}
-
-      <DayBody today={today} />
-
-      {noteBelow ? (
-        <div className="mt-10 border-rule border-t pt-6">
-          <OccasionNote
-            occasion={view.occasion}
-            onSave={today.saveOccasion}
-            pending={today.savingOccasion}
-            remakes={view.worn === null}
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-x-16 lg:gap-y-6">
+        <div className="lg:col-start-1">
+          <PlanningHeading controller={controller} />
+        </div>
+        <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <OutfitEditor
+            entries={entries}
+            wardrobe={view.wardrobe}
+            onChange={controller.setEntries}
+            pinned={controller.pinned}
+            onPin={worn ? null : controller.pin}
+            disabled={busy || worn}
           />
         </div>
+        <div className="lg:col-start-1 lg:self-start">
+          <div className="mt-6">
+            {worn ? (
+              <Link
+                className={linkButtonClass}
+                to="/history/$date"
+                params={{ date: view.day.today }}
+              >
+                Edit what you wore
+              </Link>
+            ) : (
+              <PlanningActions
+                key={entries.map((entry) => entry.garmentId).join(',')}
+                controller={controller}
+              />
+            )}
+          </div>
+          {complete ? (
+            <button
+              className={[linkButtonClass, 'mt-3'].join(' ')}
+              disabled={busy}
+              onClick={() => setOpen('save')}
+              type="button"
+            >
+              Save as an outfit
+            </button>
+          ) : null}
+          <p className="mt-3 text-ink-muted text-sm" role="status">
+            {controller.message}
+          </p>
+        </div>
+      </div>
+      {open === 'outfits' || open === 'save' ? (
+        <OutfitsPanel
+          controller={controller}
+          saveCurrent={open === 'save'}
+          onClose={() => setOpen(null)}
+        />
       ) : null}
-
-      {wardrobeActionShown ? null : (
-        <p className="mt-8">
-          <Link className={quietButtonClass} to="/wardrobe">
-            Add clothes
-          </Link>
-        </p>
-      )}
+      {open === 'laundry' ? (
+        <LaundryPanel controller={controller} onClose={() => setOpen(null)} />
+      ) : null}
     </div>
   );
 };

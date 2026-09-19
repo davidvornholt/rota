@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import {
   categoryDefaults,
+  hasWearBudget,
   type ImageChoice,
   isCategory,
   slotLabel,
@@ -84,6 +85,20 @@ const Picture = ({
     </div>
     <div className="mt-3">{replaceControl}</div>
     {renderControl}
+    {garment.status === 'active' ? (
+      <div className="mt-4 flex gap-5">
+        <Link
+          className={quietButtonClass}
+          to="/"
+          search={{ garment: garment.id }}
+        >
+          Build an outfit
+        </Link>
+        <Link className={linkButtonClass} to="/" search={{ panel: 'laundry' }}>
+          Laundry
+        </Link>
+      </div>
+    ) : null}
     <dl className="mt-6 grid grid-cols-2 gap-x-6 border-rule border-b">
       <Fact
         label="Worn"
@@ -95,7 +110,12 @@ const Picture = ({
           garment.lastWornOn === null ? '—' : formatDayMonth(garment.lastWornOn)
         }
       />
-      <Fact label="Days in a row" value={String(garment.effectiveBudget)} />
+      {hasWearBudget(garment) ? (
+        <Fact
+          label="Wears since washing"
+          value={`${garment.wearsSinceWash} / ${garment.effectiveBudget}`}
+        />
+      ) : null}
       <Fact
         label="Cost per wear"
         value={

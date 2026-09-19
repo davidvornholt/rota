@@ -4,6 +4,7 @@ import {
   garmentCategories,
   longestWearBudget,
 } from '#/shared/data/garment-types.ts';
+import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import { LocationSchema } from '#/shared/weather/open-meteo.ts';
 
 const shortestQuery = 2;
@@ -25,6 +26,7 @@ export const SaveLocationInputSchema = Schema.Struct({
 const budgetDay = Schema.Int.pipe(Schema.between(1, longestWearBudget));
 
 export const RotationSettingsInputSchema = Schema.Struct({
+  cleanTopAnchor: Schema.NullOr(LocalDateSchema),
   cooldownDays: Schema.Int.pipe(Schema.between(0, longestCooldown)),
   proposalHour: Schema.Int.pipe(Schema.between(0, lastHour)),
   categoryBudgets: Schema.Record({

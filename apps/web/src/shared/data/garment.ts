@@ -17,6 +17,8 @@ export const SlotSchema: Schema.Schema<Slot> = Schema.Literal(
   'under',
   'top',
   'over',
+  'shoes',
+  'bag',
 );
 
 export const GarmentStatusSchema: Schema.Schema<GarmentStatus> = Schema.Literal(
@@ -72,6 +74,15 @@ export const GarmentFromRow = Schema.Struct({
   formality: GarmentScaleSchema,
   wearBudget: Schema.propertySignature(Schema.NullOr(Schema.Number)).pipe(
     Schema.fromKey('wear_budget'),
+  ),
+  washedOn: Schema.propertySignature(Schema.NullOr(LocalDateSchema)).pipe(
+    Schema.fromKey('washed_on'),
+  ),
+  washedAfterWear: Schema.propertySignature(Schema.Boolean).pipe(
+    Schema.fromKey('washed_after_wear'),
+  ),
+  inLaundry: Schema.propertySignature(Schema.Boolean).pipe(
+    Schema.fromKey('in_laundry'),
   ),
   colors: Schema.Array(GarmentColorSchema),
   pattern: Schema.String,

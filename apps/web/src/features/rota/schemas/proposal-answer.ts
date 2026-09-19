@@ -12,6 +12,8 @@ export const ProposalAnswerSchema = Schema.Struct({
     under: Schema.NullOr(Schema.String),
     top: Schema.String,
     over: Schema.NullOr(Schema.String),
+    shoes: Schema.NullOr(Schema.String),
+    bag: Schema.NullOr(Schema.String),
   }),
   headline: Schema.String,
   reasons: Schema.Array(
@@ -49,8 +51,10 @@ export const proposalAnswerJsonSchema = (
           under: forSlot('under', true),
           top: forSlot('top', false),
           over: forSlot('over', true),
+          shoes: forSlot('shoes', true),
+          bag: forSlot('bag', true),
         },
-        required: ['bottom', 'under', 'top', 'over'],
+        required: ['bottom', 'under', 'top', 'over', 'shoes', 'bag'],
       },
       headline: alias(
         'One short sentence, second person, plain and specific, that opens the morning: what to keep, what is fresh, and the one reason. At most 90 characters. Example: "Keep the grey chinos; a fresh white shirt for the warmer afternoon."',

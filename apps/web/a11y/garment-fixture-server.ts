@@ -11,6 +11,14 @@ const garmentFixtureConfig = (cacheDir: string): InlineConfig => ({
   resolve: {
     tsconfigPaths: true,
     alias: {
+      '../services/settings-fns.ts': new URL(
+        './fixtures/settings-fns.ts',
+        import.meta.url,
+      ).pathname,
+      '../services/planning-fns.ts': new URL(
+        './fixtures/planning-fns.ts',
+        import.meta.url,
+      ).pathname,
       '../services/today-fns.ts': new URL(
         './fixtures/garments-fns.ts',
         import.meta.url,

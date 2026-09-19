@@ -5,19 +5,22 @@
 
 import { Effect, Either } from 'effect';
 import type { Garment } from '#/shared/data/garment.ts';
+import { wearsSinceWash } from '#/shared/data/garment-care.ts';
 import {
   effectiveWearBudget,
   type Slot,
   slotOrder,
 } from '#/shared/data/garment-types.ts';
 import type { ProposalItem } from '#/shared/data/proposal-repository.ts';
-import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
+import type {
+  OutfitEntry,
+  WearEntry,
+} from '#/shared/data/wear-log-repository.ts';
 import { addDays, type LocalDate } from '#/shared/time/local-date.ts';
 import { ProposalAnswerError } from '../errors/rota-errors.ts';
 import {
   type Continuation,
   candidatesFor,
-  consecutiveWears,
   type RotationInput,
 } from '../rotation.ts';
 import type { ProposalAnswer } from '../schemas/proposal-answer.ts';
@@ -103,7 +106,7 @@ const itemFor = (
   continued: aliased.continuation !== undefined,
   dayOfBudget:
     aliased.continuation?.dayOfBudget ??
-    consecutiveWears(input.log, aliased.garment.id, input.today) + 1,
+    wearsSinceWash(input.log, aliased.garment, input.today) + 1,
   budget: effectiveWearBudget(aliased.garment, input.settings.categoryBudgets),
   reason: reason === '' ? `Chosen as ${alias}.` : reason,
 });
@@ -154,4 +157,36 @@ export const answerToItems = (
     ),
     Either.match({ onLeft: Effect.fail, onRight: Effect.succeed }),
   );
+};
+
+export const choicesWithPins = (
+  input: RotationInput,
+  continuing: ReadonlyArray<Continuation>,
+  pinned: ReadonlyArray<OutfitEntry>,
+): ReadonlyArray<SlotChoices> => {
+  const pinnedIds = new Set(pinned.map((pin) => pin.garmentId));
+  return slotChoicesFor(input, continuing).map((choice) => {
+    const pin = pinned.find((entry) => entry.slot === choice.slot);
+    return pin === undefined
+      ? {
+          ...choice,
+          candidates: choice.candidates.filter(
+            (candidate) => !pinnedIds.has(candidate.garment.id),
+          ),
+        }
+      : {
+          ...choice,
+          required: true,
+          candidates: input.garments
+            .filter(
+              (garment) => garment.id === pin.garmentId && !garment.inLaundry,
+            )
+            .map((garment) => ({
+              garment,
+              wearsSinceWash: wearsSinceWash(input.log, garment, input.today),
+              daysSinceWorn: null,
+              inCooldown: false,
+            })),
+        };
+  });
 };

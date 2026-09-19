@@ -1,31 +1,7 @@
 import { useState } from 'react';
-import type {
-  ProposalItemView,
-  ProposalView,
-} from '#/features/rota/schemas/today-view.ts';
-import { ProposalSection } from '#/features/rota/ui/proposal-section.tsx';
-import type { TodayController } from '#/features/rota/ui/use-today.ts';
+import { OutfitEditor } from '#/features/rota/ui/outfit-editor.tsx';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
-import { localDate } from '#/shared/time/local-date.ts';
-
-const ignore = () => undefined;
-
-/** With `?continuing`, a pair of chinos on day two of four sits under the layer. */
-const continuingBottom = (garment: GarmentView): ProposalItemView => ({
-  garment: {
-    ...garment,
-    id: 'demo-chinos',
-    name: 'Navy chinos',
-    slots: ['bottom'],
-    effectiveBudget: 4,
-  },
-  slot: 'bottom',
-  continued: true,
-  dayOfBudget: 2,
-  budget: 4,
-  reason: 'Two days left in their rotation.',
-});
-
+import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 export const OutfitActionsFixture = ({
   garment,
   continuing = false,
@@ -33,65 +9,46 @@ export const OutfitActionsFixture = ({
   readonly garment: GarmentView;
   readonly continuing?: boolean;
 }) => {
-  const [items, setItems] = useState<ReadonlyArray<ProposalItemView>>([
-    ...(continuing ? [continuingBottom(garment)] : []),
-    {
-      garment,
-      slot: 'over',
-      continued: false,
-      dayOfBudget: 1,
-      budget: 2,
-      reason: 'An extra layer for the evening.',
-    },
+  const [entries, setEntries] = useState<ReadonlyArray<OutfitEntry>>([
+    { slot: 'over', garmentId: garment.id },
+    ...(continuing
+      ? [{ slot: 'bottom' as const, garmentId: 'demo-chinos' }]
+      : []),
   ]);
-  const proposal: ProposalView = {
-    id: 'demo-outfit',
-    status: 'pending',
-    headline: 'An evening layer',
-    items,
-    forecastStale: false,
-    occasion: 'Dinner with friends',
-  };
-  const today: TodayController = {
-    view: {
-      today: localDate('2026-09-06'),
-      locationLabel: 'Berlin',
-      weather: null,
-      tomorrowWeather: null,
-      forecastStale: false,
-      occasion: proposal.occasion,
-      proposal,
-      worn: null,
-      unlogged: null,
-      tomorrowHint: null,
-      problem: null,
-      activeGarments: 1,
+  const wardrobe = [
+    { ...garment, slots: ['over'] as const },
+    {
+      ...garment,
+      id: 'demo-chinos',
+      slots: ['bottom'] as const,
+      name: 'Navy chinos',
     },
-    draftItems: [...items],
-    edited: false,
-    justLogged: false,
-    needsDecision: false,
-    deciding: false,
-    rerolling: false,
-    logging: false,
-    busy: false,
-    failure: undefined,
-    previousSuggestionShown: false,
-    decide: ignore,
-    wear: ignore,
-    reroll: ignore,
-    pick: ignore,
-    remove: (slot) =>
-      setItems((current) => current.filter((item) => item.slot !== slot)),
-    saveOccasion: ignore,
-    savingOccasion: false,
-    backfill: ignore,
-    backfilling: false,
-  };
+    {
+      ...garment,
+      id: 'demo-jacket',
+      slots: ['over'] as const,
+      name: 'Wax jacket',
+      daysSinceWorn: 9,
+    },
+    {
+      ...garment,
+      id: 'demo-cardigan',
+      slots: ['over'] as const,
+      name: 'Grey cardigan',
+      daysSinceWorn: null,
+    },
+  ];
   return (
-    <div className="mx-auto max-w-6xl p-6">
+    <div className="mx-auto max-w-3xl p-6">
       <h1 className="text-2xl">Today</h1>
-      <ProposalSection proposal={proposal} today={today} />
+      <OutfitEditor
+        entries={entries}
+        onChange={setEntries}
+        wardrobe={wardrobe}
+        pinned={[]}
+        onPin={null}
+        disabled={false}
+      />
     </div>
   );
 };

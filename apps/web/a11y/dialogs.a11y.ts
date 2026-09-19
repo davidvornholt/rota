@@ -71,13 +71,13 @@ test('swapping a slot shows the alternatives as pictures and closes on a pick', 
   page,
 }) => {
   await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?outfit`);
-  const swap = page.getByRole('button', { name: 'Swap' });
+  const swap = page.getByRole('button', { name: 'Change Blue Oxford shirt' });
   await swap.click();
   const dialog = page.getByRole('dialog');
   await expect(
-    dialog.getByRole('heading', { name: 'Another over layer' }),
+    dialog.getByRole('heading', { name: 'Choose over layer' }),
   ).toBeFocused();
-  await expect(dialog.getByText('Suggested for today')).toBeVisible();
+  await expect(dialog.getByText('Ready to wear')).toBeVisible();
   const jacket = dialog.getByRole('button', { name: waxJacketTile });
   await expect(jacket).toContainText('9 days ago');
   await expect(
@@ -86,7 +86,9 @@ test('swapping a slot shows the alternatives as pictures and closes on a pick', 
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await jacket.click();
   await expect(dialog).toHaveCount(0);
-  await expect(swap).toBeFocused();
+  await expect(
+    page.getByRole('button', { name: 'Change Wax jacket' }),
+  ).toBeFocused();
 });
 
 test('image close icon dismisses the enlarged picture and restores focus', async ({

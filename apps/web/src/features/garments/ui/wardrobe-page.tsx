@@ -6,7 +6,12 @@ import {
   slotOrder,
 } from '#/shared/data/garment-types.ts';
 import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
-import { frameClass, tabActiveClass, tabClass } from '#/shared/ui/classes.ts';
+import {
+  frameClass,
+  linkButtonClass,
+  tabActiveClass,
+  tabClass,
+} from '#/shared/ui/classes.ts';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { Swatches } from '#/shared/ui/swatches.tsx';
 import type { WardrobeView } from '../services/garments-fns.ts';
@@ -103,7 +108,23 @@ export const WardrobePage = ({
             {view.queue.length > 0 ? ` · ${view.queue.length} waiting` : ''}
           </p>
         </div>
-        <UploadControl onUploaded={refresh} />
+        <div className="flex flex-wrap items-center gap-4">
+          <Link
+            className={linkButtonClass}
+            to="/"
+            search={{ panel: 'outfits' }}
+          >
+            Saved outfits
+          </Link>
+          <Link
+            className={linkButtonClass}
+            to="/"
+            search={{ panel: 'laundry' }}
+          >
+            Laundry
+          </Link>
+          <UploadControl onUploaded={refresh} />
+        </div>
       </div>
 
       {view.queue.length > 0 ? (

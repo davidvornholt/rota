@@ -2,94 +2,56 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createMemoryHistory,
   createRootRoute,
+  createRoute,
   createRouter,
+  Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { Effect } from 'effect';
-import type { ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TodayPage } from '#/features/rota/ui/today-page.tsx';
-import { decisionCalls, undecided } from './garments-fns.ts';
-import {
-  demoProposal,
-  fixtureProposal,
-  oneDayGap,
-  setFixtureProposal,
-  threeDayGap,
-} from './today-proposal.ts';
+import { planningFixture, tomorrow } from './planning-fns.ts';
+import { demoProposal } from './today-proposal.ts';
 
 const params = new URLSearchParams(globalThis.location.search);
-const gapOf = (mode: string | null) => {
-  if (mode === null) {
-    return null;
-  }
-  return mode === 'one' ? oneDayGap : threeDayGap;
-};
-if (params.has('proposal')) {
-  setFixtureProposal({ ...demoProposal, unlogged: gapOf(params.get('gap')) });
-}
-
-let loaderCalls = 0;
-let loaderView = undecided;
-const route = createRootRoute({
-  loader: () =>
-    Effect.runPromise(
-      Effect.sync(() => {
-        loaderCalls += 1;
-        return {
-          view: structuredClone(fixtureProposal ?? loaderView),
-          loaderCalls,
-          decisionCalls,
-        };
-      }),
-    ),
-  component: (): ReactElement => {
-    const data = route.useLoaderData<typeof router>();
+const rootRoute = createRootRoute({
+  component: () => (
+    <main className="py-8">
+      <Outlet />
+    </main>
+  ),
+});
+const route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  validateSearch: (search: Record<string, unknown>) => ({
+    date: typeof search.date === 'string' ? search.date : demoProposal.today,
+    outfit: typeof search.outfit === 'string' ? search.outfit : undefined,
+  }),
+  loaderDeps: ({ search }) => ({ date: search.date }),
+  loader: ({ deps }) => structuredClone(planningFixture(deps.date)),
+  component: () => {
+    const initial = route.useLoaderData<typeof router>();
     return (
-      <main>
-        <h1>Today</h1>
-        <output aria-label="Loader calls">{data.loaderCalls}</output>
-        <output aria-label="Decision calls">{data.decisionCalls}</output>
-        <button
-          type="button"
-          onClick={() => {
-            router.invalidate().catch(() => undefined);
-          }}
-        >
-          Refresh
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            loaderView = { ...undecided, worn: [] };
-            router.invalidate().catch(() => undefined);
-          }}
-        >
-          Show logged day
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            loaderView = undecided;
-            router.invalidate().catch(() => undefined);
-          }}
-        >
-          Show undecided day
-        </button>
-        <TodayPage initial={data.view} />
-      </main>
+      <TodayPage
+        key={initial.day.today}
+        initial={initial}
+        savedOutfitId={route.useSearch<typeof router>().outfit}
+      />
     );
   },
 });
 const router = createRouter({
-  routeTree: route,
-  history: createMemoryHistory({ initialEntries: ['/'] }),
+  routeTree: rootRoute.addChildren([route]),
+  history: createMemoryHistory({
+    initialEntries: [
+      `/?date=${params.has('tomorrow') ? tomorrow : demoProposal.today}`,
+    ],
+  }),
 });
-const client = new QueryClient();
 const root = document.querySelector('#root');
 if (root !== null) {
   createRoot(root).render(
-    <QueryClientProvider client={client}>
+    <QueryClientProvider client={new QueryClient()}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );

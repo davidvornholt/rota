@@ -40,7 +40,7 @@ export class SlotEmptyError extends Data.TaggedError('SlotEmptyError')<{
 }> {
   constructor(slot: Slot) {
     super({
-      message: `Nothing in the wardrobe can fill the ${slotLabel[slot].toLowerCase()} slot today. Add a garment for it, or bring one back from retired.`,
+      message: `No available ${slotLabel[slot].toLowerCase()} fits this day. Check Laundry or choose a piece yourself.`,
       httpStatus: 409,
       slot,
     });

@@ -19,6 +19,7 @@ import { Gemini } from '#/shared/ai/gemini.ts';
 import { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
+import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
 import { ProposalRepository } from '#/shared/data/proposal-repository.ts';
 import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
@@ -31,6 +32,7 @@ export type Infrastructure =
   | SqlClient
   | GarmentRepository
   | WearLogRepository
+  | OutfitRepository
   | ProposalRepository
   | SettingsRepository
   | WeatherRepository
@@ -45,6 +47,7 @@ export const infrastructureLayer: Layer.Layer<Infrastructure, SqlError> =
     GarmentRepository.Default,
     WearLogRepository.Default,
     ProposalRepository.Default,
+    OutfitRepository.Default,
     SettingsRepository.Default,
     WeatherRepository.Default,
     DayNoteRepository.Default,

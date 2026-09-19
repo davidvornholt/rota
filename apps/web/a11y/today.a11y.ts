@@ -4,134 +4,231 @@ import { Effect } from 'effect';
 import type { ViteDevServer } from 'vite';
 import { startGarmentFixtureServer } from './garment-fixture-server.ts';
 
+const whiteShirt = /^White cotton shirt/u;
+const trainers = /^White trainers/u;
+const bag = /^Tan leather bag/u;
+const blueShirt = /^Blue Oxford shirt/u;
+const chinos = /^Navy chinos/u;
+const badGateway = 502;
+const failedDependency = 424;
+const failedStatuses = [badGateway, failedDependency];
+
 let server: ViteDevServer;
 const fixtureUrl = () => server.resolvedUrls?.local[0];
-
-// Chromium's en-GB abbreviates September as "Sept", Node's as "Sep".
-const threeDayPromptName =
-  /^Friday 4 Sept? to Sunday 6 Sept?: what did you wear\?$/u;
-const oneDayPromptName = /^Sunday 6 Sept?: same as Sat\?$/u;
-
 test.beforeAll(async ({ browserName }, testInfo) => {
   server = await Effect.runPromise(
     startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
   );
 });
-
 test.afterAll(async () => {
   await Effect.runPromise(Effect.promise(() => server.close()));
 });
 
-for (const failure of ['proxy', 'timeout'] as const) {
-  test(`a ${failure} failure keeps the outfit and saved note, then clears on reroll`, async ({
-    page,
-  }) => {
-    await page.route('**/fixture-note-save', (route) =>
-      route.fulfill(
-        failure === 'proxy'
-          ? { status: 502, body: '' }
-          : {
-              status: 424,
-              headers: {
-                'content-type': 'text/plain',
-                'x-tss-serialized': 'true',
-              },
-              body: 'Choosing an outfit timed out. Please try again.',
-            },
-      ),
-    );
-    await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?proposal`);
-    await page.getByRole('button', { name: 'Add a note' }).click();
-    await page
-      .getByRole('textbox', { name: 'A word for the valet' })
-      .fill('Meeting today');
-    await page.getByRole('button', { name: 'Save note' }).click();
-    await expect(
-      page.getByRole('heading', { name: 'One moment …' }),
-    ).toBeVisible();
-    const alert = page.getByRole('alert');
-    await expect(alert).toContainText(
-      failure === 'proxy'
-        ? 'Refresh to check your outfit'
-        : 'Choosing an outfit timed out',
-    );
-    await expect(alert).toContainText(
-      'Your previous suggestion is still shown below.',
-    );
-    await expect(
-      page.getByRole('heading', { name: 'Chinos and a shirt for today.' }),
-    ).toBeVisible();
-    await expect(
-      page.getByText('Meeting today', { exact: true }),
-    ).toBeVisible();
-    const pick = page
-      .getByRole('button', { name: 'Pick again', exact: true })
-      .filter({ visible: true });
-    await expect(pick).toBeEnabled();
-    expect(await scanWcag22AaViolations(page)).toEqual([]);
-    await pick.click();
-    await expect(
-      page.getByRole('heading', { name: 'A fresh choice for your meeting.' }),
-    ).toBeVisible();
-    await expect(alert).toHaveCount(0);
-    expect(await scanWcag22AaViolations(page)).toEqual([]);
-  });
-}
-
-test('a run of blank days is announced with a way to fill them in or leave them', async ({
+test('saving a history outfit leaves the recorded day unchanged', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?proposal&gap`);
-  const prompt = page.getByRole('region', { name: threeDayPromptName });
-  await expect(prompt.getByText('3 days without a log')).toBeVisible();
-  const fill = prompt.getByRole('link', { name: 'Fill in 3 days' });
-  await expect(fill).toHaveAttribute('href', '/history/catch-up');
+  await page.goto(`${fixtureUrl()}a11y/fixtures/history.html`);
+  await page.getByRole('button', { name: 'Save as an outfit' }).click();
+  await page.getByLabel('Outfit name').fill('A favourite day');
   expect(await scanWcag22AaViolations(page)).toEqual([]);
-  await prompt.getByRole('button', { name: 'Leave it blank' }).click();
-  await expect(prompt).toHaveCount(0);
+  await page.getByRole('button', { name: 'Save outfit', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Chinos and a shirt for today.' }),
+    page.getByText('Saved to your outfits.', { exact: true }),
   ).toBeVisible();
+  await expect(page.getByLabel('Day saves')).toHaveText('0');
+  await expect(
+    page.getByRole('button', { name: 'Save the day' }),
+  ).toBeDisabled();
 });
 
-test('one blank day is filled with a tap, or opens the catch-up page', async ({
+test('tomorrow saves a plan, keeps it across day navigation and never logs it early', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?proposal&gap=one`);
-  const prompt = page.getByRole('region', { name: oneDayPromptName });
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow`);
+  await expect(page.getByRole('button', { name: 'Wear this' })).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'Save for tomorrow', exact: true })
+    .click();
   await expect(
-    prompt.getByRole('link', { name: 'Something else' }),
-  ).toHaveAttribute('href', '/history/catch-up');
+    page.getByRole('button', { name: 'Saved for tomorrow' }),
+  ).toBeDisabled();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
-  await prompt.getByRole('button', { name: 'Same as Sat' }).click();
-  await expect(prompt).toHaveCount(0);
+  await page.getByRole('link', { name: 'Today', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Wear this' })).toBeVisible();
+  await page.getByRole('link', { name: 'Tomorrow', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Saved for tomorrow' }),
+  ).toBeDisabled();
 });
 
-test('a failed automatic decision stays visible through refresh until retry or a new day state', async ({
+test('a chosen top stays while Rota completes the outfit, with optional shoes and bag', async ({
   page,
 }) => {
   await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
-  const calls = page.getByRole('status', { name: 'Decision calls' });
-  const loader = page.getByRole('status', { name: 'Loader calls' });
-  await expect(loader).toHaveText('2');
-  await expect(calls).toHaveText('1');
-  const retry = page.getByRole('button', { name: 'Try again' });
-  await expect(retry).toBeEnabled();
-  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-  await expect(loader).toHaveText('3');
-  await expect(calls).toHaveText('1');
+  await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
+  const dialog = page.getByRole('dialog');
   await expect(
-    page.getByText('Try the valet again.', { exact: true }),
+    dialog.getByRole('heading', { name: 'Choose top' }),
+  ).toBeFocused();
+  await dialog.getByRole('button', { name: whiteShirt }).click();
+  await expect(
+    page
+      .getByRole('region', { name: 'Top', exact: true })
+      .getByRole('checkbox', { name: 'Keep' }),
+  ).toBeChecked();
+  await page
+    .getByRole('button', { name: 'Remove bottom', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Complete outfit' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Change Navy chinos' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Add shoes' }).click();
+  await dialog.getByRole('button', { name: trainers }).click();
+  await page.getByRole('button', { name: 'Add bag' }).click();
+  await dialog.getByRole('button', { name: bag }).click();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
-  await retry.click();
-  await expect(loader).toHaveText('4');
-  await expect(calls).toHaveText('2');
-  await expect(retry).toBeEnabled();
-  await page.getByRole('button', { name: 'Show logged day' }).click();
-  await expect(loader).toHaveText('5');
-  await page.getByRole('button', { name: 'Show undecided day' }).click();
-  await expect(loader).toHaveText('7');
-  await expect(calls).toHaveText('3');
-  await expect(retry).toBeEnabled();
+});
+
+test('saved outfits can be created, chosen, edited independently and deleted explicitly', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow`);
+  await page.getByRole('button', { name: 'Save as an outfit' }).click();
+  let dialog = page.getByRole('dialog');
+  await dialog
+    .getByRole('textbox', { name: 'Outfit name' })
+    .fill('Office favourite');
+  await dialog
+    .getByRole('button', { name: 'Save outfit', exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'Saved outfits', exact: true })
+    .click();
+  dialog = page.getByRole('dialog');
+  const outfit = dialog
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('heading', { name: 'Office favourite' }) });
+  await outfit.getByRole('button', { name: 'Choose for tomorrow' }).click();
+  await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: whiteShirt })
+    .click();
+  await page
+    .getByRole('button', { name: 'Saved outfits', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Edit Office favourite' }).click();
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Change Blue Oxford shirt' }),
+  ).toBeVisible();
+  await page.getByRole('textbox', { name: 'Outfit name' }).fill('Office blue');
+  await page.getByRole('button', { name: 'Save outfit', exact: true }).click();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await page
+    .getByRole('button', { name: 'Delete Office blue', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Office blue' }),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Delete outfit', exact: true })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Office blue' })).toHaveCount(
+    0,
+  );
+});
+
+test('laundry is a bulk action and unavailable pieces cannot be worn', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.getByRole('button', { name: 'Laundry', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('checkbox', { name: blueShirt }).check();
+  await dialog.getByRole('checkbox', { name: chinos }).check();
+  await dialog.getByRole('button', { name: 'Put in laundry' }).click();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Wear this' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Laundry', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Select worn' }).click();
+  await dialog.getByRole('button', { name: 'Mark washed' }).click();
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Wear this' })).toBeEnabled();
+});
+
+for (const status of failedStatuses) {
+  test(`a ${status} suggestion failure preserves selected pieces and recovers on retry`, async ({
+    page,
+  }) => {
+    await page.route('**/fixture-planning-action', (route) =>
+      route.fulfill({ status, body: '' }),
+    );
+    await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?failure`);
+    await page.getByRole('button', { name: 'Suggest another' }).click();
+    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Change Blue Oxford shirt' }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Wear this' })).toBeEnabled();
+    expect(await scanWcag22AaViolations(page)).toEqual([]);
+    await page.route('**/fixture-planning-action', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{}',
+      }),
+    );
+    await page.getByRole('button', { name: 'Suggest another' }).click();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+}
+
+test('a saved outfit chosen after logging today opens tomorrow without changing today', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.getByRole('button', { name: 'Wear this' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Today, dressed.' }),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Saved outfits', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Choose for tomorrow' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Tomorrow starts here.' }),
+  ).toBeVisible();
+  await expect(page.getByText('Based on Blue and navy')).toBeVisible();
+  await page.getByRole('link', { name: 'Today', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Today, dressed.' }),
+  ).toBeVisible();
+});
+
+test('clean-top cadence can be set and cleared without accessory wash budgets', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/settings.html`);
+  const start = page.getByLabel('Clean top every other day, starting');
+  await start.fill('2026-09-19');
+  await page.getByRole('button', { name: 'Save rotation settings' }).click();
+  await expect(start).toHaveValue('2026-09-19');
+  await expect(
+    page.getByRole('spinbutton', { name: 'shoes', exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('spinbutton', { name: 'handbag', exact: true }),
+  ).toHaveCount(0);
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await start.fill('');
+  await page.getByRole('button', { name: 'Save rotation settings' }).click();
+  await expect(start).toHaveValue('');
 });

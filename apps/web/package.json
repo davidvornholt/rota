@@ -17,7 +17,8 @@
     "lint": "biome check --error-on-warnings .",
     "lint:fix": "biome check --write --error-on-warnings .",
     "test": "bun test",
-    "test:a11y": "playwright test --config playwright.config.ts"
+    "test:a11y": "playwright test --config playwright.config.ts",
+    "test:planning-db": "bun --env-file=.env.local run scripts/verify-planning.ts"
   },
   "dependencies": {
     "@effect/sql": "^0.52.1",

@@ -9,14 +9,36 @@ import {
   ProposalGenerationError,
   ProposalStateError,
 } from '../errors/rota-errors.ts';
-import {
-  confirm,
-  logOutfit,
-  type RerollScope,
-  reroll,
-  type SettlementDeps,
-  saveOccasion,
-} from './proposal-settlement.ts';
+import { logOutfit, type SettlementDeps } from './proposal-settlement.ts';
+
+const wearSelected = (
+  deps: SettlementDeps,
+  date: LocalDate,
+  entries: ReadonlyArray<OutfitEntry>,
+) =>
+  Effect.gen(function* () {
+    const latest = yield* deps.proposals.latestForDate(date);
+    const accepted =
+      latest?.status === 'pending' &&
+      entries.length === latest.payload.items.length &&
+      entries.every((entry) =>
+        latest.payload.items.some(
+          (item) =>
+            item.slot === entry.slot && item.garmentId === entry.garmentId,
+        ),
+      );
+    yield* deps.wearLog.replaceDay(
+      date,
+      entries,
+      accepted ? 'proposed' : 'override',
+    );
+    if (latest?.status === 'pending') {
+      yield* deps.proposals.setStatus(
+        latest.id,
+        accepted ? 'confirmed' : 'superseded',
+      );
+    }
+  });
 
 /** State checks and writes share one gate with the scheduled morning decision. */
 export const makeProposalOperations = (deps: SettlementDeps) =>
@@ -35,6 +57,9 @@ export const makeProposalOperations = (deps: SettlementDeps) =>
     const ensure = (clock: WardrobeClock) =>
       Effect.gen(function* () {
         const latest = yield* deps.proposals.latestForDate(clock.today);
+        if ((yield* deps.outfits.plan(clock.today)).entries !== null) {
+          return latest;
+        }
         if (latest?.status === 'pending' || latest?.status === 'confirmed') {
           return latest;
         }
@@ -46,20 +71,64 @@ export const makeProposalOperations = (deps: SettlementDeps) =>
         const forecast = yield* deps.forecasts.ensure(
           clock.settings,
           clock.today,
+          clock.actualToday,
         );
         return yield* deps.generate(clock, forecast, {
+          pinned: [],
           excluded: new Set(latest?.payload.excludedGarmentIds ?? []),
           releaseAll: false,
         });
       });
 
     return {
+      complete: (clock: WardrobeClock, pinned: ReadonlyArray<OutfitEntry>) =>
+        exclusive(
+          Effect.gen(function* () {
+            if ((yield* deps.wearLog.readDay(clock.today)).length > 0) {
+              return yield* new ProposalStateError(
+                'This day is already logged. Edit it in history.',
+              );
+            }
+            const forecast = yield* deps.forecasts.ensure(
+              clock.settings,
+              clock.today,
+              clock.actualToday,
+            );
+            const latest = yield* deps.proposals.latestForDate(clock.today);
+            const pinnedIds = new Set(pinned.map((entry) => entry.garmentId));
+            const excluded = new Set(
+              [
+                ...(latest?.payload.excludedGarmentIds ?? []),
+                ...(latest?.payload.items.map((entry) => entry.garmentId) ??
+                  []),
+              ].filter((id) => !pinnedIds.has(id)),
+            );
+            const next = yield* deps.generate(clock, forecast, {
+              pinned,
+              excluded,
+              releaseAll: true,
+            });
+            if (latest?.status === 'pending') {
+              yield* deps.proposals.setStatus(latest.id, 'rejected');
+            }
+            return next;
+          }),
+        ),
       ensure: (clock: WardrobeClock) => exclusive(ensure(clock)),
-      confirm: (id: string) => exclusive(confirm(deps, id)),
-      saveOccasion: (clock: WardrobeClock, occasion: string) =>
-        exclusive(saveOccasion(deps, clock, occasion)),
-      reroll: (clock: WardrobeClock, id: string, scope: RerollScope) =>
-        exclusive(reroll(deps, clock, id, scope)),
+      wear: (clock: WardrobeClock, entries: ReadonlyArray<OutfitEntry>) =>
+        exclusive(
+          Effect.gen(function* () {
+            if (
+              clock.today !== clock.actualToday ||
+              (yield* deps.wearLog.readDay(clock.today)).length > 0
+            ) {
+              return yield* new ProposalStateError(
+                'Only an unlogged outfit for today can be worn. Edit logged days in history.',
+              );
+            }
+            yield* wearSelected(deps, clock.today, entries);
+          }),
+        ),
       logOutfit: (
         date: LocalDate,
         entries: ReadonlyArray<OutfitEntry>,

@@ -5,13 +5,19 @@
  */
 
 import type { Garment } from '#/shared/data/garment.ts';
+import { availableToWear, wearsSinceWash } from '#/shared/data/garment-care.ts';
 import {
   effectiveWearBudget,
+  hasWearBudget,
   type Slot,
   slotOrder,
 } from '#/shared/data/garment-types.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
-import { daysBetween, type LocalDate } from '#/shared/time/local-date.ts';
+import {
+  addDays,
+  daysBetween,
+  type LocalDate,
+} from '#/shared/time/local-date.ts';
 
 export type Outfit = Partial<Readonly<Record<Slot, string>>>;
 
@@ -57,34 +63,6 @@ export const previousLoggedDay = (
     : undefined;
 };
 
-/**
- * How many days in a row the garment has been worn up to the day before
- * `date`, walking back over logged days only and stopping at the first logged
- * day it was absent from — or at a silence longer than the gap allowance.
- */
-export const consecutiveWears = (
-  log: ReadonlyArray<WearEntry>,
-  garmentId: string,
-  date: LocalDate,
-): number => {
-  let count = 0;
-  let cursor = date;
-  for (const day of distinctDaysBefore(log, date)) {
-    if (daysBetween(day, cursor) > maximumGapDays) {
-      break;
-    }
-    const worn = log.some(
-      (entry) => entry.wornOn === day && entry.garmentId === garmentId,
-    );
-    if (!worn) {
-      break;
-    }
-    count += 1;
-    cursor = day;
-  }
-  return count;
-};
-
 /** Days since the garment was last worn before `date`; null if never. */
 export const daysSinceWorn = (
   log: ReadonlyArray<WearEntry>,
@@ -119,6 +97,7 @@ export type Continuation = {
 
 export type RotationInput = {
   readonly today: LocalDate;
+  readonly cleanTop: boolean;
   readonly log: ReadonlyArray<WearEntry>;
   readonly garments: ReadonlyArray<Garment>;
   readonly settings: RotationSettings;
@@ -146,11 +125,22 @@ export const continuations = (
   return slotOrder.flatMap((slot) => {
     const id = outfit[slot];
     const garment = id === undefined ? undefined : active.get(id);
-    if (garment === undefined || input.excluded.has(garment.id)) {
+    if (
+      slot === 'top' ||
+      garment === undefined ||
+      !hasWearBudget(garment) ||
+      input.excluded.has(garment.id) ||
+      !availableToWear(
+        garment,
+        input.log,
+        input.today,
+        input.settings.categoryBudgets,
+      )
+    ) {
       return [];
     }
     const budget = effectiveWearBudget(garment, input.settings.categoryBudgets);
-    const worn = consecutiveWears(input.log, garment.id, input.today);
+    const worn = wearsSinceWash(input.log, garment, input.today);
     if (worn >= budget) {
       return [];
     }
@@ -167,6 +157,7 @@ export const continuations = (
 
 export type Candidate = {
   readonly garment: Garment;
+  readonly wearsSinceWash: number;
   readonly daysSinceWorn: number | null;
   /** Worn more recently than the cooldown allows; offered only when nothing else is. */
   readonly inCooldown: boolean;
@@ -189,7 +180,15 @@ export const candidatesFor = (
 ): ReadonlyArray<Candidate> => {
   const all = input.garments.flatMap((garment): ReadonlyArray<Candidate> => {
     if (
-      garment.status !== 'active' ||
+      !availableToWear(
+        garment,
+        input.log,
+        input.today,
+        input.settings.categoryBudgets,
+      ) ||
+      (slot === 'top' &&
+        input.cleanTop &&
+        wearsSinceWash(input.log, garment, input.today) > 0) ||
       !garment.slots.includes(slot) ||
       input.excluded.has(garment.id) ||
       alreadyChosen.has(garment.id)
@@ -200,12 +199,38 @@ export const candidatesFor = (
     return [
       {
         garment,
+        wearsSinceWash: wearsSinceWash(input.log, garment, input.today),
         daysSinceWorn: rest,
-        inCooldown: rest !== null && rest < input.settings.cooldownDays,
+        inCooldown:
+          hasWearBudget(garment) &&
+          rest !== null &&
+          rest < input.settings.cooldownDays,
       },
     ];
   });
-  const rested = all.filter((candidate) => !candidate.inCooldown);
-  const pool = rested.length > 0 ? rested : all;
+  // Daily top variety is a hard suggestion constraint; explicit manual picks may override it.
+  const previous = outfitOn(input.log, addDays(input.today, -1)).top;
+  const varied =
+    slot === 'top'
+      ? all.filter((candidate) => candidate.garment.id !== previous)
+      : all;
+  const rested = varied.filter((candidate) => !candidate.inCooldown);
+  // Between clean-top days, keep partly worn tops in play even when the
+  // style cooldown prefers a less recent piece. Rest does not mean washing.
+  const reusable =
+    slot === 'top' && !input.cleanTop
+      ? varied.filter((candidate) => candidate.wearsSinceWash > 0)
+      : [];
+  const pool =
+    rested.length > 0
+      ? [
+          ...new Map(
+            [...reusable, ...rested].map((candidate) => [
+              candidate.garment.id,
+              candidate,
+            ]),
+          ).values(),
+        ]
+      : varied;
   return [...pool].sort(compareCandidates);
 };

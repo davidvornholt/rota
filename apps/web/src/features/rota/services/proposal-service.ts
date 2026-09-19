@@ -12,15 +12,22 @@ import { Gemini } from '#/shared/ai/gemini.ts';
 import type { ImagePart } from '#/shared/ai/gemini-request.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { displayImage, type Garment } from '#/shared/data/garment.ts';
+import { cleanTopOn } from '#/shared/data/garment-care.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
+import {
+  OutfitRepository,
+  type SavedOutfit,
+} from '#/shared/data/outfit-repository.ts';
 import {
   type ProposalPayload,
   ProposalRepository,
 } from '#/shared/data/proposal-repository.ts';
+import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import {
+  ProposalAnswerError,
   ProposalGenerationError,
   SlotEmptyError,
 } from '../errors/rota-errors.ts';
@@ -30,10 +37,11 @@ import {
   proposalAnswerJsonSchema,
 } from '../schemas/proposal-answer.ts';
 import { ForecastService, type ForecastWindow } from './forecast-service.ts';
+import { projectedLog, validateEntries } from './planning-rules.ts';
 import {
   answerToItems,
+  choicesWithPins,
   recentSummary,
-  slotChoicesFor,
 } from './proposal-assembly.ts';
 import { makeProposalOperations } from './proposal-operations.ts';
 import {
@@ -44,9 +52,40 @@ import {
 import type { SettlementDeps } from './proposal-settlement.ts';
 
 export type GenerateOptions = {
+  readonly pinned: ReadonlyArray<OutfitEntry>;
   readonly excluded: ReadonlySet<string>;
   /** Also reopen the slots that would have continued from yesterday. */
   readonly releaseAll: boolean;
+};
+
+const withOutfitContext = (
+  prompt: BuiltPrompt,
+  pinned: ReadonlyArray<OutfitEntry>,
+  saved: ReadonlyArray<SavedOutfit>,
+): BuiltPrompt => {
+  const aliasesFor = (entries: ReadonlyArray<OutfitEntry>) =>
+    entries.map(
+      (entry) =>
+        [...prompt.aliases].find(
+          ([, value]) =>
+            value.garment.id === entry.garmentId && value.slot === entry.slot,
+        )?.[0],
+    );
+  const favourites = saved.flatMap((outfit) => {
+    const aliases = aliasesFor(outfit.entries);
+    return aliases.every((alias) => alias !== undefined)
+      ? [`${outfit.name}: ${aliases.join(', ')}`]
+      : [];
+  });
+  return {
+    ...prompt,
+    parts: [
+      ...prompt.parts,
+      {
+        text: `Keep these wearer-selected aliases exactly: ${aliasesFor(pinned).join(', ') || 'none'}. Saved combinations the wearer likes (consider when suitable, but you may propose new combinations): ${favourites.join('; ') || 'none'}.`,
+      },
+    ],
+  };
 };
 
 const imageConcurrency = 4;
@@ -98,6 +137,7 @@ const ask = (gemini: Gemini, prompt: BuiltPrompt) =>
     );
 
 type GenerateDeps = {
+  readonly outfits: OutfitRepository;
   readonly garments: GarmentRepository;
   readonly wearLog: WearLogRepository;
   readonly proposals: ProposalRepository;
@@ -108,26 +148,41 @@ type GenerateDeps = {
 
 /** Asks Gemini for the day, given a forecast window and what to leave out. */
 const generateProposal = (
-  { garments, wearLog, proposals, notes, media, gemini }: GenerateDeps,
+  { outfits, garments, wearLog, proposals, notes, media, gemini }: GenerateDeps,
   clock: WardrobeClock,
   forecast: ForecastWindow,
   options: GenerateOptions,
 ) =>
   Effect.gen(function* () {
-    const [all, log, occasion] = yield* Effect.all([
+    const [all, history, occasion, plan, todayPlan, saved] = yield* Effect.all([
       garments.list(),
       wearLog.history(),
       notes.read(clock.today),
+      outfits.plan(clock.today),
+      outfits.plan(clock.actualToday),
+      outfits.list(),
     ]);
+    yield* validateEntries(options.pinned, all, false);
+    const log = projectedLog(history, todayPlan, clock);
     const input: RotationInput = {
+      cleanTop: cleanTopOn(
+        clock.today,
+        clock.settings.cleanTopAnchor,
+        plan.cleanTop,
+      ),
       today: clock.today,
       log,
       garments: all,
       settings: clock.settings,
       excluded: options.excluded,
     };
-    const continuing = options.releaseAll ? [] : continuations(input);
-    const slotChoices = slotChoicesFor(input, continuing);
+    const continuing = (options.releaseAll ? [] : continuations(input)).filter(
+      (item) =>
+        !options.pinned.some(
+          (pin) => pin.slot === item.slot || pin.garmentId === item.garment.id,
+        ),
+    );
+    const slotChoices = choicesWithPins(input, continuing, options.pinned);
     const empty = slotChoices.find(
       (open) =>
         open.required &&
@@ -142,6 +197,7 @@ const generateProposal = (
       ...slotChoices.flatMap((open) => open.candidates.map((c) => c.garment)),
     ]);
     const prompt = buildProposalPrompt({
+      cleanTop: input.cleanTop,
       today: clock.today,
       weather: forecast.today,
       yesterday: forecast.yesterday,
@@ -153,8 +209,24 @@ const generateProposal = (
       recent: recentSummary(log, all, clock.today),
       imageFor: (garment) => images.get(garment.id),
     });
-    const answer = yield* ask(gemini, prompt);
+    const answer = yield* ask(
+      gemini,
+      withOutfitContext(prompt, options.pinned, saved),
+    );
     const items = yield* answerToItems(answer, prompt.aliases, input);
+    if (
+      options.pinned.some(
+        (pin) =>
+          !items.some(
+            (item) =>
+              item.slot === pin.slot && item.garmentId === pin.garmentId,
+          ),
+      )
+    ) {
+      return yield* new ProposalAnswerError(
+        'The answer changed a selected piece.',
+      );
+    }
     const payload: ProposalPayload = {
       items,
       headline: answer.headline,
@@ -174,6 +246,7 @@ export class ProposalService extends Effect.Service<ProposalService>()(
   'rota/ProposalService',
   {
     effect: Effect.gen(function* () {
+      const outfits = yield* OutfitRepository;
       const garments = yield* GarmentRepository;
       const wearLog = yield* WearLogRepository;
       const proposals = yield* ProposalRepository;
@@ -187,15 +260,15 @@ export class ProposalService extends Effect.Service<ProposalService>()(
         options: GenerateOptions,
       ) =>
         generateProposal(
-          { garments, wearLog, proposals, notes, media, gemini },
+          { outfits, garments, wearLog, proposals, notes, media, gemini },
           clock,
           forecast,
           options,
         );
 
       const settlement: SettlementDeps = {
+        outfits,
         proposals,
-        notes,
         wearLog,
         forecasts,
         generate,

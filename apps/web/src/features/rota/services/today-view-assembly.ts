@@ -5,6 +5,7 @@
  */
 
 import type { Garment } from '#/shared/data/garment.ts';
+import { wearsSinceWash } from '#/shared/data/garment-care.ts';
 import { effectiveWearBudget, slotOrder } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { Proposal } from '#/shared/data/proposal-repository.ts';
@@ -12,7 +13,7 @@ import type { Settings } from '#/shared/data/settings-repository.ts';
 import { unloggedDaysBefore } from '#/shared/data/wear-log-gap.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import { addDays, type LocalDate } from '#/shared/time/local-date.ts';
-import { consecutiveWears, outfitOn } from '../rotation.ts';
+import { outfitOn } from '../rotation.ts';
 import type {
   ProposalView,
   TodayProblem,
@@ -94,7 +95,7 @@ export const wornOn = (
       {
         slot,
         garment: view,
-        dayOfBudget: consecutiveWears(log, garment.id, date) + 1,
+        dayOfBudget: wearsSinceWash(log, garment, date) + 1,
         budget: effectiveWearBudget(garment, settings.categoryBudgets),
       },
     ];
@@ -139,11 +140,7 @@ export const tomorrowHint = (
   }
   const spent = worn.filter((item) => item.dayOfBudget >= item.budget);
   if (spent.length > 0) {
-    return `Today was the last day for the ${listNames(spent)}; tomorrow starts fresh there.`;
-  }
-  const ending = worn.filter((item) => item.dayOfBudget + 1 === item.budget);
-  if (ending.length > 0) {
-    return `Tomorrow is the last day for the ${listNames(ending)}.`;
+    return `${listNames(spent)}: ready for the laundry.`;
   }
   return null;
 };

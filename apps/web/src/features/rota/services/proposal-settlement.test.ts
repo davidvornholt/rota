@@ -12,11 +12,7 @@ import {
 import type { ForecastWindow } from './forecast-service.ts';
 import { makeProposalOperations } from './proposal-operations.ts';
 import type { GenerateOptions } from './proposal-service.ts';
-import {
-  reroll,
-  type SettlementDeps,
-  saveOccasion,
-} from './proposal-settlement.ts';
+import type { SettlementDeps } from './proposal-settlement.ts';
 
 const today = localDate('2026-09-07');
 const shortsId = '0398ab00-0000-4000-8000-000000000001';
@@ -45,12 +41,14 @@ const forecast: ForecastWindow = {
 const clock: WardrobeClock = {
   settings: {
     location: null,
+    cleanTopAnchor: null,
     cooldownDays: 3,
     categoryBudgets: {},
     proposalHour: 5,
   },
   timeZone: 'Europe/Berlin',
   today,
+  actualToday: today,
   hour: 9,
 };
 
@@ -89,6 +87,7 @@ const pending: Proposal = {
 };
 
 type Recorded = {
+  readonly sources: Array<string>;
   readonly notes: Array<string>;
   readonly statuses: Array<readonly [string, string]>;
   readonly generated: Array<GenerateOptions>;
@@ -97,8 +96,14 @@ type Recorded = {
 const depsWith = (
   generateOutcome: 'succeeds' | 'fails',
 ): { readonly deps: SettlementDeps; readonly recorded: Recorded } => {
-  const recorded: Recorded = { statuses: [], generated: [], notes: [] };
+  const recorded: Recorded = {
+    statuses: [],
+    generated: [],
+    notes: [],
+    sources: [],
+  };
   const deps = {
+    outfits: { plan: () => Effect.succeed({ entries: null }) },
     proposals: {
       byId: () => Effect.succeed(pending),
       latestForDate: () => Effect.succeed(pending),
@@ -113,7 +118,13 @@ const depsWith = (
           recorded.notes.push(note);
         }),
     },
-    wearLog: { readDay: () => Effect.succeed([]) },
+    wearLog: {
+      readDay: () => Effect.succeed([]),
+      replaceDay: (_date: unknown, _entries: unknown, source: string) =>
+        Effect.sync(() => {
+          recorded.sources.push(source);
+        }),
+    },
     forecasts: { ensure: () => Effect.succeed(forecast) },
     generate: (
       _clock: WardrobeClock,
@@ -132,67 +143,50 @@ const depsWith = (
   return { deps, recorded };
 };
 
-describe('reroll', () => {
-  it('retires the old proposal only after the new one exists', async () => {
+describe('completing an outfit', () => {
+  it.each([true, false])(
+    'records whether the proposal was accepted (%s)',
+    async (accepted) => {
+      const { deps, recorded } = depsWith('succeeds');
+      const entries = pending.payload.items.map(({ slot, garmentId }) => ({
+        slot,
+        garmentId: !accepted && slot === 'top' ? jumperId : garmentId,
+      }));
+      await Effect.runPromise(
+        Effect.flatMap(makeProposalOperations(deps), (operations) =>
+          operations.wear(clock, entries),
+        ),
+      );
+      expect(recorded.sources).toEqual([accepted ? 'proposed' : 'override']);
+      expect(recorded.statuses).toEqual([
+        [pending.id, accepted ? 'confirmed' : 'superseded'],
+      ]);
+    },
+  );
+  it('keeps selected pieces and excludes prior unselected suggestions', async () => {
     const { deps, recorded } = depsWith('succeeds');
-
-    const next = await Effect.runPromise(
-      reroll(deps, clock, pending.id, 'boundary'),
+    const pins = [{ slot: 'top' as const, garmentId: teeId }];
+    await Effect.runPromise(
+      Effect.flatMap(makeProposalOperations(deps), (operations) =>
+        operations.complete(clock, pins),
+      ),
     );
-
-    expect(next.id).not.toBe(pending.id);
+    expect(recorded.generated[0]?.pinned).toEqual(pins);
+    expect(recorded.generated[0]?.excluded.has(teeId)).toBeFalse();
+    expect(recorded.generated[0]?.excluded.has(shortsId)).toBeTrue();
     expect(recorded.statuses).toEqual([[pending.id, 'rejected']]);
   });
-
-  it('leaves the old proposal pending when generation fails', async () => {
+  it('leaves the previous proposal intact when completion fails', async () => {
     const { deps, recorded } = depsWith('fails');
-
-    const outcome = await Effect.runPromise(
-      Effect.either(reroll(deps, clock, pending.id, 'all')),
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.flatMap(makeProposalOperations(deps), (operations) =>
+          operations.complete(clock, []),
+        ),
+      ),
     );
-
-    expect(outcome._tag).toBe('Left');
+    expect(result._tag).toBe('Left');
     expect(recorded.statuses).toEqual([]);
-  });
-
-  it('turns down only the fresh picks for boundary and everything for all', async () => {
-    const boundary = depsWith('succeeds');
-    await Effect.runPromise(
-      reroll(boundary.deps, clock, pending.id, 'boundary'),
-    );
-    expect(
-      [...(boundary.recorded.generated[0]?.excluded ?? [])].sort(),
-    ).toEqual([jumperId, teeId].sort());
-    expect(boundary.recorded.generated[0]?.releaseAll).toBeFalse();
-
-    const all = depsWith('succeeds');
-    await Effect.runPromise(reroll(all.deps, clock, pending.id, 'all'));
-    expect([...(all.recorded.generated[0]?.excluded ?? [])].sort()).toEqual(
-      [jumperId, shortsId, teeId].sort(),
-    );
-    expect(all.recorded.generated[0]?.releaseAll).toBeTrue();
-  });
-});
-
-describe('note regeneration', () => {
-  it('keeps the saved note and pending outfit after failure', async () => {
-    const { deps, recorded } = depsWith('fails');
-    const outcome = await Effect.runPromise(
-      Effect.either(saveOccasion(deps, clock, 'Meeting today')),
-    );
-    expect(outcome._tag).toBe('Left');
-    expect(recorded.notes).toEqual(['Meeting today']);
-    expect(recorded.statuses).toEqual([]);
-    expect([...(recorded.generated[0]?.excluded ?? [])]).toEqual([jumperId]);
-  });
-
-  it('saves the note on a decided day without generating another outfit', async () => {
-    const { deps, recorded } = depsWith('succeeds');
-    deps.proposals.latestForDate = () =>
-      Effect.succeed({ ...pending, status: 'confirmed' });
-    await Effect.runPromise(saveOccasion(deps, clock, 'Meeting today'));
-    expect(recorded.notes).toEqual(['Meeting today']);
-    expect(recorded.generated).toEqual([]);
   });
 });
 
@@ -260,7 +254,7 @@ describe('proposal operations', () => {
   });
 });
 
-it('returns a safe timeout through authentication while retaining the note and previous proposal', async () => {
+it('returns a safe timeout through authentication while retaining the previous proposal', async () => {
   const { deps, recorded } = depsWith('succeeds');
   const failingDeps = {
     ...deps,
@@ -276,7 +270,11 @@ it('returns a safe timeout through authentication while retaining the note and p
     }),
     authorize: () => Promise.resolve(true),
     next: () =>
-      Effect.runPromise(saveOccasion(failingDeps, clock, 'Meeting today')),
+      Effect.runPromise(
+        Effect.flatMap(makeProposalOperations(failingDeps), (operations) =>
+          operations.complete(clock, []),
+        ),
+      ),
     publishHeaders: () => undefined,
     publishStatus: (status) => {
       expect(status).toBe(failedDependency);
@@ -285,6 +283,5 @@ it('returns a safe timeout through authentication while retaining the note and p
   await expect(response).rejects.toThrow(
     'Choosing an outfit timed out. Please try again.',
   );
-  expect(recorded.notes).toEqual(['Meeting today']);
   expect(recorded.statuses).toEqual([]);
 });
