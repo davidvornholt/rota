@@ -33,6 +33,35 @@ const writePasskey = async (userId: string) =>
       backedUp: false,
     },
   });
+const checkResponseTransactions = async (memberId: string, userId: string) => {
+  await setAccess(memberId, true);
+  const redirect = 302;
+  const clientError = 400;
+  const serverError = 500;
+  for (const { status, committed } of [
+    { status: redirect, committed: true },
+    { status: clientError, committed: false },
+    { status: serverError, committed: false },
+  ]) {
+    try {
+      // biome-ignore lint/performance/noAwaitInLoops: Each response checks persistence against an empty session table for this user.
+      const response = await withAccessTransaction(async () => {
+        await (await auth.$context).internalAdapter.createSession(userId);
+        return new Response(null, { status });
+      });
+      expect(response.status).toBe(status);
+      expect(
+        (
+          await pool.query('select id from session where user_id = $1', [
+            userId,
+          ])
+        ).rowCount,
+      ).toBe(committed ? 1 : 0);
+    } finally {
+      await pool.query('delete from session where user_id = $1', [userId]);
+    }
+  }
+};
 const checkRollback = async (memberId: string, userId: string) => {
   await setAccess(memberId, true);
   await (await auth.$context).internalAdapter.createSession(userId);
@@ -141,6 +170,7 @@ export const checkRevocation = async () => {
       ).toBe(scenario === 'suspension-session' ? 1 : 0);
       await expect(resolveAccessCode(recovery.code)).rejects.toThrow();
     }
+    await checkResponseTransactions(invite.memberId, member.id);
     await checkRollback(invite.memberId, member.id);
   } finally {
     await pool.query('delete from "user" where id = $1', [member.id]);

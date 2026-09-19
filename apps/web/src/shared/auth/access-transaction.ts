@@ -5,6 +5,7 @@ import { pool } from '#/shared/db/pool.ts';
 const connect = () => pool.connect();
 type Client = Awaited<ReturnType<typeof connect>>;
 const currentClient = new AsyncLocalStorage<Client>();
+const httpErrorStatus = 400;
 
 /** Better Auth and its hooks must use the same transaction as revocation. */
 export const authPool = new Proxy(pool, {
@@ -38,9 +39,11 @@ export const withAccessTransaction = async <A>(
       "select pg_advisory_xact_lock(hashtextextended('rota:access', 0))",
     );
     const result = await currentClient.run(client, () => work(client));
-    // Better Auth turns verification/persistence errors into HTTP responses.
+    // Better Auth returns errors as HTTP responses and OAuth success as redirects.
     await client.query(
-      result instanceof Response && !result.ok ? 'rollback' : 'commit',
+      result instanceof Response && result.status >= httpErrorStatus
+        ? 'rollback'
+        : 'commit',
     );
     reusable = true;
     return result;
