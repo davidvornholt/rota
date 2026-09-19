@@ -1,5 +1,7 @@
+import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
+import { writeError } from '#/shared/data/errors/data-errors.ts';
 import { cleanTopOn, garmentCare } from '#/shared/data/garment-care.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import {
@@ -174,12 +176,43 @@ export const changePlanning = (clock: WardrobeClock, change: PlanningChange) =>
         break;
       case 'care': {
         const garments = yield* GarmentRepository;
-        yield* garments.setCare(
-          change.ids,
-          change.care,
-          clock.actualToday,
-          clock.settings.laundryDays,
-        );
+        const sql = yield* SqlClient.SqlClient;
+        yield* sql
+          .withTransaction(
+            Effect.gen(function* () {
+              if (change.care === 'laundry' && change.draft !== null) {
+                const today = yield* TodayService;
+                const day = yield* today.view(clock);
+                // A stale open tab must never replace a day already recorded as worn.
+                if (day.worn === null) {
+                  const entries = change.draft.entries.filter(
+                    (entry) => !change.ids.includes(entry.garmentId),
+                  );
+                  yield* validateEntries(
+                    entries,
+                    yield* garments.list(),
+                    false,
+                  );
+                  yield* outfits.savePlan(clock.today, {
+                    entries,
+                    basedOn: change.draft.basedOn,
+                    forecast: day.weather,
+                  });
+                }
+              }
+              yield* garments.setCare(
+                change.ids,
+                change.care,
+                clock.actualToday,
+                clock.settings.laundryDays,
+              );
+            }),
+          )
+          .pipe(
+            Effect.catchTag('SqlError', (cause) =>
+              Effect.fail(writeError('Laundry')(cause)),
+            ),
+          );
         break;
       }
       case 'save-outfit': {

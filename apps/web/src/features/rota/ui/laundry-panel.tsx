@@ -8,6 +8,7 @@ import {
   quietButtonClass,
 } from '#/shared/ui/classes.ts';
 import { Dialog } from '#/shared/ui/dialog.tsx';
+import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import type { PlanningController } from './use-planning.ts';
 
@@ -25,6 +26,7 @@ export const LaundryPanel = ({
   const [message, setMessage] = useState('');
   const { view, busy } = controller;
   const garments = view.laundry.filter((garment) => hasWearBudget(garment));
+  const selected = garments.find((garment) => garment.id === early);
   const waiting = garments.filter((garment) => garment.inLaundry);
   const returned = garments.filter(
     (garment) =>
@@ -39,7 +41,7 @@ export const LaundryPanel = ({
   ) => {
     setError('');
     try {
-      await controller.change({ action: 'care', care, ids: [id] });
+      await controller.care(id, care);
       setEarly('');
       setMessage(
         care === 'postpone'
@@ -139,6 +141,19 @@ export const LaundryPanel = ({
         <summary className="cursor-pointer py-2 text-sm">
           Send a piece to laundry early
         </summary>
+        {selected === undefined ? null : (
+          <figure className="mt-3 flex items-center gap-4">
+            <GarmentFigure
+              className="w-24 shrink-0"
+              image={selected.image}
+              name={selected.name}
+              colors={selected.colors}
+            />
+            <figcaption className="type-display text-xl">
+              {selected.name}
+            </figcaption>
+          </figure>
+        )}
         <form
           className="mt-3 flex flex-wrap items-end gap-3"
           onSubmit={(event) => {

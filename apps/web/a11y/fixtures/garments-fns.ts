@@ -164,3 +164,27 @@ export const saveOccasionFn = ({
       return { ...view, occasion: data.occasion };
     }),
   );
+
+export const setGarmentCareFn = ({
+  data,
+  fetch: request,
+}: {
+  readonly data: { readonly care: 'laundry' | 'washed' };
+  readonly fetch: typeof serverFunctionFetch;
+}) =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      if (new URLSearchParams(globalThis.location.search).has('care-failure')) {
+        yield* Effect.promise(() =>
+          request('/fixture-care-action', { method: 'POST' }),
+        );
+      }
+      current = {
+        ...current,
+        inLaundry: data.care === 'laundry',
+        readyOn: data.care === 'laundry' ? localDate('2026-09-11') : null,
+        wearsSinceWash: data.care === 'washed' ? 0 : current.wearsSinceWash,
+      };
+      return current;
+    }),
+  );

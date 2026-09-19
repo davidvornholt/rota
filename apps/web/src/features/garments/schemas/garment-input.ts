@@ -88,3 +88,10 @@ export const decodeAcceptGarmentInput = Schema.decodeUnknownSync(
 export const decodeImageChoiceInput = Schema.decodeUnknownSync(
   ImageChoiceInputSchema,
 );
+
+export const decodeGarmentCareInput = Schema.decodeUnknownSync(
+  Schema.Struct({
+    id: Schema.UUID,
+    care: Schema.Literal('laundry', 'washed'),
+  }),
+);

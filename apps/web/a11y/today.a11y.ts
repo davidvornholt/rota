@@ -239,6 +239,13 @@ test('laundry shows return dates and handles early washing and late returns', as
     .getByRole('button', { name: 'Back clean: Navy chinos', exact: true })
     .click();
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Choose bottom', exact: true })
+    .click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Navy chinos', exact: true })
+    .click();
   await expect(page.getByRole('button', { name: 'Wear this' })).toBeEnabled();
 });
 

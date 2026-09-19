@@ -19,6 +19,7 @@ import {
 import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
+import { GarmentCareControl } from './garment-care-control.tsx';
 import { GarmentForm } from './garment-form.tsx';
 import { ReplacePhotoControl } from './replace-photo-control.tsx';
 import { StudioRenderControl } from './studio-render-control.tsx';
@@ -48,6 +49,8 @@ type PictureProps = {
   readonly choosing: boolean;
   readonly replaceControl: ReactNode;
   readonly renderControl: ReactNode;
+  readonly onCare: () => void;
+  readonly carePending: boolean;
 };
 
 /** The picture and the facts beside it; sticky on wide screens while the form scrolls. */
@@ -57,6 +60,8 @@ const Picture = ({
   choosing,
   replaceControl,
   renderControl,
+  onCare,
+  carePending,
 }: PictureProps) => (
   <div className="lg:sticky lg:top-8">
     <EnlargeableFigure
@@ -86,7 +91,7 @@ const Picture = ({
     <div className="mt-3">{replaceControl}</div>
     {renderControl}
     {garment.status === 'active' ? (
-      <div className="mt-4 flex gap-5">
+      <div className="mt-4 flex items-center gap-3">
         <Link
           className={quietButtonClass}
           to="/"
@@ -94,9 +99,12 @@ const Picture = ({
         >
           Build an outfit
         </Link>
-        <Link className={linkButtonClass} to="/" search={{ panel: 'laundry' }}>
-          Laundry
-        </Link>
+        <GarmentCareControl
+          garment={garment}
+          onCare={onCare}
+          pending={carePending}
+          disabled={choosing}
+        />
       </div>
     ) : null}
     <dl className="mt-6 grid grid-cols-2 gap-x-6 border-rule border-b">
@@ -198,6 +206,7 @@ export const GarmentDetailPage = ({
     setSaved,
     save,
     choose,
+    care,
     replace,
     retire,
     restore,
@@ -225,6 +234,8 @@ export const GarmentDetailPage = ({
         <div className="lg:col-span-5">
           <Picture
             choosing={lifecyclePending}
+            onCare={() => care.mutate()}
+            carePending={care.isPending}
             garment={garment}
             onChoose={(choice) => choose.mutate(choice)}
             replaceControl={

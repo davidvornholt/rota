@@ -24,6 +24,7 @@ import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import { addDays, localDate } from '#/shared/time/local-date.ts';
+import { verifyDirectLaundry } from './verify-direct-laundry.ts';
 import { verifyPlanningIsolation } from './verify-planning-isolation.ts';
 
 const owner = {
@@ -137,6 +138,7 @@ const verifyCare = Effect.gen(function* () {
   const swapped = [{ garmentId: otherTopId, slot: 'top' as const }, entries[1]];
   yield* changePlanning(clock, {
     action: 'care',
+    draft: null,
     care: 'washed',
     ids: [topId],
   });
@@ -150,6 +152,7 @@ const verifyCare = Effect.gen(function* () {
   );
   yield* changePlanning(clock, {
     action: 'care',
+    draft: null,
     care: 'washed',
     ids: [topId],
   });
@@ -162,6 +165,7 @@ const verifyCare = Effect.gen(function* () {
   );
   yield* changePlanning(clock, {
     action: 'care',
+    draft: null,
     care: 'laundry',
     ids: [otherTopId],
   });
@@ -233,6 +237,7 @@ const verifyAutomaticLaundry = Effect.gen(function* () {
   );
   yield* changePlanning(later(returnDay), {
     action: 'care',
+    draft: null,
     care: 'postpone',
     ids: [otherTopId],
   });
@@ -335,6 +340,7 @@ const verify = Effect.gen(function* () {
   );
   yield* verifyCare;
   yield* verifyAutomaticLaundry;
+  yield* verifyDirectLaundry(clock, entries);
   yield* changePlanning(clock, { action: 'delete-outfit', id: outfitId });
   assert.equal((yield* outfits.list()).length, 0);
 });
