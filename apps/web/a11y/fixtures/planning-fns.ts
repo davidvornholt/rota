@@ -146,7 +146,7 @@ export const changePlanningFn = ({
     Effect.gen(function* () {
       if (
         new URLSearchParams(globalThis.location.search).has('failure') &&
-        (data.change.action === 'suggest' || data.change.action === 'care')
+        ['suggest', 'care', 'clean-top', 'note'].includes(data.change.action)
       ) {
         yield* Effect.promise(() =>
           request('/fixture-planning-action', { method: 'POST' }),

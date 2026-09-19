@@ -5,6 +5,7 @@ import {
   tabActiveClass,
   tabClass,
 } from '#/shared/ui/classes.ts';
+import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { DayPreferences } from './day-preferences.tsx';
 import type { PlanningController } from './use-planning.ts';
@@ -48,23 +49,19 @@ export const PlanningNavigation = ({
           </Link>
         ))}
       </nav>
-      <div className="flex gap-5">
-        <button
-          className={linkButtonClass}
+      <div className="flex gap-1">
+        <IconButton
+          icon="bookmarks"
+          label="Saved outfits"
           disabled={busy}
           onClick={() => onPanel('outfits')}
-          type="button"
-        >
-          Saved outfits
-        </button>
-        <button
-          className={linkButtonClass}
+        />
+        <IconButton
+          icon="laundry"
+          label="Laundry"
           disabled={busy}
           onClick={() => onPanel('laundry')}
-          type="button"
-        >
-          Laundry
-        </button>
+        />
       </div>
     </div>
   );

@@ -9,12 +9,9 @@ import { type RefObject, useEffect, useId, useRef } from 'react';
 import { authClient } from '#/shared/auth/auth-client.ts';
 import { rejectAuthError } from '#/shared/auth/auth-response.ts';
 import { currentPersonFn } from '#/shared/auth/session-fn.ts';
-import {
-  frameClass,
-  linkButtonClass,
-  tabActiveClass,
-  tabClass,
-} from './classes.ts';
+import { frameClass, tabActiveClass, tabClass } from './classes.ts';
+import { IconButton } from './icon-button.tsx';
+import { IconLink } from './icon-link.tsx';
 import { Notice } from './notice.tsx';
 import { InsideMainLandmark } from './router-fallbacks.tsx';
 import { UnmarkedLink } from './unmarked-link.tsx';
@@ -125,7 +122,8 @@ export const AppShell = () => {
         </div>
       </header>
       <main
-        className="flex-1 py-8 sm:py-12"
+        className="flex-1 py-8 motion-safe:animate-soft-reveal sm:py-12"
+        key={locationPath}
         id={mainId}
         ref={mainRef}
         tabIndex={-1}
@@ -138,28 +136,30 @@ export const AppShell = () => {
         <div
           className={[
             frameClass,
-            'flex items-center justify-between py-5 text-ink-faint text-sm',
+            'flex flex-wrap items-center justify-between gap-4 py-3 text-ink-faint text-sm',
           ].join(' ')}
         >
-          <div className="flex flex-wrap items-center gap-4">
-            <span>Rota · your wardrobe in rotation</span>
-            <Link className={linkButtonClass} to="/account">
-              Passkeys
-            </Link>
+          <span>Rota</span>
+          <div className="flex items-center gap-1">
+            <IconLink
+              icon="key"
+              label="Passkeys"
+              linkOptions={{ to: '/account' }}
+            />
             {person.data?.admin ? (
-              <Link className={linkButtonClass} to="/people">
-                People
-              </Link>
+              <IconLink
+                icon="users"
+                label="People"
+                linkOptions={{ to: '/people' }}
+              />
             ) : null}
+            <IconButton
+              icon="logout"
+              label={signOut.isPending ? 'Signing out …' : 'Sign out'}
+              pending={signOut.isPending}
+              onClick={startSignOut}
+            />
           </div>
-          <button
-            aria-busy={signOut.isPending}
-            className={linkButtonClass}
-            onClick={startSignOut}
-            type="button"
-          >
-            {signOut.isPending ? 'Signing out …' : 'Sign out'}
-          </button>
         </div>
         {signOut.isError ? (
           <div className={[frameClass, 'pb-5'].join(' ')}>

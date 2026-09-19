@@ -1,6 +1,7 @@
-import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
-import { frameClass, linkButtonClass } from '#/shared/ui/classes.ts';
+import { frameClass } from '#/shared/ui/classes.ts';
+import { IconButton } from '#/shared/ui/icon-button.tsx';
+import { IconLink } from '#/shared/ui/icon-link.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import type { PlanningView } from '../schemas/planning-view.ts';
 import { backfillFn } from '../services/today-fns.ts';
@@ -15,6 +16,8 @@ import { usePlanning } from './use-planning.ts';
 import { WeatherStrip } from './weather-strip.tsx';
 
 type Panel = 'outfits' | 'save' | 'laundry' | null;
+const failureMessage = (failure: unknown) =>
+  failure instanceof Error ? failure.message : 'Could not save. Try again.';
 export const TodayPage = ({
   initial,
   seed,
@@ -78,16 +81,43 @@ export const TodayPage = ({
       )}
       {failure === null ? null : (
         <Notice className="mt-5" live={true}>
-          {failure instanceof Error
-            ? failure.message
-            : 'Could not save. Try again.'}
+          {failureMessage(failure)}
         </Notice>
       )}
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-x-16 lg:gap-y-6">
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-x-16">
         <div className="lg:col-start-1">
           <PlanningHeading controller={controller} />
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            {worn ? (
+              <IconLink
+                icon="edit"
+                label="Edit what you wore"
+                linkOptions={{
+                  to: '/history/$date',
+                  params: { date: view.day.today },
+                }}
+              />
+            ) : (
+              <PlanningActions
+                key={entries.map((entry) => entry.garmentId).join(',')}
+                controller={controller}
+                onSaveOutfit={() => setOpen('save')}
+              />
+            )}
+            {complete && worn ? (
+              <IconButton
+                icon="bookmark"
+                label="Save as an outfit"
+                disabled={busy}
+                onClick={() => setOpen('save')}
+              />
+            ) : null}
+          </div>
+          <p className="mt-3 text-ink-muted text-sm" role="status">
+            {controller.message}
+          </p>
         </div>
-        <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        <div className="lg:col-start-2 lg:row-start-1">
           <OutfitEditor
             entries={entries}
             wardrobe={view.wardrobe}
@@ -101,37 +131,6 @@ export const TodayPage = ({
               controller.care(id, 'laundry').catch(() => undefined);
             }}
           />
-        </div>
-        <div className="lg:col-start-1 lg:self-start">
-          <div className="mt-6">
-            {worn ? (
-              <Link
-                className={linkButtonClass}
-                to="/history/$date"
-                params={{ date: view.day.today }}
-              >
-                Edit what you wore
-              </Link>
-            ) : (
-              <PlanningActions
-                key={entries.map((entry) => entry.garmentId).join(',')}
-                controller={controller}
-              />
-            )}
-          </div>
-          {complete ? (
-            <button
-              className={[linkButtonClass, 'mt-3'].join(' ')}
-              disabled={busy}
-              onClick={() => setOpen('save')}
-              type="button"
-            >
-              Save as an outfit
-            </button>
-          ) : null}
-          <p className="mt-3 text-ink-muted text-sm" role="status">
-            {controller.message}
-          </p>
         </div>
       </div>
       {open === 'outfits' || open === 'save' ? (

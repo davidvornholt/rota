@@ -6,13 +6,9 @@ import {
   slotOrder,
 } from '#/shared/data/garment-types.ts';
 import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
-import {
-  frameClass,
-  linkButtonClass,
-  tabActiveClass,
-  tabClass,
-} from '#/shared/ui/classes.ts';
+import { frameClass, tabActiveClass, tabClass } from '#/shared/ui/classes.ts';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
+import { IconLink } from '#/shared/ui/icon-link.tsx';
 import { Swatches } from '#/shared/ui/swatches.tsx';
 import type { WardrobeView } from '../services/garments-fns.ts';
 import { ReviewCard } from './review-card.tsx';
@@ -41,7 +37,7 @@ const wearWords = (garment: GarmentView): string => {
 const GarmentCell = ({ garment }: { readonly garment: GarmentView }) => (
   <li>
     <Link
-      className="group block border border-transparent p-1 transition-colors hover:border-ink focus-visible:border-ink"
+      className="group block border border-transparent p-1 transition-colors hover:border-ink focus-visible:border-ink motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:-translate-y-0.5"
       params={{ garmentId: garment.id }}
       to="/wardrobe/$garmentId"
     >
@@ -109,20 +105,16 @@ export const WardrobePage = ({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          <Link
-            className={linkButtonClass}
-            to="/"
-            search={{ panel: 'outfits' }}
-          >
-            Saved outfits
-          </Link>
-          <Link
-            className={linkButtonClass}
-            to="/"
-            search={{ panel: 'laundry' }}
-          >
-            Laundry
-          </Link>
+          <IconLink
+            icon="bookmarks"
+            label="Saved outfits"
+            linkOptions={{ to: '/', search: { panel: 'outfits' } }}
+          />
+          <IconLink
+            icon="laundry"
+            label="Laundry"
+            linkOptions={{ to: '/', search: { panel: 'laundry' } }}
+          />
           <UploadControl onUploaded={refresh} />
         </div>
       </div>
