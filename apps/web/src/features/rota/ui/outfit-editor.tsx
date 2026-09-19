@@ -177,7 +177,7 @@ export const OutfitEditor = ({
           />
         ))}
       </div>
-      {optional.length === 0 ? null : (
+      {optional.length === 0 || readOnly ? null : (
         <div className="mt-5 flex flex-wrap gap-2">
           {optional.map((slot) => (
             <button

@@ -9,6 +9,7 @@ import {
 } from '#/shared/ui/classes.ts';
 import { Dialog } from '#/shared/ui/dialog.tsx';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
+import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import type { PlanningController } from './use-planning.ts';
 
@@ -90,17 +91,14 @@ export const LaundryPanel = ({
                       : formatDayMonth(garment.readyOn)}
                   </span>
                 </span>
-                <button
-                  className={linkButtonClass}
+                <IconButton
+                  icon="check"
+                  label={`Back clean: ${garment.name}`}
                   disabled={busy}
-                  type="button"
                   onClick={() => {
                     change(garment.id, 'washed').catch(() => undefined);
                   }}
-                  aria-label={`Back clean: ${garment.name}`}
-                >
-                  Back clean
-                </button>
+                />
               </li>
             ))}
           </ul>
@@ -121,17 +119,14 @@ export const LaundryPanel = ({
                     Available again
                   </span>
                 </span>
-                <button
-                  className={linkButtonClass}
+                <IconButton
+                  icon="clock"
+                  label={`Still in laundry: ${garment.name}`}
                   disabled={busy}
-                  type="button"
                   onClick={() => {
                     change(garment.id, 'postpone').catch(() => undefined);
                   }}
-                  aria-label={`Still in laundry: ${garment.name}`}
-                >
-                  Still in laundry
-                </button>
+                />
               </li>
             ))}
           </ul>
