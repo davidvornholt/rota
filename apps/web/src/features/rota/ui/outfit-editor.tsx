@@ -7,13 +7,10 @@ import {
 } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
-import {
-  checkClass,
-  linkButtonClass,
-  quietButtonClass,
-} from '#/shared/ui/classes.ts';
+import { checkClass, quietButtonClass } from '#/shared/ui/classes.ts';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { GarmentPicker } from '#/shared/ui/garment-picker.tsx';
+import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { careLabel } from './care-label.ts';
 
 type OutfitEditorProps = {
@@ -23,6 +20,9 @@ type OutfitEditorProps = {
   readonly pinned: ReadonlyArray<string>;
   readonly onPin: ((id: string) => void) | null;
   readonly disabled: boolean;
+  readonly readOnly: boolean;
+  readonly laundryDisabled: boolean;
+  readonly onLaundry: ((id: string) => void) | null;
 };
 
 const OutfitPiece = ({
@@ -30,6 +30,9 @@ const OutfitPiece = ({
   entries,
   wardrobe,
   disabled,
+  readOnly,
+  laundryDisabled,
+  onLaundry,
   pinned,
   onPin,
   onChoose,
@@ -90,15 +93,26 @@ const OutfitPiece = ({
                 Keep this piece
               </label>
             )}
-            <button
-              aria-label={`Remove ${slotLabel[slot].toLowerCase()}`}
-              className={linkButtonClass}
-              disabled={disabled}
-              onClick={() => onRemove(slot)}
-              type="button"
-            >
-              Remove
-            </button>
+            <div className="ml-auto flex items-center">
+              {onLaundry === null ||
+              garment.inLaundry ||
+              !hasWearBudget(garment) ? null : (
+                <IconButton
+                  icon="laundry"
+                  label={`Send ${garment.name} to laundry`}
+                  disabled={laundryDisabled}
+                  onClick={() => onLaundry(garment.id)}
+                />
+              )}
+              {readOnly ? null : (
+                <IconButton
+                  icon="close"
+                  label={`Remove ${slotLabel[slot].toLowerCase()}`}
+                  disabled={disabled}
+                  onClick={() => onRemove(slot)}
+                />
+              )}
+            </div>
           </div>
         </>
       )}
@@ -113,6 +127,9 @@ export const OutfitEditor = ({
   pinned,
   onPin,
   disabled,
+  readOnly,
+  laundryDisabled,
+  onLaundry,
 }: OutfitEditorProps) => {
   const [choosing, setChoosing] = useState<Slot | null>(null);
   const shown = slotOrder.filter(
@@ -150,6 +167,9 @@ export const OutfitEditor = ({
             entries={entries}
             wardrobe={wardrobe}
             disabled={disabled}
+            readOnly={readOnly}
+            laundryDisabled={laundryDisabled}
+            onLaundry={onLaundry}
             pinned={pinned}
             onPin={onPin}
             onChoose={setChoosing}

@@ -234,6 +234,9 @@ export const OutfitsPanel = ({
             pinned={[]}
             onPin={null}
             disabled={busy}
+            readOnly={false}
+            laundryDisabled={busy}
+            onLaundry={null}
           />
           <div className="mt-6 flex gap-4">
             <button className={signalButtonClass} disabled={busy} type="submit">

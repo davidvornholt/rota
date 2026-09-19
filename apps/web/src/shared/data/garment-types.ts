@@ -78,7 +78,7 @@ export const categoryDefaults: Readonly<
   jumper: { budget: 4, slots: ['over', 'top'] },
   cardigan: { budget: 4, slots: ['over'] },
   hoodie: { budget: 4, slots: ['over', 'top'] },
-  overshirt: { budget: 3, slots: ['over'] },
+  overshirt: { budget: 2, slots: ['over'] },
 };
 
 export const isCategory = (value: string): value is GarmentCategory =>

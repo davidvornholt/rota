@@ -48,6 +48,9 @@ export const OutfitActionsFixture = ({
         pinned={[]}
         onPin={null}
         disabled={false}
+        readOnly={false}
+        laundryDisabled={false}
+        onLaundry={null}
       />
     </div>
   );

@@ -1,6 +1,8 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 
 const paths = {
+  check: 'm5 12 4 4L19 6',
+  laundry: 'M4 8h16l-2 12H6L4 8ZM8 8l4-5 4 5M9 12v4M15 12v4',
   close: 'm6 6 12 12M6 18 18 6',
   edit: 'm16 3 5 5-12 12-6 1 1-6L16 3Zm-3 3 5 5',
   trash: 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7',

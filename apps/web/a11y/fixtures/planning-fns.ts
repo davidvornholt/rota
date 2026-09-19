@@ -18,7 +18,16 @@ const bottom = {
 };
 export const wardrobe = [
   bottom,
-  { ...shirt, daysSinceWorn: 2 },
+  {
+    ...shirt,
+    daysSinceWorn: 2,
+    image: {
+      url: '/a11y/fixtures/shirt.svg',
+      width: 300,
+      height: 400,
+      fit: 'contain' as const,
+    },
+  },
   {
     ...shirt,
     id: 'demo-white',
@@ -110,6 +119,18 @@ const updateCare = (
       : garment;
   return {
     ...view,
+    plan:
+      change.care === 'laundry' &&
+      change.draft !== null &&
+      view.day.worn === null
+        ? {
+            ...view.plan,
+            entries: change.draft.entries.filter(
+              (entry) => !change.ids.includes(entry.garmentId),
+            ),
+            basedOn: change.draft.basedOn,
+          }
+        : view.plan,
     wardrobe: view.wardrobe.map(updatePiece),
     laundry: view.laundry.map(updatePiece),
   };
@@ -125,7 +146,7 @@ export const changePlanningFn = ({
     Effect.gen(function* () {
       if (
         new URLSearchParams(globalThis.location.search).has('failure') &&
-        data.change.action === 'suggest'
+        (data.change.action === 'suggest' || data.change.action === 'care')
       ) {
         yield* Effect.promise(() =>
           request('/fixture-planning-action', { method: 'POST' }),

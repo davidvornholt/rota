@@ -43,6 +43,9 @@ const successMessage = (change: PlanningChange): string => {
     case 'save-outfit':
       return 'Saved to your outfits.';
     case 'care':
+      if (change.care === 'laundry') {
+        return 'Sent to laundry.';
+      }
       return change.care === 'washed' ? 'Back clean.' : 'Return date updated.';
     default:
       return 'Saved.';
@@ -95,9 +98,24 @@ export const usePlanning = (
           })) ?? [],
         );
       }
+      if (
+        change.action === 'care' &&
+        change.care === 'laundry' &&
+        next.day.worn === null
+      ) {
+        setEntries((current) =>
+          current.filter((entry) => !change.ids.includes(entry.garmentId)),
+        );
+        setPinned((current) =>
+          current.filter((id) => !change.ids.includes(id)),
+        );
+      }
       setMessage(successMessage(change));
       try {
-        const savedDay = change.action === 'plan' || change.action === 'wear';
+        const savedDay =
+          change.action === 'plan' ||
+          change.action === 'wear' ||
+          (change.action === 'care' && change.draft !== null);
         if (
           savedDay &&
           (seed.garment !== undefined || seed.outfit !== undefined)
@@ -131,6 +149,16 @@ export const usePlanning = (
     busy: mutation.isPending,
     failure: mutation.error,
     change: mutation.mutateAsync,
+    care: (id: string, care: 'laundry' | 'washed' | 'postpone') =>
+      mutation.mutateAsync({
+        action: 'care',
+        ids: [id],
+        care,
+        draft:
+          care === 'laundry' && view.day.worn === null
+            ? { entries, basedOn }
+            : null,
+      }),
     pin: (id: string) =>
       setPinned((ids) =>
         ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id],

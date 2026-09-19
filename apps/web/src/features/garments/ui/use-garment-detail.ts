@@ -3,11 +3,13 @@ import { useRouter } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import type { ImageChoice } from '#/shared/data/garment-types.ts';
 import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
+import { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import type { GarmentEdit } from '../schemas/garment-input.ts';
 import {
   deleteGarmentFn,
   restoreGarmentFn,
   retireGarmentFn,
+  setGarmentCareFn,
   setImageChoiceFn,
   updateGarmentFn,
 } from '../services/garments-fns.ts';
@@ -51,6 +53,17 @@ export const useGarmentDetail = (initial: GarmentView) => {
       router.invalidate().catch(() => undefined);
     },
   });
+  const care = useMutation({
+    mutationFn: () =>
+      setGarmentCareFn({
+        data: { id, care: garment.inLaundry ? 'washed' : 'laundry' },
+        fetch: serverFunctionFetch,
+      }),
+    onSuccess: (next) => {
+      setGarment(next);
+      router.invalidate().catch(() => undefined);
+    },
+  });
   const retire = useMutation({
     mutationFn: () => retireGarmentFn({ data: { id } }),
     onSuccess: apply,
@@ -72,7 +85,7 @@ export const useGarmentDetail = (initial: GarmentView) => {
 
   useGarmentPolling(isRendering(garment) || retryStudio.isPending);
 
-  const mutations = [save, choose, retire, restore, remove];
+  const mutations = [save, choose, care, retire, restore, remove];
   const failure = mutations.find((mutation) => mutation.isError)?.error;
   const lifecyclePending =
     retryStudio.isPending ||
@@ -88,6 +101,7 @@ export const useGarmentDetail = (initial: GarmentView) => {
     setSaved,
     save,
     choose,
+    care,
     replace,
     retire,
     restore,

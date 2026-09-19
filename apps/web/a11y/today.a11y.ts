@@ -4,6 +4,7 @@ import { Effect } from 'effect';
 import type { ViteDevServer } from 'vite';
 import { startGarmentFixtureServer } from './garment-fixture-server.ts';
 
+const chinos = /^Navy chinos/u;
 const whiteShirt = /^White cotton shirt/u;
 const trainers = /^White trainers/u;
 const bag = /^Tan leather bag/u;
@@ -239,6 +240,10 @@ test('laundry shows return dates and handles early washing and late returns', as
     .getByRole('button', { name: 'Back clean: Navy chinos', exact: true })
     .click();
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Choose bottom', exact: true })
+    .click();
+  await page.getByRole('dialog').getByRole('button', { name: chinos }).click();
   await expect(page.getByRole('button', { name: 'Wear this' })).toBeEnabled();
 });
 

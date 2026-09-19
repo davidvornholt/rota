@@ -91,6 +91,13 @@ describe('automatic laundry', () => {
       }).wearsSinceWash,
     ).toBe(0);
   });
+  it('sends an overshirt to laundry after two wears by default', () => {
+    const overshirt = { category: 'overshirt', wearBudget: null };
+    expect(care(['2026-09-01'], '2026-09-01', overshirt).inLaundry).toBeFalse();
+    expect(
+      care(['2026-09-01', '2026-09-02'], '2026-09-02', overshirt).inLaundry,
+    ).toBeTrue();
+  });
   it('allows accessories to repeat freely', () => {
     for (const category of ['shoes', 'handbag']) {
       expect(

@@ -14,6 +14,7 @@ import type { LocalDate } from '#/shared/time/local-date.ts';
 import { readWardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import {
   decodeAcceptGarmentInput,
+  decodeGarmentCareInput,
   decodeGarmentId,
   decodeImageChoiceInput,
   decodeRetryStudioInput,
@@ -185,6 +186,26 @@ export const retryStudioFn = createServerFn({ method: 'POST' })
         Effect.gen(function* () {
           const ingest = yield* IngestService;
           yield* ingest.retryStudio(data.id, data.edit, data.instructions);
+          return yield* garmentView(data.id);
+        }),
+      ),
+  );
+
+export const setGarmentCareFn = createServerFn({ method: 'POST' })
+  .middleware([sessionRequired])
+  .validator((input: unknown) => decodeGarmentCareInput(input))
+  .handler(
+    ({ data }): Promise<GarmentView> =>
+      garmentsRuntime.run(
+        Effect.gen(function* () {
+          const garments = yield* GarmentRepository;
+          const clock = yield* readWardrobeClock();
+          yield* garments.setCare(
+            [data.id],
+            data.care,
+            clock.actualToday,
+            clock.settings.laundryDays,
+          );
           return yield* garmentView(data.id);
         }),
       ),

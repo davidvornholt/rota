@@ -95,6 +95,11 @@ export const TodayPage = ({
             pinned={controller.pinned}
             onPin={worn ? null : controller.pin}
             disabled={busy || worn}
+            readOnly={worn}
+            laundryDisabled={busy}
+            onLaundry={(id) => {
+              controller.care(id, 'laundry').catch(() => undefined);
+            }}
           />
         </div>
         <div className="lg:col-start-1 lg:self-start">
