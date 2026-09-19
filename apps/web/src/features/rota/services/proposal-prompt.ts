@@ -72,7 +72,8 @@ export const proposalSystemPrompt = [
   "You are the valet behind Rota, a one-person wardrobe app. Choose today's outfit from the available wardrobe for the supplied forecast and the wearer's note.",
   "Rotation is a preference: keep continuing garments when appropriate, but weather and the note take priority. You may replace any or all of them. Explain a replacement in the new garment's reason.",
   "Judge the outfit as a whole. Choose only the offered aliases. The forecast covers 05:00–20:00 in the wardrobe location's time zone.",
-  'Shoes and handbags are optional and may repeat freely.',
+  "Consider every outfit slot. Include suitable shoes and a bag whenever offered; they may repeat freely. Omit them only when no offered choice suits the weather, outfit or wearer's note.",
+  "Choose an underlayer or overlayer only when the forecast, outfit or wearer's note makes it useful. Account for the whole outfit's warmth; leave unnecessary layers out in hot weather. A continuing layer is not a reason to keep it when it would be too warm.",
   'Write for the wearer in plain, specific, second-person English. No exclamation marks, no emoji, no sales tone.',
 ].join(' ');
 
@@ -105,6 +106,15 @@ const describeGarment = (garment: Garment): string =>
   ]
     .filter((part) => part !== undefined)
     .join('; ');
+
+const slotGuidance: Readonly<Partial<Record<Slot, string>>> = {
+  shoes:
+    "Include suitable shoes; use null only if none fit the weather, outfit or wearer's note.",
+  bag: "Include a suitable bag; use null only if none fit the weather, outfit or wearer's note.",
+  under:
+    "Choose an underlayer only if the outfit, weather or wearer's note calls for one; otherwise use null.",
+  over: "Choose an overlayer only if the outfit, weather or wearer's note calls for one; leave it null when it would be too warm.",
+};
 
 const slotInstruction = (
   open: SlotChoices,
@@ -218,6 +228,12 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
       (c) => c.slot === open.slot,
     );
     say(slotInstruction(open, hasContinuation));
+    if (!open.required && (open.candidates.length > 0 || hasContinuation)) {
+      const guidance = slotGuidance[open.slot];
+      if (guidance !== undefined) {
+        say(guidance);
+      }
+    }
     open.candidates.forEach((candidate, index) => {
       const alias = `${slotPrefix[open.slot]}${index + 1}`;
       aliases.set(alias, {
@@ -236,7 +252,7 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
   }
 
   say(
-    `Decide today's outfit. Fill ${slotOrder.join(', ')} with aliases (under, over, shoes and bag may be null). Then write the headline and one reason per chosen garment.`,
+    `Decide today's complete outfit. Fill ${slotOrder.join(', ')} with aliases. Include suitable offered shoes and a bag; add under and over layers only when useful for the weather and outfit. Leave unavailable or unsuitable optional slots null. Then write the headline and one reason per chosen garment.`,
   );
 
   return { parts, aliases };

@@ -27,6 +27,14 @@ export const ProposalAnswerSchema = Schema.Struct({
 export type ProposalAnswer = Schema.Schema.Type<typeof ProposalAnswerSchema>;
 
 const alias = (description: string) => ({ type: 'string', description });
+const optionalSlotDescription: Readonly<Partial<Record<Slot, string>>> = {
+  under:
+    " Choose only when useful for the outfit, weather or wearer's note; otherwise null.",
+  over: " Choose only when useful for the outfit, weather or wearer's note; null when it would be too warm.",
+  shoes:
+    " Include suitable offered shoes; null only when unavailable or unsuitable for the weather, outfit or wearer's note.",
+  bag: " Include a suitable offered bag; null only when unavailable or unsuitable for the weather, outfit or wearer's note.",
+};
 export const proposalAnswerJsonSchema = (
   aliases: ReadonlyMap<string, { readonly slot: Slot }>,
 ) => {
@@ -38,7 +46,7 @@ export const proposalAnswerJsonSchema = (
     return {
       type: optional ? optionalType : 'string',
       enum: optional ? [...choices, null] : choices,
-      description: `An offered alias for ${slot}, never a garment name.${optional ? ' Null omits this layer.' : ''}`,
+      description: `An offered alias for ${slot}, never a garment name.${optionalSlotDescription[slot] ?? ''}`,
     };
   };
   return {
