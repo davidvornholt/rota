@@ -72,7 +72,7 @@ test('sending a proposed garment keeps other draft choices and leaves replacemen
     page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Complete outfit', exact: true }),
+    page.getByRole('button', { name: 'Suggest another', exact: true }),
   ).toBeVisible();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
 });
