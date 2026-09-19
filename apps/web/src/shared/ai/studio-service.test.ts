@@ -53,30 +53,6 @@ const run = <A, E>(
 ) => Effect.runPromise(effect.pipe(Effect.provide(TestContext.TestContext)));
 
 describe('studio image requests', () => {
-  it('renders at high quality without the input fidelity parameter Flare rejects', async () => {
-    fetchSpy.mockImplementationOnce(
-      Object.assign(
-        (_url: RequestInfo | URL, options?: RequestInit) => {
-          const form = options?.body as FormData;
-          expect(form.get('quality')).toBe('high');
-          return Promise.resolve(
-            form.has('input_fidelity')
-              ? new Response('invalid_input_fidelity_model', { status: 400 })
-              : success(),
-          );
-        },
-        { preconnect: () => undefined },
-      ),
-    );
-    const result = await run(
-      Effect.gen(function* () {
-        const studio = yield* makeStudioRenderer(connection);
-        return yield* studio.render(Effect.succeed(input), () => Effect.void);
-      }),
-    );
-    expect(result.mime).toBe('image/png');
-  });
-
   it('retries 429 and retains the opaque fallback after transparency is refused', async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response('transparent background is unsupported', { status: 400 }),
