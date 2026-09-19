@@ -3,12 +3,9 @@ import { useState } from 'react';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
-import {
-  fieldClass,
-  linkButtonClass,
-  signalButtonClass,
-} from '#/shared/ui/classes.ts';
+import { fieldClass, signalButtonClass } from '#/shared/ui/classes.ts';
 import { Dialog } from '#/shared/ui/dialog.tsx';
+import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { changePlanningFn } from '../services/planning-fns.ts';
 import { completeOutfit } from './draft-status.ts';
@@ -41,18 +38,21 @@ export const SaveOutfitButton = ({
   });
   return (
     <>
-      <button
-        className={linkButtonClass}
+      <IconButton
+        icon="bookmark"
+        label="Save as an outfit"
+        tooltip={
+          completeOutfit(entries)
+            ? 'Save as an outfit'
+            : 'Choose a top and bottom to save an outfit'
+        }
         disabled={!completeOutfit(entries)}
         onClick={() => {
           save.reset();
           setId(crypto.randomUUID());
           setOpen(true);
         }}
-        type="button"
-      >
-        Save as an outfit
-      </button>
+      />
       {save.isSuccess ? (
         <span className="text-ink-muted text-sm" role="status">
           Saved to your outfits.

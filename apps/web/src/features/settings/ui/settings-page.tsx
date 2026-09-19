@@ -15,7 +15,11 @@ import {
   linkButtonClass,
 } from '#/shared/ui/classes.ts';
 import { Notice } from '#/shared/ui/notice.tsx';
-import { type Location, locationLabel } from '#/shared/weather/location.ts';
+import {
+  type Location,
+  locationLabel,
+  locationSearchLabel,
+} from '#/shared/weather/location.ts';
 import type { RotationSettingsInput } from '../schemas/settings-input.ts';
 import {
   saveLocationFn,
@@ -60,7 +64,7 @@ const SearchResults = ({
           key={`${location.latitude}-${location.longitude}`}
         >
           <span className="text-ink text-sm">
-            {locationLabel(location)}
+            {locationSearchLabel(location)}
             <span className="type-data ml-2 text-ink-faint text-xs">
               {location.timezone}
             </span>

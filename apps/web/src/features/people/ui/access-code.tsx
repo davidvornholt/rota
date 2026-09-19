@@ -1,9 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import {
-  fieldClass,
-  linkButtonClass,
-  signalButtonClass,
-} from '#/shared/ui/classes.ts';
+import { fieldClass, signalButtonClass } from '#/shared/ui/classes.ts';
+import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 
 export type IssuedCode = {
@@ -49,7 +46,7 @@ export const AccessCode = ({
           value={value.code}
         />
       </label>
-      <div className="mt-4 flex flex-wrap items-center gap-5">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
           className={signalButtonClass}
           onClick={async () => {
@@ -66,9 +63,7 @@ export const AccessCode = ({
         >
           Copy code
         </button>
-        <button className={linkButtonClass} onClick={onHide} type="button">
-          Hide code
-        </button>
+        <IconButton icon="close" label="Hide code" onClick={onHide} />
       </div>
       {copied ? (
         <p className="mt-3 text-sm" role="status">

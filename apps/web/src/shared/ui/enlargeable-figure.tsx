@@ -115,7 +115,7 @@ export const EnlargeableFigure = ({
       </button>
       <dialog
         aria-labelledby={titleId}
-        className="m-0 h-svh max-h-none w-full max-w-none bg-paper p-0 text-ink backdrop:bg-ink/80"
+        className="m-0 h-svh max-h-none w-full max-w-none overflow-hidden overscroll-contain bg-paper p-0 text-ink backdrop:bg-ink/80"
         onCancel={(event) => {
           event.preventDefault();
           hide();

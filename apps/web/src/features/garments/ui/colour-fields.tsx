@@ -1,6 +1,6 @@
 import { colorName } from '#/shared/data/color-name.ts';
 import type { GarmentColor } from '#/shared/data/garment-types.ts';
-import { labelClass, linkButtonClass } from '#/shared/ui/classes.ts';
+import { labelClass } from '#/shared/ui/classes.ts';
 import { IconButton } from '#/shared/ui/icon-button.tsx';
 
 const mostColors = 5;
@@ -71,13 +71,11 @@ export const ColourFields = ({ colors, onChange }: ColourFieldsProps) => {
         ))}
         {colors.length < mostColors ? (
           <li>
-            <button
-              className={linkButtonClass}
+            <IconButton
+              icon="plus"
+              label="Add a colour"
               onClick={() => onChange([...colors, { hex: newColorHex }])}
-              type="button"
-            >
-              Add a colour
-            </button>
+            />
           </li>
         ) : null}
       </ul>

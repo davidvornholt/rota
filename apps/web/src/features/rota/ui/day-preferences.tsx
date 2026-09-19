@@ -4,6 +4,7 @@ import {
   fieldClass,
   linkButtonClass,
 } from '#/shared/ui/classes.ts';
+import { useCleanTop } from './use-clean-top.ts';
 import type { PlanningController } from './use-planning.ts';
 export const DayPreferences = ({
   controller,
@@ -12,6 +13,7 @@ export const DayPreferences = ({
 }) => {
   const { view, busy } = controller;
   const [note, setNote] = useState(view.day.occasion ?? '');
+  const cleanTop = useCleanTop(controller);
   const tomorrow = view.day.today > view.actualToday;
   return (
     <>
@@ -19,43 +21,41 @@ export const DayPreferences = ({
         <input
           className={checkClass}
           type="checkbox"
-          checked={view.cleanTop}
-          disabled={busy}
+          checked={cleanTop.value}
+          disabled={busy && !cleanTop.saving}
           onChange={(event) => {
-            controller
-              .change({ action: 'clean-top', value: event.target.checked })
-              .catch(() => undefined);
+            cleanTop.set(event.target.checked);
           }}
         />
         Freshly washed top {tomorrow ? 'tomorrow' : 'today'}
       </label>
-      <details>
-        <summary className="cursor-pointer py-2 text-ink-muted text-sm">
-          {view.day.occasion ? `Note: ${view.day.occasion}` : 'Add an occasion'}
-        </summary>
-        <form
-          className="mt-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            controller
-              .change({ action: 'note', text: note })
-              .catch(() => undefined);
-          }}
-        >
-          <label className="text-sm">
-            Plans for the day
-            <textarea
-              className={[fieldClass, 'mt-2'].join(' ')}
-              maxLength={280}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-          </label>
+
+      <form
+        className="mt-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller
+            .change({ action: 'note', text: note })
+            .catch(() => undefined);
+        }}
+      >
+        <label className="text-sm">
+          Plans for the day (optional)
+          <textarea
+            className={[fieldClass, 'mt-2'].join(' ')}
+            rows={3}
+            placeholder="Office, dinner out, or a quiet day at home…"
+            maxLength={280}
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+          />
+        </label>
+        {note === (view.day.occasion ?? '') ? null : (
           <button className={linkButtonClass} disabled={busy} type="submit">
             Save note
           </button>
-        </form>
-      </details>
+        )}
+      </form>
     </>
   );
 };

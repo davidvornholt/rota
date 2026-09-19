@@ -10,6 +10,7 @@ import {
 } from '#/shared/ui/classes.ts';
 import { Dialog } from '#/shared/ui/dialog.tsx';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
+import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { OutfitEditor } from './outfit-editor.tsx';
 import type { PlanningController } from './use-planning.ts';
@@ -61,7 +62,7 @@ const SavedOutfitCard = ({
     <li key={outfit.id}>
       <Preview outfit={outfit} wardrobe={view.wardrobe} />
       <h3 className="type-display mt-2 text-2xl">{outfit.name}</h3>
-      <div className="mt-2 flex flex-wrap items-center gap-x-5">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
           className={signalButtonClass}
           disabled={busy}
@@ -75,24 +76,18 @@ const SavedOutfitCard = ({
             ? 'Choose for tomorrow'
             : 'Choose for today'}
         </button>
-        <button
-          className={linkButtonClass}
+        <IconButton
+          icon="edit"
+          label={`Edit ${outfit.name}`}
           disabled={busy}
           onClick={() => setEditing(outfit)}
-          type="button"
-          aria-label={`Edit ${outfit.name}`}
-        >
-          Edit
-        </button>
-        <button
-          className={linkButtonClass}
+        />
+        <IconButton
+          icon="trash"
+          label={`Delete ${outfit.name}`}
           disabled={busy}
           onClick={() => setDeleting(outfit.id)}
-          type="button"
-          aria-label={`Delete ${outfit.name}`}
-        >
-          Delete
-        </button>
+        />
       </div>
       {deleting === outfit.id ? (
         <div className="mt-2 flex items-center gap-4">

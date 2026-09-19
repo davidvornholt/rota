@@ -40,15 +40,13 @@ export const OccasionNote = ({
   };
 
   return (
-    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <p className="type-eyebrow">Occasion</p>
       <p className="text-ink text-sm">
         {occasion ?? <span className="text-ink-faint">None noted</span>}
       </p>
       {occasion === null ? (
-        <button className={linkButtonClass} onClick={openEditor} type="button">
-          Add a note
-        </button>
+        <IconButton icon="plus" label="Add a note" onClick={openEditor} />
       ) : (
         <IconButton
           icon="edit"

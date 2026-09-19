@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
 import { useId, useState } from 'react';
+import { currentPersonFn } from '#/shared/auth/session-fn.ts';
 import {
   fieldClass,
   frameClass,
   quietButtonClass,
   signalButtonClass,
 } from '#/shared/ui/classes.ts';
+import { IconLink } from '#/shared/ui/icon-link.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import {
   accessFn,
@@ -24,6 +25,10 @@ export const PeoplePage = () => {
   const formId = useId();
   const queryClient = useQueryClient();
   const people = useQuery({ queryKey: ['people'], queryFn: () => peopleFn() });
+  const currentPerson = useQuery({
+    queryKey: ['current-person'],
+    queryFn: () => currentPersonFn(),
+  });
   const [name, setName] = useState('');
   const [issuedCode, setIssuedCode] = useState<IssuedCode | null>(null);
   const action = useMutation({
@@ -111,14 +116,23 @@ export const PeoplePage = () => {
                 </p>
               ) : null}
             </div>
-            <div className="flex flex-wrap items-start gap-x-5 gap-y-2">
-              <Link
-                className={quietButtonClass}
-                params={{ memberId: person.id }}
-                to="/people/$memberId"
-              >
-                View wardrobe
-              </Link>
+            <div className="flex flex-wrap items-start gap-2">
+              {currentPerson.data?.id === person.id ? (
+                <IconLink
+                  icon="edit"
+                  label="Open my wardrobe"
+                  linkOptions={{ to: '/wardrobe' }}
+                />
+              ) : (
+                <IconLink
+                  icon="eye"
+                  label={`View ${person.name}’s wardrobe`}
+                  linkOptions={{
+                    params: { memberId: person.id },
+                    to: '/people/$memberId',
+                  }}
+                />
+              )}
               <PersonAccess
                 person={person}
                 pending={action.isPending}

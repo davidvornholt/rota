@@ -11,8 +11,12 @@ const garmentFixtureConfig = (cacheDir: string): InlineConfig => ({
   resolve: {
     tsconfigPaths: true,
     alias: {
+      '#/shared/auth/session-fn.ts': new URL(
+        './fixtures/session-fns.ts',
+        import.meta.url,
+      ).pathname,
       '../services/people-fns.ts': new URL(
-        './fixtures/usage-fns.ts',
+        './fixtures/people-fns.ts',
         import.meta.url,
       ).pathname,
       '../services/settings-fns.ts': new URL(

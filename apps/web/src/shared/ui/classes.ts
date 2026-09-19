@@ -10,7 +10,7 @@ export const frameClass = 'mx-auto w-full max-w-6xl px-5 sm:px-8';
 export const proseClass = 'max-w-prose';
 
 const controlBase =
-  'inline-flex min-h-11 items-center justify-center gap-2 px-4 text-sm font-medium tracking-wide transition-colors duration-150 ease-standard disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex min-h-11 items-center justify-center gap-2 px-4 text-sm font-medium tracking-wide motion-safe:transition-[background-color,color,border-color,transform] motion-safe:duration-150 ease-standard motion-safe:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50';
 
 /** The one yellow thing on a page: the action the page exists for. */
 export const signalButtonClass = `${controlBase} bg-signal text-ink hover:bg-signal-deep`;
