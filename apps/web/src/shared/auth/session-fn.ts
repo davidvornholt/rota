@@ -1,5 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
+import { sessionRequired } from './auth-middleware.ts';
+import { currentIdentity } from './identity.ts';
 
 import { hasAuthorizedSession } from './session.ts';
 
@@ -17,3 +19,7 @@ export const hasAuthorizedSessionFn = createServerFn({
   (): Promise<boolean> =>
     hasAuthorizedSession(getRequest().headers).catch(() => false),
 );
+
+export const currentPersonFn = createServerFn({ method: 'GET' })
+  .middleware([sessionRequired])
+  .handler(() => currentIdentity());

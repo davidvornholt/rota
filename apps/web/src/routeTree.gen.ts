@@ -10,13 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as JoinRouteImport } from './routes/join'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppPeopleRouteImport } from './routes/_app/people'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as ApiHealthzRouteImport } from './routes/api/healthz'
 import { Route as AppHistoryIndexRouteImport } from './routes/_app/history.index'
 import { Route as AppHistoryDateRouteImport } from './routes/_app/history.$date'
 import { Route as AppHistoryCatchUpRouteImport } from './routes/_app/history.catch-up'
+import { Route as AppPeopleIndexRouteImport } from './routes/_app/people.index'
+import { Route as AppPeopleMemberIdRouteImport } from './routes/_app/people.$memberId'
 import { Route as AppWardrobeIndexRouteImport } from './routes/_app/wardrobe.index'
 import { Route as AppWardrobeGarmentIdRouteImport } from './routes/_app/wardrobe.$garmentId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -29,6 +34,11 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JoinRoute = JoinRouteImport.update({
+  id: '/join',
+  path: '/join',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -37,6 +47,16 @@ const LoginRoute = LoginRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountRoute = AppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPeopleRoute = AppPeopleRouteImport.update({
+  id: '/people',
+  path: '/people',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -63,6 +83,16 @@ const AppHistoryCatchUpRoute = AppHistoryCatchUpRouteImport.update({
   id: '/history/catch-up',
   path: '/history/catch-up',
   getParentRoute: () => AppRoute,
+} as any)
+const AppPeopleIndexRoute = AppPeopleIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPeopleRoute,
+} as any)
+const AppPeopleMemberIdRoute = AppPeopleMemberIdRouteImport.update({
+  id: '/$memberId',
+  path: '/$memberId',
+  getParentRoute: () => AppPeopleRoute,
 } as any)
 const AppWardrobeIndexRoute = AppWardrobeIndexRouteImport.update({
   id: '/wardrobe/',
@@ -103,51 +133,65 @@ const ApiGarmentsGarmentIdPhotoRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/join': typeof JoinRoute
   '/login': typeof LoginRoute
+  '/account': typeof AppAccountRoute
+  '/people': typeof AppPeopleRouteWithChildren
   '/settings': typeof AppSettingsRoute
   '/api/healthz': typeof ApiHealthzRoute
   '/history/$date': typeof AppHistoryDateRoute
   '/history/catch-up': typeof AppHistoryCatchUpRoute
+  '/people/$memberId': typeof AppPeopleMemberIdRoute
   '/wardrobe/$garmentId': typeof AppWardrobeGarmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/garments/upload': typeof ApiGarmentsUploadRoute
   '/api/internal/tick': typeof ApiInternalTickRoute
   '/api/media/$': typeof ApiMediaSplatRoute
   '/history/': typeof AppHistoryIndexRoute
+  '/people/': typeof AppPeopleIndexRoute
   '/wardrobe/': typeof AppWardrobeIndexRoute
   '/api/garments/$garmentId/photo': typeof ApiGarmentsGarmentIdPhotoRoute
 }
 export interface FileRoutesByTo {
+  '/join': typeof JoinRoute
   '/login': typeof LoginRoute
+  '/account': typeof AppAccountRoute
   '/settings': typeof AppSettingsRoute
   '/api/healthz': typeof ApiHealthzRoute
   '/': typeof AppIndexRoute
   '/history/$date': typeof AppHistoryDateRoute
   '/history/catch-up': typeof AppHistoryCatchUpRoute
+  '/people/$memberId': typeof AppPeopleMemberIdRoute
   '/wardrobe/$garmentId': typeof AppWardrobeGarmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/garments/upload': typeof ApiGarmentsUploadRoute
   '/api/internal/tick': typeof ApiInternalTickRoute
   '/api/media/$': typeof ApiMediaSplatRoute
   '/history': typeof AppHistoryIndexRoute
+  '/people': typeof AppPeopleIndexRoute
   '/wardrobe': typeof AppWardrobeIndexRoute
   '/api/garments/$garmentId/photo': typeof ApiGarmentsGarmentIdPhotoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/join': typeof JoinRoute
   '/login': typeof LoginRoute
+  '/_app/account': typeof AppAccountRoute
+  '/_app/people': typeof AppPeopleRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
   '/api/healthz': typeof ApiHealthzRoute
   '/_app/': typeof AppIndexRoute
   '/_app/history/$date': typeof AppHistoryDateRoute
   '/_app/history/catch-up': typeof AppHistoryCatchUpRoute
+  '/_app/people/$memberId': typeof AppPeopleMemberIdRoute
   '/_app/wardrobe/$garmentId': typeof AppWardrobeGarmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/garments/upload': typeof ApiGarmentsUploadRoute
   '/api/internal/tick': typeof ApiInternalTickRoute
   '/api/media/$': typeof ApiMediaSplatRoute
   '/_app/history/': typeof AppHistoryIndexRoute
+  '/_app/people/': typeof AppPeopleIndexRoute
   '/_app/wardrobe/': typeof AppWardrobeIndexRoute
   '/api/garments/$garmentId/photo': typeof ApiGarmentsGarmentIdPhotoRoute
 }
@@ -155,56 +199,71 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/join'
     | '/login'
+    | '/account'
+    | '/people'
     | '/settings'
     | '/api/healthz'
     | '/history/$date'
     | '/history/catch-up'
+    | '/people/$memberId'
     | '/wardrobe/$garmentId'
     | '/api/auth/$'
     | '/api/garments/upload'
     | '/api/internal/tick'
     | '/api/media/$'
     | '/history/'
+    | '/people/'
     | '/wardrobe/'
     | '/api/garments/$garmentId/photo'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/join'
     | '/login'
+    | '/account'
     | '/settings'
     | '/api/healthz'
     | '/'
     | '/history/$date'
     | '/history/catch-up'
+    | '/people/$memberId'
     | '/wardrobe/$garmentId'
     | '/api/auth/$'
     | '/api/garments/upload'
     | '/api/internal/tick'
     | '/api/media/$'
     | '/history'
+    | '/people'
     | '/wardrobe'
     | '/api/garments/$garmentId/photo'
   id:
     | '__root__'
     | '/_app'
+    | '/join'
     | '/login'
+    | '/_app/account'
+    | '/_app/people'
     | '/_app/settings'
     | '/api/healthz'
     | '/_app/'
     | '/_app/history/$date'
     | '/_app/history/catch-up'
+    | '/_app/people/$memberId'
     | '/_app/wardrobe/$garmentId'
     | '/api/auth/$'
     | '/api/garments/upload'
     | '/api/internal/tick'
     | '/api/media/$'
     | '/_app/history/'
+    | '/_app/people/'
     | '/_app/wardrobe/'
     | '/api/garments/$garmentId/photo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  JoinRoute: typeof JoinRoute
   LoginRoute: typeof LoginRoute
   ApiHealthzRoute: typeof ApiHealthzRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -223,6 +282,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/join': {
+      id: '/join'
+      path: '/join'
+      fullPath: '/join'
+      preLoaderRoute: typeof JoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -235,6 +301,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account': {
+      id: '/_app/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AppAccountRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/people': {
+      id: '/_app/people'
+      path: '/people'
+      fullPath: '/people'
+      preLoaderRoute: typeof AppPeopleRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings': {
@@ -271,6 +351,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/history/catch-up'
       preLoaderRoute: typeof AppHistoryCatchUpRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/people/': {
+      id: '/_app/people/'
+      path: '/'
+      fullPath: '/people/'
+      preLoaderRoute: typeof AppPeopleIndexRouteImport
+      parentRoute: typeof AppPeopleRoute
+    }
+    '/_app/people/$memberId': {
+      id: '/_app/people/$memberId'
+      path: '/$memberId'
+      fullPath: '/people/$memberId'
+      preLoaderRoute: typeof AppPeopleMemberIdRouteImport
+      parentRoute: typeof AppPeopleRoute
     }
     '/_app/wardrobe/': {
       id: '/_app/wardrobe/'
@@ -324,7 +418,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppPeopleRouteChildren {
+  AppPeopleMemberIdRoute: typeof AppPeopleMemberIdRoute
+  AppPeopleIndexRoute: typeof AppPeopleIndexRoute
+}
+
+const AppPeopleRouteChildren: AppPeopleRouteChildren = {
+  AppPeopleMemberIdRoute: AppPeopleMemberIdRoute,
+  AppPeopleIndexRoute: AppPeopleIndexRoute,
+}
+
+const AppPeopleRouteWithChildren = AppPeopleRoute._addFileChildren(
+  AppPeopleRouteChildren,
+)
+
 interface AppRouteChildren {
+  AppAccountRoute: typeof AppAccountRoute
+  AppPeopleRoute: typeof AppPeopleRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppHistoryDateRoute: typeof AppHistoryDateRoute
@@ -335,6 +445,8 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAccountRoute: AppAccountRoute,
+  AppPeopleRoute: AppPeopleRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
   AppHistoryDateRoute: AppHistoryDateRoute,
@@ -348,6 +460,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  JoinRoute: JoinRoute,
   LoginRoute: LoginRoute,
   ApiHealthzRoute: ApiHealthzRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

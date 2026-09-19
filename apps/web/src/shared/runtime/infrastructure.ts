@@ -1,3 +1,8 @@
+import {
+  currentIdentity,
+  type Identity,
+  WardrobeOwner,
+} from '#/shared/auth/identity.ts';
 /**
  * Everything a feature needs from below it: the SQL client over the one pool,
  * the repositories, the media store, the two model clients, and the weather
@@ -40,19 +45,22 @@ export type Infrastructure =
   | StudioRenderer
   | WeatherApi;
 
-export const infrastructureLayer: Layer.Layer<Infrastructure, SqlError> =
-  Layer.mergeAll(
-    GarmentRepository.Default,
-    WearLogRepository.Default,
-    ProposalRepository.Default,
-    SettingsRepository.Default,
-    WeatherRepository.Default,
-    DayNoteRepository.Default,
-    MediaStore.Default,
-    Gemini.Default,
-    StudioRenderer.Default,
-    WeatherApi.Default,
-  ).pipe(Layer.provideMerge(Layer.suspend(() => pgClientLayer(pool))));
+export const infrastructureLayer: Layer.Layer<
+  Infrastructure,
+  SqlError,
+  WardrobeOwner
+> = Layer.mergeAll(
+  GarmentRepository.Default,
+  WearLogRepository.Default,
+  ProposalRepository.Default,
+  SettingsRepository.Default,
+  WeatherRepository.Default,
+  DayNoteRepository.Default,
+  MediaStore.Default,
+  Gemini.Default,
+  StudioRenderer.Default,
+  WeatherApi.Default,
+).pipe(Layer.provideMerge(Layer.suspend(() => pgClientLayer(pool))));
 
 const logged = <A, E, R>(
   label: string,
@@ -81,25 +89,30 @@ export const featureRuntime = <R, E>(
   featureLayer: () => Layer.Layer<R, E, Infrastructure>,
 ) => {
   type Services = R | Infrastructure;
-  let runtime:
-    | ManagedRuntime.ManagedRuntime<Services, E | SqlError>
-    | undefined;
-  const get = () => {
+  const runtimes = new Map<
+    string,
+    ManagedRuntime.ManagedRuntime<Services, E | SqlError>
+  >();
+  const get = (identity: Identity) => {
+    let runtime = runtimes.get(identity.id);
     if (runtime === undefined) {
       runtime = ManagedRuntime.make(
-        Layer.provideMerge(featureLayer(), infrastructureLayer),
+        Layer.provideMerge(featureLayer(), infrastructureLayer).pipe(
+          Layer.provide(Layer.succeed(WardrobeOwner, identity)),
+        ),
       );
+      runtimes.set(identity.id, runtime);
     }
     return runtime;
   };
 
   const run = <A, E2>(effect: Effect.Effect<A, E2, Services>): Promise<A> =>
-    get().runPromise(logged(label, effect));
+    get(currentIdentity()).runPromise(logged(label, effect));
 
   const fork = <A, E2>(
     effect: Effect.Effect<A, E2, Services>,
   ): Fiber.RuntimeFiber<A, E | E2 | SqlError> =>
-    get().runFork(logged(label, effect));
+    get(currentIdentity()).runFork(logged(label, effect));
 
   return { run, fork };
 };

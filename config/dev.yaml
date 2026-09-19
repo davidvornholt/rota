@@ -25,7 +25,7 @@ apps:
     FOUNDRY_OPENAI_ENDPOINT: https://prosabridge-resource.openai.azure.com
     FOUNDRY_IMAGE_DEPLOYMENT: gpt-image-2
     # Development keeps images on disk. Production sets MEDIA_STORE=s3 with the
-    # S3_* values and a MEDIA_PUBLIC_BASE_URL for the bucket's custom domain.
+    # S3_* values. Images are served through authenticated app routes.
     MEDIA_STORE: local
     MEDIA_LOCAL_DIR: .media
 packages:

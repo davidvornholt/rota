@@ -21,6 +21,7 @@ const connection = {
   endpoint: 'http://image.invalid',
   apiKey: 'fixture',
   deployment: 'fixture',
+  request: (url: string, init: RequestInit) => fetch(url, init),
 };
 const input = {
   photo: new Uint8Array([1]),

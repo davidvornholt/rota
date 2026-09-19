@@ -54,6 +54,7 @@ export type StudioConnection = {
   readonly endpoint: string;
   readonly apiKey: string;
   readonly deployment: string;
+  readonly request: (url: string, init: RequestInit) => Promise<Response>;
 };
 
 /** The edit answer: one base64 image per requested picture, renamed off the wire. */
@@ -100,7 +101,7 @@ export const requestEdit = (
       if (attempt.transparent) {
         form.append('background', 'transparent');
       }
-      const response = await fetch(
+      const response = await connection.request(
         `${connection.endpoint.replace(trailingSlash, '')}/openai/v1/images/edits?api-version=preview`,
         {
           method: 'POST',

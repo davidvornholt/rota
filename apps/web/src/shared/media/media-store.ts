@@ -18,7 +18,6 @@ export type StoredMedia = {
 };
 
 const missingTrailingSlash = /\/?$/u;
-const trailingSlash = /\/$/u;
 
 const hexRadix = 16;
 const hexDigitsPerByte = 2;
@@ -106,7 +105,6 @@ export class MediaStore extends Effect.Service<MediaStore>()(
   {
     sync: () => {
       const backend = backendFor(mediaStoreConfig);
-      const publicBase = mediaStoreConfig.MEDIA_PUBLIC_BASE_URL;
 
       const put = (
         data: Uint8Array,
@@ -137,14 +135,8 @@ export class MediaStore extends Effect.Service<MediaStore>()(
             }),
         });
 
-      /**
-       * Where the browser fetches an image: the bucket's own domain when one is
-       * configured, otherwise the app's authenticated media route.
-       */
-      const urlFor = (key: string): string =>
-        publicBase === undefined
-          ? `/api/media/${key}`
-          : `${publicBase.replace(trailingSlash, '')}/${key}`;
+      /** Images always pass through the authenticated ownership check. */
+      const urlFor = (key: string): string => `/api/media/${key}`;
 
       return { put, get, urlFor };
     },
