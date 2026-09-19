@@ -20,10 +20,10 @@ apps:
     GEMINI_MODEL: gemini-3.8-flash
     GOOGLE_VERTEX_PROJECT: project-6fcd7666-a4cc-44a1-be1
     GOOGLE_VERTEX_LOCATION: global
-    # Studio renders come from GPT-Image-2 deployed in Microsoft Foundry. The
+    # Studio renders come from GPT-Image-2.5 Flare in Microsoft Foundry. The
     # endpoint is the resource root; the app appends the v1 images path.
-    FOUNDRY_OPENAI_ENDPOINT: https://prosabridge-resource.openai.azure.com
-    FOUNDRY_IMAGE_DEPLOYMENT: gpt-image-2
+    FOUNDRY_OPENAI_ENDPOINT: https://prosabridge-prod.openai.azure.com
+    FOUNDRY_IMAGE_DEPLOYMENT: gpt-image-2.5-flare
     # Development keeps images on disk. Production sets MEDIA_STORE=s3 with the
     # S3_* values. Images are served through authenticated app routes.
     MEDIA_STORE: local

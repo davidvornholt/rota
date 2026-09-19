@@ -41,7 +41,7 @@ type RenderJobInput<E> = {
   readonly report: ReportStudioProgress;
 };
 
-/** GPT-Image-2 renders the flat lay; the result is stored and attached. */
+/** GPT-Image-2.5 Flare renders the flat lay; the result is stored and attached. */
 export const renderStudio = <E>(
   deps: StudioDependencies,
   {

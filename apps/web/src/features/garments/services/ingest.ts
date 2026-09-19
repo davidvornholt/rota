@@ -3,7 +3,7 @@
  *
  * `start` does the little that has to happen before the upload is answered:
  * store the photo and open the garment row. `process` does the slow part in the
- * background — Gemini reads the garment, then GPT-Image-2 renders the studio
+ * background — Gemini reads the garment, then GPT-Image-2.5 Flare renders the studio
  * flat lay — and never fails as an Effect: whatever goes wrong is written onto
  * the garment, which still reaches review with the photo it has, so nothing
  * you photographed is ever lost to a model that was down.
