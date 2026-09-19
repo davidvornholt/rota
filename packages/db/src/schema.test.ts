@@ -30,7 +30,7 @@ const uniqueColumns = (table: Parameters<typeof getTableConfig>[0]) =>
     );
 
 it('a day holds one garment per slot, which is what makes the log an outfit', () => {
-  expect(uniqueColumns(wearLog)).toEqual([['worn_on', 'slot']]);
+  expect(uniqueColumns(wearLog)).toEqual([['owner_id', 'worn_on', 'slot']]);
 });
 
 it('a garment keeps at most one image of each kind', () => {
@@ -43,6 +43,6 @@ it('warmth and formality stay on the three-step scale the reading uses', () => {
   expect(rendered.garment_formality_range).toContain('between 1 and 3');
 });
 
-it('settings is a single row', () => {
-  expect(checks(settings).settings_singleton).toContain("= 'singleton'");
+it('each wardrobe has its own settings row', () => {
+  expect(uniqueColumns(settings)).toEqual([['owner_id']]);
 });

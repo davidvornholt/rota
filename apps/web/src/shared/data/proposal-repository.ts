@@ -1,5 +1,6 @@
 import { SqlClient } from '@effect/sql';
 import { Effect, Schema } from 'effect';
+import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import { notFound, readError, writeError } from './errors/data-errors.ts';
@@ -63,12 +64,13 @@ export class ProposalRepository extends Effect.Service<ProposalRepository>()(
   {
     effect: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
+      const owner = yield* WardrobeOwner;
 
       const listForDate = (date: LocalDate) =>
         sql`
           select id, for_date, status, payload, reason, model, created_at, decided_at
           from proposal
-          where for_date = ${date}
+          where owner_id = ${owner.id} and for_date = ${date}
           order by created_at desc
         `.pipe(Effect.flatMap(decodeProposals), Effect.mapError(readProposal));
 
@@ -80,7 +82,7 @@ export class ProposalRepository extends Effect.Service<ProposalRepository>()(
       const byId = (id: string) =>
         sql`
           select id, for_date, status, payload, reason, model, created_at, decided_at
-          from proposal where id = ${id}
+          from proposal where owner_id = ${owner.id} and id = ${id}
         `.pipe(
           Effect.flatMap(decodeProposals),
           Effect.mapError(readProposal),
@@ -107,11 +109,11 @@ export class ProposalRepository extends Effect.Service<ProposalRepository>()(
             Effect.gen(function* () {
               yield* sql`
                 update proposal set status = 'superseded', decided_at = now()
-                where for_date = ${date} and status = 'pending'
+                where owner_id = ${owner.id} and for_date = ${date} and status = 'pending'
               `;
               const rows = yield* sql`
-                insert into proposal (for_date, payload, reason, model)
-                values (${date}, ${JSON.stringify(payload)}::jsonb, ${reason}, ${model})
+                insert into proposal (owner_id, for_date, payload, reason, model)
+                values (${owner.id}, ${date}, ${JSON.stringify(payload)}::jsonb, ${reason}, ${model})
                 returning id, for_date, status, payload, reason, model, created_at, decided_at
               `;
               return rows;
@@ -131,7 +133,7 @@ export class ProposalRepository extends Effect.Service<ProposalRepository>()(
       const setStatus = (id: string, status: ProposalStatus) =>
         sql`
           update proposal set status = ${status}, decided_at = now()
-          where id = ${id}
+          where owner_id = ${owner.id} and id = ${id}
         `.pipe(Effect.asVoid, Effect.mapError(writeProposal));
 
       /** Every proposal ever made, newest first; the statistics read this once. */
@@ -139,6 +141,7 @@ export class ProposalRepository extends Effect.Service<ProposalRepository>()(
         sql`
           select id, for_date, status, payload, reason, model, created_at, decided_at
           from proposal
+          where owner_id = ${owner.id}
           order by for_date desc, created_at desc
         `.pipe(Effect.flatMap(decodeProposals), Effect.mapError(readProposal));
 

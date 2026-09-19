@@ -1,5 +1,6 @@
 import { SqlClient } from '@effect/sql';
 import { Effect, Schema } from 'effect';
+import { WardrobeOwner } from '#/shared/auth/identity.ts';
 
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
@@ -23,9 +24,10 @@ export class DayNoteRepository extends Effect.Service<DayNoteRepository>()(
   {
     effect: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
+      const owner = yield* WardrobeOwner;
 
       const read = (date: LocalDate) =>
-        sql`select occasion from day_note where for_date = ${date}`.pipe(
+        sql`select occasion from day_note where owner_id = ${owner.id} and for_date = ${date}`.pipe(
           Effect.flatMap(decodeNotes),
           Effect.map((rows) => rows[0]?.occasion ?? null),
           Effect.mapError(readNote),
@@ -35,7 +37,7 @@ export class DayNoteRepository extends Effect.Service<DayNoteRepository>()(
       const readRange = (from: LocalDate, to: LocalDate) =>
         sql`
           select for_date, occasion from day_note
-          where for_date between ${from} and ${to}
+          where owner_id = ${owner.id} and for_date between ${from} and ${to}
           order by for_date
         `.pipe(Effect.flatMap(decodeDatedNotes), Effect.mapError(readNote));
 
@@ -44,10 +46,10 @@ export class DayNoteRepository extends Effect.Service<DayNoteRepository>()(
         const trimmed = occasion.trim();
         const statement =
           trimmed === ''
-            ? sql`delete from day_note where for_date = ${date}`
+            ? sql`delete from day_note where owner_id = ${owner.id} and for_date = ${date}`
             : sql`
-                insert into day_note (for_date, occasion) values (${date}, ${trimmed})
-                on conflict (for_date) do update
+                insert into day_note (owner_id, for_date, occasion) values (${owner.id}, ${date}, ${trimmed})
+                on conflict (owner_id, for_date) do update
                   set occasion = excluded.occasion, updated_at = now()
               `;
         return statement.pipe(Effect.asVoid, Effect.mapError(writeNote));

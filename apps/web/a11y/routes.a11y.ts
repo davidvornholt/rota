@@ -12,6 +12,13 @@ import { expect, test } from '@playwright/test';
  */
 const routes = [
   {
+    name: 'Set up access',
+    path: '/join',
+    landsOn: '/join',
+    status: 200,
+    heading: 'Your wardrobe starts here',
+  },
+  {
     name: 'Sign in',
     path: '/login',
     landsOn: '/login',
