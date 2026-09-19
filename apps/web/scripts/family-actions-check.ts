@@ -63,7 +63,14 @@ export const checkPeopleActions = async (
     alex.getByRole('button', { name: 'Issue recovery code' }),
   ).toBeVisible();
   await manage.click();
-  await page.getByText('API prices', { exact: true }).click();
+  await expect(
+    page.getByText('Foundry image costs use OpenAI reference rates', {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save prices' })).toHaveCount(
+    0,
+  );
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await scanWcag22AaViolations(page)).toEqual([]);
