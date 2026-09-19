@@ -1,9 +1,63 @@
+import { Bookmark, Clock, RotateCw } from 'lucide-react';
 import { useState } from 'react';
-import { checkClass, signalButtonClass } from '#/shared/ui/classes.ts';
-import { IconButton } from '#/shared/ui/icon-button.tsx';
+import {
+  checkClass,
+  linkButtonClass,
+  signalButtonClass,
+} from '#/shared/ui/classes.ts';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { draftStatus } from './draft-status.ts';
 import type { PlanningController } from './use-planning.ts';
+
+const PlanningSaveOptions = ({
+  status,
+  disabled,
+  busy,
+  onPlan,
+  onSaveOutfit,
+}: {
+  readonly status: Pick<ReturnType<typeof draftStatus>, 'tomorrow' | 'saved'>;
+  readonly disabled: boolean;
+  readonly busy: boolean;
+  readonly onPlan: () => void;
+  readonly onSaveOutfit: () => void;
+}) => (
+  <details>
+    <summary className="w-fit cursor-pointer py-2 text-ink-muted text-sm hover:text-ink">
+      More options
+    </summary>
+    <div className="mt-1 flex flex-col items-start border-rule border-l pl-4">
+      {status.tomorrow ? null : (
+        <button
+          className={[linkButtonClass, 'gap-2'].join(' ')}
+          disabled={disabled || status.saved}
+          onClick={onPlan}
+          type="button"
+        >
+          <Clock
+            aria-hidden="true"
+            className="size-4 shrink-0"
+            strokeWidth={1.5}
+          />
+          {status.saved ? 'Plan saved' : 'Save for later today'}
+        </button>
+      )}
+      <button
+        className={[linkButtonClass, 'gap-2'].join(' ')}
+        disabled={busy}
+        onClick={onSaveOutfit}
+        type="button"
+      >
+        <Bookmark
+          aria-hidden="true"
+          className="size-4 shrink-0"
+          strokeWidth={1.5}
+        />
+        Save as an outfit
+      </button>
+    </div>
+  </details>
+);
 
 export const PlanningActions = ({
   controller,
@@ -17,6 +71,7 @@ export const PlanningActions = ({
   const status = draftStatus(controller);
   const disabled =
     busy || status.unavailable || (status.concerns.length > 0 && !override);
+  const outfitAction = status.tomorrow ? 'plan' : 'wear';
   const act = (action: 'suggest' | 'plan' | 'wear') => {
     controller
       .change({
@@ -52,51 +107,44 @@ export const PlanningActions = ({
       {status.unavailableMessage === null ? null : (
         <Notice>{status.unavailableMessage}</Notice>
       )}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <button
+          className={signalButtonClass}
+          disabled={
+            status.complete
+              ? disabled || (status.tomorrow && status.saved)
+              : busy
+          }
+          onClick={() => act(status.complete ? outfitAction : 'suggest')}
+          type="button"
+        >
+          {status.complete ? status.primaryLabel : status.suggestLabel}
+        </button>
         {status.complete ? (
-          <IconButton
-            icon="refresh"
-            label={status.suggestLabel}
-            disabled={busy}
-            onClick={() => act('suggest')}
-          />
-        ) : (
           <button
-            className={signalButtonClass}
+            className={[linkButtonClass, 'gap-2'].join(' ')}
             disabled={busy}
             onClick={() => act('suggest')}
             type="button"
           >
+            <RotateCw
+              aria-hidden="true"
+              className="size-4 shrink-0"
+              strokeWidth={1.5}
+            />
             {status.suggestLabel}
           </button>
-        )}
-        {status.complete ? (
-          <button
-            className={signalButtonClass}
-            disabled={disabled || (status.tomorrow && status.saved)}
-            onClick={() => act(status.tomorrow ? 'plan' : 'wear')}
-            type="button"
-          >
-            {status.primaryLabel}
-          </button>
-        ) : null}
-        {!status.tomorrow && status.complete ? (
-          <IconButton
-            icon="clock"
-            label={status.saved ? 'Plan saved' : 'Save for later today'}
-            disabled={disabled || status.saved}
-            onClick={() => act('plan')}
-          />
-        ) : null}
-        {status.complete ? (
-          <IconButton
-            icon="bookmark"
-            label="Save as an outfit"
-            disabled={busy}
-            onClick={onSaveOutfit}
-          />
         ) : null}
       </div>
+      {status.complete ? (
+        <PlanningSaveOptions
+          status={status}
+          disabled={disabled}
+          busy={busy}
+          onPlan={() => act('plan')}
+          onSaveOutfit={onSaveOutfit}
+        />
+      ) : null}
     </div>
   );
 };

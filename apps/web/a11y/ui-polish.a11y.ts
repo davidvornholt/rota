@@ -132,3 +132,36 @@ test('tooltip remains readable when the pointer moves onto it', async ({
   await page.keyboard.press('Escape');
   await expect(tooltip).toHaveCount(0);
 });
+
+test('wearing is primary, suggesting is labelled, and saving is behind a keyboard-accessible disclosure', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  const wear = page.getByRole('button', { name: 'Wear this', exact: true });
+  await expect(wear.locator('..').getByRole('button').first()).toHaveText(
+    'Wear this',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Suggest another', exact: true }),
+  ).toHaveText('Suggest another');
+  await expect(
+    page.getByRole('button', { name: 'Save for later today', exact: true }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole('button', { name: 'Save as an outfit', exact: true }),
+  ).toBeHidden();
+  const more = page.getByText('More options', { exact: true });
+  await more.focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('button', { name: 'Save for later today', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Save as an outfit', exact: true }),
+  ).toBeVisible();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('button', { name: 'Save as an outfit', exact: true }),
+  ).toBeHidden();
+});

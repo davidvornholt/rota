@@ -51,7 +51,12 @@ test('a garment starting point replaces a cached plan and stays on today after w
   await page
     .getByRole('button', { name: 'Complete outfit', exact: true })
     .click();
+  await page.getByText('More options', { exact: true }).click();
   await page.getByRole('button', { name: 'Save for later today' }).click();
+  await expect(
+    page.getByText('Plan saved', { exact: true }).first(),
+  ).toBeVisible();
+  await page.getByText('More options', { exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Plan saved', exact: true }),
   ).toBeDisabled();
@@ -59,6 +64,7 @@ test('a garment starting point replaces a cached plan and stays on today after w
     page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
   await page.reload();
+  await page.getByText('More options', { exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
@@ -134,6 +140,7 @@ test('saved outfits can be created, chosen, edited independently and deleted exp
   page,
 }) => {
   await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow`);
+  await page.getByText('More options', { exact: true }).click();
   await page.getByRole('button', { name: 'Save as an outfit' }).click();
   let dialog = page.getByRole('dialog');
   await dialog
