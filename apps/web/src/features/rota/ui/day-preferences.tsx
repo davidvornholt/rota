@@ -29,6 +29,9 @@ export const DayPreferences = ({
         />
         Freshly washed top {tomorrow ? 'tomorrow' : 'today'}
       </label>
+      <p className="text-ink-muted text-xs">
+        Applies to your next suggestion for this day.
+      </p>
 
       <form
         className="mt-4"

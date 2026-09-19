@@ -16,7 +16,7 @@ const TodayRoute = () => {
   const search = Route.useSearch();
   return (
     <TodayPage
-      key={`${initial.day.today}-${search.garment ?? ''}-${search.outfit ?? ''}-${search.panel ?? ''}`}
+      key={`${initial.day.today}-${search.panel ?? ''}`}
       initial={initial}
       seed={search.garment}
       savedOutfitId={search.outfit}

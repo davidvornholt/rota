@@ -12,6 +12,7 @@ import { OutfitEditor } from './outfit-editor.tsx';
 import { OutfitsPanel } from './outfits-panel.tsx';
 import { PlanningActions } from './planning-actions.tsx';
 import { PlanningHeading, PlanningNavigation } from './planning-header.tsx';
+import { UnsavedPlanDialog } from './unsaved-plan-dialog.tsx';
 import { usePlanning } from './use-planning.ts';
 import { WeatherStrip } from './weather-strip.tsx';
 
@@ -44,6 +45,7 @@ export const TodayPage = ({
   return (
     <div className={frameClass}>
       <PlanningNavigation controller={controller} onPanel={setOpen} />
+      <UnsavedPlanDialog controller={controller} />
       <WeatherStrip
         locationLabel={view.day.locationLabel}
         stale={view.day.forecastStale}
@@ -107,7 +109,7 @@ export const TodayPage = ({
             {complete && worn ? (
               <IconButton
                 icon="bookmark"
-                label="Save as an outfit"
+                label="Save as a reusable outfit"
                 disabled={busy}
                 onClick={() => setOpen('save')}
               />
@@ -126,7 +128,9 @@ export const TodayPage = ({
             onPin={worn ? null : controller.pin}
             disabled={busy || worn}
             readOnly={worn}
-            laundryDisabled={busy}
+            laundryDisabled={
+              busy || controller.planSave.saving || controller.planSave.failed
+            }
             onLaundry={(id) => {
               controller.care(id, 'laundry').catch(() => undefined);
             }}

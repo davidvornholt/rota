@@ -26,6 +26,8 @@ export const LaundryPanel = ({
   const [early, setEarly] = useState('');
   const [message, setMessage] = useState('');
   const { view, busy } = controller;
+  const careDisabled =
+    busy || controller.planSave.saving || controller.planSave.failed;
   const garments = view.laundry.filter((garment) => hasWearBudget(garment));
   const selected = garments.find((garment) => garment.id === early);
   const waiting = garments.filter((garment) => garment.inLaundry);
@@ -94,7 +96,7 @@ export const LaundryPanel = ({
                 <IconButton
                   icon="check"
                   label={`Back clean: ${garment.name}`}
-                  disabled={busy}
+                  disabled={careDisabled}
                   onClick={() => {
                     change(garment.id, 'washed').catch(() => undefined);
                   }}
@@ -122,7 +124,7 @@ export const LaundryPanel = ({
                 <IconButton
                   icon="clock"
                   label={`Still in laundry: ${garment.name}`}
-                  disabled={busy}
+                  disabled={careDisabled}
                   onClick={() => {
                     change(garment.id, 'postpone').catch(() => undefined);
                   }}
@@ -162,7 +164,7 @@ export const LaundryPanel = ({
               className={[fieldClass, 'mt-2'].join(' ')}
               value={early}
               onChange={(event) => setEarly(event.target.value)}
-              disabled={busy}
+              disabled={careDisabled}
               required={true}
             >
               <option value="">Choose a piece</option>
@@ -178,7 +180,7 @@ export const LaundryPanel = ({
           <button
             className={quietButtonClass}
             type="submit"
-            disabled={busy || early === ''}
+            disabled={careDisabled || early === ''}
           >
             Put in basket
           </button>

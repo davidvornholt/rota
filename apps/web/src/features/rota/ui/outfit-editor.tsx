@@ -90,7 +90,7 @@ const OutfitPiece = ({
                   disabled={disabled}
                   onChange={() => onPin(garment.id)}
                 />
-                Keep this piece
+                Keep when suggesting
               </label>
             )}
             <div className="ml-auto flex items-center">

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { Deferred, Effect, Fiber, TestClock, TestContext } from 'effect';
 import { runSessionRequired } from '#/shared/auth/session-required.ts';
+import type { DayPlan } from '#/shared/data/outfit.ts';
 import type { Proposal } from '#/shared/data/proposal-repository.ts';
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
@@ -88,6 +89,7 @@ const pending: Proposal = {
 };
 
 type Recorded = {
+  readonly plans: Array<Pick<DayPlan, 'entries' | 'basedOn' | 'forecast'>>;
   readonly sources: Array<string>;
   readonly notes: Array<string>;
   readonly statuses: Array<readonly [string, string]>;
@@ -98,13 +100,23 @@ const depsWith = (
   generateOutcome: 'succeeds' | 'fails',
 ): { readonly deps: SettlementDeps; readonly recorded: Recorded } => {
   const recorded: Recorded = {
+    plans: [],
     statuses: [],
     generated: [],
     notes: [],
     sources: [],
   };
   const deps = {
-    outfits: { plan: () => Effect.succeed({ entries: null }) },
+    outfits: {
+      plan: () => Effect.succeed({ entries: null }),
+      savePlan: (
+        _date: unknown,
+        plan: Pick<DayPlan, 'entries' | 'basedOn' | 'forecast'>,
+      ) =>
+        Effect.sync(() => {
+          recorded.plans.push(plan);
+        }),
+    },
     proposals: {
       byId: () => Effect.succeed(pending),
       latestForDate: () => Effect.succeed(pending),
@@ -175,7 +187,8 @@ describe('completing an outfit', () => {
     expect(recorded.generated[0]?.pinned).toEqual(pins);
     expect(recorded.generated[0]?.excluded.has(teeId)).toBeFalse();
     expect(recorded.generated[0]?.excluded.has(shortsId)).toBeTrue();
-    expect(recorded.statuses).toEqual([[pending.id, 'rejected']]);
+    expect(recorded.generated[0]?.rejectedProposalId).toBe(pending.id);
+    expect(recorded.statuses).toEqual([]);
   });
   it('leaves the previous proposal intact when completion fails', async () => {
     const { deps, recorded } = depsWith('fails');
@@ -192,6 +205,29 @@ describe('completing an outfit', () => {
 });
 
 describe('proposal operations', () => {
+  it('saves an empty draft without recording wear and rejects autosave after wear', async () => {
+    const { deps, recorded } = depsWith('succeeds');
+    const draft = { entries: [], basedOn: null, forecast: null };
+    const operations = await Effect.runPromise(makeProposalOperations(deps));
+    await Effect.runPromise(operations.savePlan(clock, draft));
+    expect(recorded.plans).toEqual([draft]);
+    expect(recorded.sources).toEqual([]);
+    deps.wearLog.readDay = () =>
+      Effect.succeed([
+        {
+          garmentId: teeId,
+          slot: 'top',
+          wornOn: today,
+          source: 'proposed',
+        },
+      ]);
+    const result = await Effect.runPromise(
+      Effect.either(operations.savePlan(clock, draft)),
+    );
+    expect(result._tag).toBe('Left');
+    expect(recorded.plans).toEqual([draft]);
+  });
+
   it('makes concurrent morning requests share the stored proposal', async () => {
     const { deps } = depsWith('succeeds');
     let stored: Proposal | undefined;

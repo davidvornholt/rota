@@ -158,7 +158,7 @@ export const OutfitsPanel = ({
   return (
     <Dialog
       open={true}
-      title={editing === null ? 'Saved outfits' : 'Save an outfit'}
+      title={editing === null ? 'Saved outfits' : 'Save a reusable outfit'}
       onClose={busy ? () => undefined : onClose}
       size="wide"
     >
@@ -210,6 +210,10 @@ export const OutfitsPanel = ({
             ).catch(() => undefined);
           }}
         >
+          <p className="mb-4 text-ink-muted text-sm">
+            Keep this combination to choose again on any day. Your daily plan is
+            saved separately.
+          </p>
           <label className="block text-sm">
             Outfit name
             <input

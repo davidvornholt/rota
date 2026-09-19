@@ -40,10 +40,10 @@ export const SaveOutfitButton = ({
     <>
       <IconButton
         icon="bookmark"
-        label="Save as an outfit"
+        label="Save as a reusable outfit"
         tooltip={
           completeOutfit(entries)
-            ? 'Save as an outfit'
+            ? 'Save as a reusable outfit'
             : 'Choose a top and bottom to save an outfit'
         }
         disabled={!completeOutfit(entries)}
