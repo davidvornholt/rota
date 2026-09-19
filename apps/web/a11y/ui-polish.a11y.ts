@@ -115,5 +115,20 @@ test('reduced motion disables modal animation', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(`${fixtureUrl()}a11y/fixtures/icon-actions.html`);
   await page.getByRole('button', { name: 'Edit occasion note' }).click();
-  await expect(page.getByRole('dialog')).toHaveCSS('animation-name', 'none');
+  await expect(
+    page.getByRole('dialog').locator(':scope > div').first(),
+  ).toHaveCSS('animation-name', 'none');
+});
+
+test('tooltip remains readable when the pointer moves onto it', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/icon-actions.html`);
+  await page.getByRole('button', { name: 'Edit occasion note' }).hover();
+  const tooltip = page.getByRole('tooltip');
+  await expect(tooltip).toBeVisible();
+  await tooltip.hover();
+  await expect(tooltip).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(tooltip).toHaveCount(0);
 });
