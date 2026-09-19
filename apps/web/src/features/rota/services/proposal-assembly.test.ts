@@ -7,7 +7,11 @@ import { localDate } from '#/shared/time/local-date.ts';
 import { continuations, type RotationInput } from '../rotation.ts';
 import { proposalAnswerJsonSchema } from '../schemas/proposal-answer.ts';
 import { answerToItems, slotChoicesFor } from './proposal-assembly.ts';
-import { buildProposalPrompt, type SlotChoices } from './proposal-prompt.ts';
+import {
+  buildProposalPrompt,
+  proposalSystemPrompt,
+  type SlotChoices,
+} from './proposal-prompt.ts';
 
 const garment = (id: string, slots: ReadonlyArray<Slot>): Garment => ({
   id,
@@ -255,4 +259,94 @@ it('shows an original image once while offering the garment in each eligible slo
   expect(schema.properties.outfit.properties.over.enum).toEqual(['O1', null]);
   expect(prompt.aliases.get('T1')?.garment.id).toBe(shirt.id);
   expect(prompt.aliases.get('O1')?.garment.id).toBe(shirt.id);
+});
+
+describe('complete outfit suggestions', () => {
+  const shoes = { ...garment('trainers', ['shoes']), category: 'trainers' };
+  const bag = { ...garment('tote', ['bag']), category: 'bag' };
+  const under = garment('vest', ['under']);
+  const over = garment('jacket', ['over']);
+
+  it('asks for suitable accessories while allowing hot-weather layers to stay empty', async () => {
+    const rotation = input([shorts, tee, shoes, bag, under, over], []);
+    const prompt = buildProposalPrompt({
+      cleanTop: false,
+      today: rotation.today,
+      weather: { ...warm, high: 34, low: 26 },
+      yesterday: undefined,
+      upcoming: [],
+      forecastStale: false,
+      occasion: null,
+      continuations: [],
+      slotChoices: slotChoicesFor(rotation, []),
+      recent: [],
+      imageFor: () => undefined,
+    });
+    const text = prompt.parts
+      .flatMap((part) => ('text' in part ? [part.text] : []))
+      .join('\n');
+    expect(proposalSystemPrompt).toContain('Include suitable shoes and a bag');
+    expect(proposalSystemPrompt).toContain(
+      'leave unnecessary layers out in hot weather',
+    );
+    expect(text).toContain('Include suitable shoes');
+    expect(text).toContain('Include a suitable bag');
+    expect(text).toContain('leave it null when it would be too warm');
+    const schema = proposalAnswerJsonSchema(prompt.aliases);
+    expect(schema.properties.outfit.properties.shoes.enum).toEqual([
+      'S1',
+      null,
+    ]);
+    expect(schema.properties.outfit.properties.bag.enum).toEqual(['G1', null]);
+    expect(schema.properties.outfit.properties.over.enum).toEqual(['O1', null]);
+    const items = await Effect.runPromise(
+      answerToItems(
+        {
+          outfit: {
+            bottom: 'B1',
+            top: 'T1',
+            under: null,
+            over: null,
+            shoes: 'S1',
+            bag: 'G1',
+          },
+          headline: 'Light pieces for a hot day.',
+          reasons: [],
+        },
+        prompt.aliases,
+        rotation,
+      ),
+    );
+    expect(items.map((item) => item.garmentId)).toEqual([
+      'shorts',
+      'tee',
+      'trainers',
+      'tote',
+    ]);
+  });
+
+  it('does not reintroduce rejected, inactive or laundry accessories to fill the outfit', () => {
+    const rotation = input(
+      [
+        shorts,
+        tee,
+        shoes,
+        bag,
+        { ...shoes, id: 'retired-shoes', status: 'retired' },
+        {
+          ...bag,
+          id: 'washing-bag',
+          laundryStartedOn: warm.date,
+          laundryReadyOn: localDate('2026-09-09'),
+        },
+      ],
+      [shoes.id, bag.id],
+    );
+    const choices = slotChoicesFor(rotation, []);
+    for (const slot of ['shoes', 'bag'] as const) {
+      expect(slotNamed(choices, slot)?.candidates).toEqual([]);
+      expect(slotNamed(choices, slot)?.turnedDownOnly).toBeFalse();
+      expect(slotNamed(choices, slot)?.required).toBeFalse();
+    }
+  });
 });
