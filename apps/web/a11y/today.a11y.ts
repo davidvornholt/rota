@@ -27,7 +27,7 @@ test('saving a history outfit leaves the recorded day unchanged', async ({
   page,
 }) => {
   await page.goto(`${fixtureUrl()}a11y/fixtures/history.html`);
-  await page.getByRole('button', { name: 'Save as an outfit' }).click();
+  await page.getByRole('button', { name: 'Save as a reusable outfit' }).click();
   await page.getByLabel('Outfit name').fill('A favourite day');
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await page.getByRole('button', { name: 'Save outfit', exact: true }).click();
@@ -46,25 +46,22 @@ test('a garment starting point replaces a cached plan and stays on today after w
   await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
   await page.getByRole('button', { name: 'Start with white shirt' }).click();
   await expect(
-    page.getByRole('button', { name: 'Complete outfit', exact: true }),
+    page.getByRole('button', {
+      name: 'Suggest around kept pieces',
+      exact: true,
+    }),
   ).toBeVisible();
   await page
-    .getByRole('button', { name: 'Complete outfit', exact: true })
+    .getByRole('button', { name: 'Suggest around kept pieces', exact: true })
     .click();
-  await page.getByText('More options', { exact: true }).click();
-  await page.getByRole('button', { name: 'Save for later today' }).click();
-  await expect(
-    page.getByText('Plan saved', { exact: true }).first(),
-  ).toBeVisible();
-  await page.getByText('More options', { exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Plan saved', exact: true }),
-  ).toBeDisabled();
+  await expect(page.getByLabel('Plan saving status')).toBeVisible();
+  await expect(page.getByLabel('Plan saving status')).toContainText(
+    'Saved for',
+  );
   await expect(
     page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
   await page.reload();
-  await page.getByText('More options', { exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
@@ -72,9 +69,9 @@ test('a garment starting point replaces a cached plan and stays on today after w
   await expect(
     page.getByRole('button', { name: 'Change Navy chinos' }),
   ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Plan saved', exact: true }),
-  ).toBeDisabled();
+  await expect(page.getByLabel('Plan saving status')).toContainText(
+    'Saved for',
+  );
   await page.getByRole('button', { name: 'Wear this', exact: true }).click();
   await expect(page.getByText('Worn today', { exact: true })).toBeVisible();
   await expect(
@@ -90,18 +87,18 @@ test('tomorrow saves a plan, keeps it across day navigation and never logs it ea
   await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow`);
   await expect(page.getByRole('button', { name: 'Wear this' })).toHaveCount(0);
   await page
-    .getByRole('button', { name: 'Save for tomorrow', exact: true })
+    .getByRole('button', { name: 'Suggest another', exact: true })
     .click();
-  await expect(
-    page.getByRole('button', { name: 'Saved for tomorrow' }),
-  ).toBeDisabled();
+  await expect(page.getByLabel('Plan saving status')).toContainText(
+    'Saved for',
+  );
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await page.getByRole('link', { name: 'Today', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Wear this' })).toBeVisible();
   await page.getByRole('link', { name: 'Tomorrow', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Saved for tomorrow' }),
-  ).toBeDisabled();
+  await expect(page.getByLabel('Plan saving status')).toContainText(
+    'Saved for',
+  );
 });
 
 test('a chosen top stays while Rota completes the outfit, with optional shoes and bag', async ({
@@ -117,18 +114,28 @@ test('a chosen top stays while Rota completes the outfit, with optional shoes an
   await expect(
     page
       .getByRole('region', { name: 'Top', exact: true })
-      .getByRole('checkbox', { name: 'Keep this piece' }),
+      .getByRole('checkbox', { name: 'Keep when suggesting' }),
   ).toBeChecked();
   await page
     .getByRole('button', { name: 'Remove bottom', exact: true })
     .click();
-  await page.getByRole('button', { name: 'Complete outfit' }).click();
+  await page
+    .getByRole('button', { name: 'Suggest around kept pieces' })
+    .click();
   await expect(
     page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Change Navy chinos' }),
   ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Change White trainers' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Change Tan leather bag' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Remove shoes', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove bag', exact: true }).click();
   await page.getByRole('button', { name: 'Add shoes' }).click();
   await dialog.getByRole('button', { name: trainers }).click();
   await page.getByRole('button', { name: 'Add bag' }).click();
@@ -140,8 +147,7 @@ test('saved outfits can be created, chosen, edited independently and deleted exp
   page,
 }) => {
   await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow`);
-  await page.getByText('More options', { exact: true }).click();
-  await page.getByRole('button', { name: 'Save as an outfit' }).click();
+  await page.getByRole('button', { name: 'Save as a reusable outfit' }).click();
   let dialog = page.getByRole('dialog');
   await dialog
     .getByRole('textbox', { name: 'Outfit name' })
@@ -202,8 +208,8 @@ test('tomorrow explains projected laundry without offering an unusable override'
     page.getByRole('checkbox', { name: 'Use these pieces anyway' }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole('button', { name: 'Save for tomorrow', exact: true }),
-  ).toBeDisabled();
+    page.getByRole('button', { name: 'Suggest another', exact: true }),
+  ).toBeEnabled();
   await page.getByRole('button', { name: 'Laundry', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Back clean: Blue Oxford shirt' }),

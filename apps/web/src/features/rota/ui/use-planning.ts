@@ -1,13 +1,11 @@
-import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SavedOutfit } from '#/shared/data/outfit.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
-import { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import { addDays } from '#/shared/time/local-date.ts';
-import type { PlanningChange } from '../schemas/planning-input.ts';
 import type { PlanningView } from '../schemas/planning-view.ts';
-import { changePlanningFn } from '../services/planning-fns.ts';
+import { usePlanSave } from './use-plan-save.ts';
+import { usePlanningMutation } from './use-planning-mutation.ts';
 
 const initialEntries = (view: PlanningView): ReadonlyArray<OutfitEntry> =>
   view.day.worn?.map((item) => ({
@@ -20,38 +18,6 @@ const initialEntries = (view: PlanningView): ReadonlyArray<OutfitEntry> =>
     garmentId: item.garment.id,
   })) ??
   [];
-export const sameEntries = (
-  a: ReadonlyArray<OutfitEntry>,
-  b: ReadonlyArray<OutfitEntry>,
-): boolean =>
-  a.length === b.length &&
-  a.every((entry) =>
-    b.some(
-      (other) =>
-        other.slot === entry.slot && other.garmentId === entry.garmentId,
-    ),
-  );
-
-const successMessage = (change: PlanningChange): string => {
-  switch (change.action) {
-    case 'suggest':
-      return 'Outfit suggested. Your kept pieces stay.';
-    case 'plan':
-      return 'Outfit saved.';
-    case 'wear':
-      return 'Outfit logged.';
-    case 'save-outfit':
-      return 'Saved to your outfits.';
-    case 'care':
-      if (change.care === 'laundry') {
-        return 'Sent to laundry.';
-      }
-      return change.care === 'washed' ? 'Back clean.' : 'Return date updated.';
-    default:
-      return 'Saved.';
-  }
-};
-
 export const usePlanning = (
   initial: PlanningView,
   seed: {
@@ -82,58 +48,44 @@ export const usePlanning = (
   useEffect(() => {
     setView(initial);
   }, [initial]);
-  const mutation = useMutation({
-    mutationFn: (change: PlanningChange) =>
-      changePlanningFn({
-        data: { date: view.day.today, change },
-        fetch: serverFunctionFetch,
-      }),
-    onSuccess: async (next, change) => {
-      setView(next);
-      if (change.action === 'suggest') {
-        setEntries(
-          next.day.proposal?.items.map((item) => ({
-            slot: item.slot,
-            garmentId: item.garment.id,
-          })) ?? [],
-        );
-      }
-      if (
-        change.action === 'care' &&
-        change.care === 'laundry' &&
-        next.day.worn === null
-      ) {
-        setEntries((current) =>
-          current.filter((entry) => !change.ids.includes(entry.garmentId)),
-        );
-        setPinned((current) =>
-          current.filter((id) => !change.ids.includes(id)),
-        );
-      }
-      setMessage(successMessage(change));
-      try {
-        const savedDay =
-          change.action === 'plan' ||
-          change.action === 'wear' ||
-          (change.action === 'care' && change.draft !== null);
-        if (
-          savedDay &&
-          (seed.garment !== undefined || seed.outfit !== undefined)
-        ) {
-          // A consumed seed must not remount from an older cached outfit.
-          router.clearCache({ filter: (match) => match.pathname === '/' });
-          await router.navigate({
-            to: '/',
-            search: { date: next.day.today },
-            replace: true,
-          });
-        } else {
-          await router.invalidate({ sync: true });
-        }
-      } catch {
-        setMessage('Saved. Refresh to see your outfit.');
-      }
-    },
+  const mutation = usePlanningMutation({
+    view,
+    seed,
+    setView,
+    setEntries,
+    setBasedOn,
+    setPinned,
+    setMessage,
+  });
+  const planSave = usePlanSave((draft) =>
+    mutation.mutateAsync({ action: 'plan', ...draft }),
+  );
+  const select = (next: ReadonlyArray<OutfitEntry>, source: string | null) => {
+    setEntries(next);
+    setBasedOn(source);
+    setPinned((ids) =>
+      ids.filter((id) => next.some((entry) => entry.garmentId === id)),
+    );
+    setMessage('');
+    planSave.save({ entries: next, basedOn: source });
+  };
+  const consumedSeedRef = useRef('');
+  useEffect(() => {
+    const key = `${seed.garment ?? ''}:${seed.outfit ?? ''}`;
+    if (consumedSeedRef.current === key) {
+      return;
+    }
+    consumedSeedRef.current = key;
+    if (initial.day.worn !== null) {
+      return;
+    }
+    if (garment !== undefined && slot !== undefined) {
+      select([{ slot, garmentId: garment.id }], null);
+      setPinned([garment.id]);
+    } else if (savedOutfit !== undefined) {
+      select(savedOutfit.entries, savedOutfit.name);
+      setPinned([]);
+    }
   });
   return {
     refresh: () => {
@@ -141,13 +93,13 @@ export const usePlanning = (
     },
     view,
     entries,
-    setEntries,
+    setEntries: (next: ReadonlyArray<OutfitEntry>) => select(next, basedOn),
     pinned,
     basedOn,
-    setBasedOn,
     message,
-    busy: mutation.isPending,
-    failure: mutation.error,
+    busy: mutation.isPending && mutation.variables?.action !== 'plan',
+    planSave,
+    failure: mutation.variables?.action === 'plan' ? null : mutation.error,
     change: mutation.mutateAsync,
     care: (id: string, care: 'laundry' | 'washed' | 'postpone') =>
       mutation.mutateAsync({
@@ -173,10 +125,8 @@ export const usePlanning = (
           .catch(() => setMessage('Could not open tomorrow. Try again.'));
         return;
       }
-      setEntries(outfit.entries);
+      select(outfit.entries, outfit.name);
       setPinned([]);
-      setBasedOn(outfit.name);
-      setMessage('');
     },
   };
 };

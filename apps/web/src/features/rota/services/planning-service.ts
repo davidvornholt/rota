@@ -85,7 +85,7 @@ export const planningView = (clock: WardrobeClock) =>
       warnings.push(
         todayPlan.entries === null
           ? 'Log today’s outfit to make tomorrow’s rotation more accurate.'
-          : 'Tomorrow assumes you wear today’s saved outfit.',
+          : 'Tomorrow assumes you wear today’s planned pieces.',
       );
     }
     return {
@@ -113,9 +113,19 @@ const applyEntryChange = (
     const proposals = yield* ProposalService;
     const outfits = yield* OutfitRepository;
     const all = yield* garments.list();
-    yield* validateEntries(change.entries, all, change.action !== 'suggest');
+    yield* validateEntries(change.entries, all, change.action === 'wear');
     if (change.action === 'suggest') {
       yield* proposals.complete(clock, change.entries);
+      return;
+    }
+    if (change.action === 'plan') {
+      const today = yield* TodayService;
+      const view = yield* today.view(clock);
+      yield* proposals.savePlan(clock, {
+        entries: change.entries,
+        basedOn: change.basedOn,
+        forecast: view.weather,
+      });
       return;
     }
     const wearLog = yield* WearLogRepository;
@@ -134,27 +144,12 @@ const applyEntryChange = (
         'A selected piece is still in the laundry. Choose another or mark it back clean.',
       );
     }
-    if (change.action === 'wear') {
-      if (clock.today !== clock.actualToday) {
-        return yield* new ProposalStateError(
-          'Tomorrow has not happened yet. Save it as a plan.',
-        );
-      }
-      yield* proposals.wear(clock, change.entries);
-    } else {
-      const today = yield* TodayService;
-      const view = yield* today.view(clock);
-      if (view.worn !== null) {
-        return yield* new ProposalStateError(
-          'This day is already logged. Edit it in history.',
-        );
-      }
-      yield* outfits.savePlan(clock.today, {
-        entries: change.entries,
-        basedOn: change.basedOn,
-        forecast: view.weather,
-      });
+    if (clock.today !== clock.actualToday) {
+      return yield* new ProposalStateError(
+        'Tomorrow has not happened yet. Your selections are kept as a plan.',
+      );
     }
+    yield* proposals.wear(clock, change.entries);
   });
 
 export const changePlanning = (clock: WardrobeClock, change: PlanningChange) =>

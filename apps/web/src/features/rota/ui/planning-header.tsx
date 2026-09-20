@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { addDays } from '#/shared/time/local-date.ts';
+import { addDays, formatDayMonth } from '#/shared/time/local-date.ts';
 import {
   linkButtonClass,
   tabActiveClass,
@@ -9,16 +9,6 @@ import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { DayPreferences } from './day-preferences.tsx';
 import type { PlanningController } from './use-planning.ts';
-import { sameEntries } from './use-planning.ts';
-
-const planLabel = ({ view, entries }: PlanningController): string => {
-  if (view.plan.entries === null) {
-    return 'Your outfit';
-  }
-  return sameEntries(entries, view.plan.entries)
-    ? 'Plan saved'
-    : 'Unsaved changes';
-};
 export const PlanningNavigation = ({
   controller,
   onPanel,
@@ -40,12 +30,16 @@ export const PlanningNavigation = ({
               tabClass,
               view.day.today === date ? tabActiveClass : '',
             ].join(' ')}
-            disabled={busy}
+            aria-label={label}
+            disabled={busy || controller.planSave.saving}
             key={label}
             to="/"
             search={{ date }}
           >
             {label}
+            <span aria-hidden="true" className="ml-2 text-ink-muted text-xs">
+              {formatDayMonth(date)}
+            </span>
           </Link>
         ))}
       </nav>
@@ -59,7 +53,9 @@ export const PlanningNavigation = ({
         <IconButton
           icon="laundry"
           label="Laundry"
-          disabled={busy}
+          disabled={
+            busy || controller.planSave.saving || controller.planSave.failed
+          }
           onClick={() => onPanel('laundry')}
         />
       </div>
@@ -73,7 +69,8 @@ export const PlanningHeading = ({
 }) => {
   const { view, entries, basedOn } = controller;
   const worn = view.day.worn !== null;
-  let eyebrow = planLabel(controller);
+  let eyebrow =
+    view.day.today > view.actualToday ? 'Tomorrow’s plan' : 'Today’s plan';
   let title =
     view.day.today > view.actualToday
       ? 'Tomorrow starts here.'
@@ -124,9 +121,53 @@ export const PlanningHeading = ({
       )}
       {worn ? null : (
         <div className="mt-4">
+          <PlanSaveStatus controller={controller} />
           <DayPreferences controller={controller} />
         </div>
       )}
     </section>
+  );
+};
+
+const PlanSaveStatus = ({
+  controller,
+}: {
+  readonly controller: PlanningController;
+}) => {
+  const { view, planSave } = controller;
+  const date = formatDayMonth(view.day.today);
+  let label =
+    view.plan.entries !== null || view.day.proposal !== null
+      ? `Saved for ${date}`
+      : 'Changes save automatically';
+  if (planSave.saving) {
+    label = 'Saving…';
+  } else if (planSave.failed) {
+    label = 'Could not save your latest changes.';
+  }
+  return (
+    <div className="mb-4 text-sm">
+      <p
+        aria-label="Plan saving status"
+        role="status"
+        className="text-ink-muted"
+      >
+        {label}
+      </p>
+      {planSave.failed ? (
+        <button
+          className={linkButtonClass}
+          onClick={planSave.retry}
+          type="button"
+        >
+          Retry save
+        </button>
+      ) : null}
+      <p className="mt-1 text-ink-muted text-xs">
+        {view.day.today > view.actualToday
+          ? `On ${date}, open Today and choose “Wear this” to record it.`
+          : 'Choose “Wear this” when you wear the outfit.'}
+      </p>
+    </div>
   );
 };

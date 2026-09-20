@@ -2,7 +2,6 @@ import { hasWearBudget } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import type { PlanningController } from './use-planning.ts';
-import { sameEntries } from './use-planning.ts';
 
 export const completeOutfit = (entries: ReadonlyArray<OutfitEntry>): boolean =>
   entries.some((entry) => entry.slot === 'top') &&
@@ -70,11 +69,9 @@ export const draftStatus = ({
     : selected.flatMap(({ slot, garment }) =>
         concernFor(slot, garment, view.cleanTop),
       );
-  const saved =
-    view.plan.entries !== null && sameEntries(entries, view.plan.entries);
   let suggestLabel = 'Suggest another';
   if (pinned.length > 0) {
-    suggestLabel = 'Complete outfit';
+    suggestLabel = 'Suggest around kept pieces';
   }
   if (entries.length === 0) {
     suggestLabel = 'Suggest an outfit';
@@ -82,15 +79,12 @@ export const draftStatus = ({
   if (busy) {
     suggestLabel = 'One moment …';
   }
-  const saveLabel = saved ? 'Saved for tomorrow' : 'Save for tomorrow';
   return {
     tomorrow,
     complete: completeOutfit(entries),
     unavailable,
     unavailableMessage,
     concerns,
-    saved,
     suggestLabel,
-    primaryLabel: tomorrow ? saveLabel : 'Wear this',
   };
 };

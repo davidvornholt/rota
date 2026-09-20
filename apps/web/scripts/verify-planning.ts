@@ -24,8 +24,10 @@ import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import { addDays, localDate } from '#/shared/time/local-date.ts';
+import { verifyCare, verifyDailyDrafts } from './verify-daily-drafts.ts';
 import { verifyDirectLaundry } from './verify-direct-laundry.ts';
 import { verifyPlanningIsolation } from './verify-planning-isolation.ts';
+import { verifySuggestionRollback } from './verify-suggestion-rollback.ts';
 
 const owner = {
   id: 'planning-demo',
@@ -134,53 +136,6 @@ const mediaLayer = Layer.succeed(
   }),
 );
 
-const verifyCare = Effect.gen(function* () {
-  const swapped = [{ garmentId: otherTopId, slot: 'top' as const }, entries[1]];
-  yield* changePlanning(clock, {
-    action: 'care',
-    draft: null,
-    care: 'washed',
-    ids: [topId],
-  });
-  yield* changePlanning(clock, { action: 'wear', entries, basedOn: null });
-  assert.equal(
-    (yield* planningView(nextClock)).wardrobe.find(
-      (garment) => garment.id === topId,
-    )?.wearsSinceWash,
-    1,
-    'A wear after washing that morning counts.',
-  );
-  yield* changePlanning(clock, {
-    action: 'care',
-    draft: null,
-    care: 'washed',
-    ids: [topId],
-  });
-  assert.equal(
-    (yield* planningView(nextClock)).wardrobe.find(
-      (garment) => garment.id === topId,
-    )?.wearsSinceWash,
-    0,
-    'Washing after wearing resets that wear.',
-  );
-  yield* changePlanning(clock, {
-    action: 'care',
-    draft: null,
-    care: 'laundry',
-    ids: [otherTopId],
-  });
-  assert.equal(
-    (yield* Effect.either(
-      changePlanning(nextClock, {
-        action: 'plan',
-        entries: swapped,
-        basedOn: null,
-      }),
-    ))._tag,
-    'Left',
-  );
-});
-
 const verifyAutomaticLaundry = Effect.gen(function* () {
   const returnDay = 2 + clock.settings.laundryDays;
   const delayedDay = returnDay + 1;
@@ -263,6 +218,7 @@ const verify = Effect.gen(function* () {
   const outfits = yield* OutfitRepository;
   const log = yield* WearLogRepository;
   const proposals = yield* ProposalService;
+  yield* verifyDailyDrafts(clock, entries);
   yield* changePlanning(clock, {
     action: 'save-outfit',
     id: outfitId,
@@ -285,6 +241,15 @@ const verify = Effect.gen(function* () {
       (item) => item.garment.id === topId && item.slot === 'top',
     ),
   );
+  assert.deepEqual(
+    generated.plan.entries,
+    generated.day.proposal?.items.map((item) => ({
+      garmentId: item.garment.id,
+      slot: item.slot,
+    })),
+    'A new suggestion replaces the older empty draft.',
+  );
+  assert.equal(generated.plan.basedOn, null);
   failGeneration = true;
   const failed = yield* Effect.either(
     changePlanning(nextClock, {
@@ -298,7 +263,13 @@ const verify = Effect.gen(function* () {
     (yield* planningView(nextClock)).day.proposal?.id,
     generated.day.proposal?.id,
   );
+  assert.deepEqual(
+    yield* outfits.plan(tomorrow),
+    generated.plan,
+    'A failed suggestion preserves the saved plan and forecast.',
+  );
   failGeneration = false;
+  yield* verifySuggestionRollback(nextClock, [entries[0]]);
   yield* changePlanning(nextClock, {
     action: 'plan',
     entries,
@@ -338,7 +309,7 @@ const verify = Effect.gen(function* () {
     swapped,
     'The scheduler preserves a saved plan.',
   );
-  yield* verifyCare;
+  yield* verifyCare(clock, entries, otherTopId);
   yield* verifyAutomaticLaundry;
   yield* verifyDirectLaundry(clock, entries);
   yield* changePlanning(clock, { action: 'delete-outfit', id: outfitId });

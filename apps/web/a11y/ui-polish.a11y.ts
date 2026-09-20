@@ -24,20 +24,32 @@ test('clean-top toggles immediately and persists the latest choice after a slow 
   });
   await page.route('**/fixture-planning-action', async (route) => {
     await response;
-    await route.fulfill({ status: 200, body: '{}' });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{}',
+    });
   });
   await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow&failure`);
   const toggle = page.getByRole('checkbox', {
     name: 'Freshly washed top tomorrow',
   });
+  await expect(
+    page.getByText('Applies to your next suggestion for this day.', {
+      exact: true,
+    }),
+  ).toBeVisible();
   await toggle.check();
   await expect(toggle).toBeChecked();
   await expect(toggle).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: 'Change Blue Oxford shirt' }),
+  ).toBeVisible();
   await toggle.uncheck();
   await expect(toggle).not.toBeChecked();
   release?.();
   await expect(
-    page.getByRole('button', { name: 'Save for tomorrow', exact: true }),
+    page.getByRole('button', { name: 'Suggest another', exact: true }),
   ).toBeEnabled();
   await page.reload();
   await expect(toggle).not.toBeChecked();
@@ -73,12 +85,17 @@ test('notes are visible without a disclosure and keeping a piece does not move i
   await expect(
     page.getByRole('button', { name: 'Save note', exact: true }),
   ).toHaveCount(0);
-  const keep = page.getByRole('checkbox', { name: 'Keep this piece' }).first();
+  const keep = page
+    .getByRole('checkbox', { name: 'Keep when suggesting' })
+    .first();
   await keep.scrollIntoViewIfNeeded();
   const before = await keep.boundingBox();
   await keep.check();
   await expect(
-    page.getByRole('button', { name: 'Complete outfit', exact: true }),
+    page.getByRole('button', {
+      name: 'Suggest around kept pieces',
+      exact: true,
+    }),
   ).toBeVisible();
   const after = await keep.boundingBox();
   expect(Math.round(after?.y ?? 0)).toBe(Math.round(before?.y ?? 0));
@@ -133,7 +150,7 @@ test('tooltip remains readable when the pointer moves onto it', async ({
   await expect(tooltip).toHaveCount(0);
 });
 
-test('wearing is primary, suggesting is labelled, and saving is behind a keyboard-accessible disclosure', async ({
+test('wearing is primary and reusable outfit saving is separate from automatic daily planning', async ({
   page,
 }) => {
   await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
@@ -146,22 +163,16 @@ test('wearing is primary, suggesting is labelled, and saving is behind a keyboar
   ).toHaveText('Suggest another');
   await expect(
     page.getByRole('button', { name: 'Save for later today', exact: true }),
-  ).toBeHidden();
+  ).toHaveCount(0);
   await expect(
-    page.getByRole('button', { name: 'Save as an outfit', exact: true }),
-  ).toBeHidden();
-  const more = page.getByText('More options', { exact: true });
-  await more.focus();
-  await page.keyboard.press('Enter');
+    page.getByRole('button', { name: 'Save for tomorrow', exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText('More options', { exact: true })).toHaveCount(0);
   await expect(
-    page.getByRole('button', { name: 'Save for later today', exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Save as an outfit', exact: true }),
+    page.getByRole('button', {
+      name: 'Save as a reusable outfit',
+      exact: true,
+    }),
   ).toBeVisible();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
-  await page.keyboard.press('Enter');
-  await expect(
-    page.getByRole('button', { name: 'Save as an outfit', exact: true }),
-  ).toBeHidden();
 });

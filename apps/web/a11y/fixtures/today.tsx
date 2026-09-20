@@ -47,7 +47,7 @@ const route = createRoute({
     const initial = route.useLoaderData<typeof router>();
     return (
       <TodayPage
-        key={`${initial.day.today}-${route.useSearch<typeof router>().garment ?? ''}-${route.useSearch<typeof router>().outfit ?? ''}`}
+        key={initial.day.today}
         initial={initial}
         seed={route.useSearch<typeof router>().garment}
         savedOutfitId={route.useSearch<typeof router>().outfit}

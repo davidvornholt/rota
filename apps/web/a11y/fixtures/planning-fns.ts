@@ -146,10 +146,16 @@ export const changePlanningFn = ({
     Effect.gen(function* () {
       if (
         new URLSearchParams(globalThis.location.search).has('failure') &&
-        ['suggest', 'care', 'clean-top', 'note'].includes(data.change.action)
+        ['suggest', 'plan', 'care', 'clean-top', 'note'].includes(
+          data.change.action,
+        )
       ) {
         yield* Effect.promise(() =>
-          request('/fixture-planning-action', { method: 'POST' }),
+          request('/fixture-planning-action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          }),
         );
       }
       const view = planningFixture(data.date);
@@ -159,12 +165,17 @@ export const changePlanningFn = ({
         case 'suggest': {
           const entries = [
             ...change.entries,
-            ...outfitEntries.filter(
+            ...[
+              ...outfitEntries,
+              { slot: 'shoes' as const, garmentId: 'demo-shoes' },
+              { slot: 'bag' as const, garmentId: 'demo-bag' },
+            ].filter(
               (entry) => !change.entries.some((pin) => pin.slot === entry.slot),
             ),
           ];
           next = {
             ...view,
+            plan: { ...view.plan, entries, basedOn: change.basedOn },
             day: {
               ...view.day,
               proposal: {

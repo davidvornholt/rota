@@ -6,11 +6,13 @@
  * it — everything else here is bookkeeping around that fact.
  */
 
+import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
 
 import { Gemini } from '#/shared/ai/gemini.ts';
 import type { ImagePart } from '#/shared/ai/gemini-request.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
+import { writeError } from '#/shared/data/errors/data-errors.ts';
 import { displayImage, type Garment } from '#/shared/data/garment.ts';
 import { cleanTopOn } from '#/shared/data/garment-care.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
@@ -54,6 +56,7 @@ export type GenerateOptions = {
   readonly excluded: ReadonlySet<string>;
   /** Also reopen the slots that would have continued from yesterday. */
   readonly releaseAll: boolean;
+  readonly rejectedProposalId: string | null;
 };
 
 const withOutfitContext = (
@@ -135,6 +138,7 @@ const ask = (gemini: Gemini, prompt: BuiltPrompt) =>
     );
 
 type GenerateDeps = {
+  readonly sql: SqlClient.SqlClient;
   readonly outfits: OutfitRepository;
   readonly garments: GarmentRepository;
   readonly wearLog: WearLogRepository;
@@ -146,7 +150,16 @@ type GenerateDeps = {
 
 /** Asks Gemini for the day, given a forecast window and what to leave out. */
 const generateProposal = (
-  { outfits, garments, wearLog, proposals, notes, media, gemini }: GenerateDeps,
+  {
+    sql,
+    outfits,
+    garments,
+    wearLog,
+    proposals,
+    notes,
+    media,
+    gemini,
+  }: GenerateDeps,
   clock: WardrobeClock,
   forecast: ForecastWindow,
   options: GenerateOptions,
@@ -232,18 +245,40 @@ const generateProposal = (
       forecastStale: forecast.stale,
       occasion,
     };
-    return yield* proposals.insert(
-      clock.today,
-      payload,
-      answer.headline,
-      gemini.model,
-    );
+    // The model call is complete before opening a transaction. A failed write
+    // must preserve both the previous proposal and its saved daily selection.
+    return yield* sql
+      .withTransaction(
+        Effect.gen(function* () {
+          const proposal = yield* proposals.insert(
+            clock.today,
+            payload,
+            answer.headline,
+            gemini.model,
+          );
+          yield* outfits.savePlan(clock.today, {
+            entries: items.map(({ garmentId, slot }) => ({ garmentId, slot })),
+            basedOn: null,
+            forecast: forecast.today,
+          });
+          if (options.rejectedProposalId !== null) {
+            yield* proposals.setStatus(options.rejectedProposalId, 'rejected');
+          }
+          return proposal;
+        }),
+      )
+      .pipe(
+        Effect.catchTag('SqlError', (cause) =>
+          Effect.fail(writeError('The daily suggestion')(cause)),
+        ),
+      );
   });
 
 export class ProposalService extends Effect.Service<ProposalService>()(
   'rota/ProposalService',
   {
     effect: Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
       const outfits = yield* OutfitRepository;
       const garments = yield* GarmentRepository;
       const wearLog = yield* WearLogRepository;
@@ -258,7 +293,7 @@ export class ProposalService extends Effect.Service<ProposalService>()(
         options: GenerateOptions,
       ) =>
         generateProposal(
-          { outfits, garments, wearLog, proposals, notes, media, gemini },
+          { sql, outfits, garments, wearLog, proposals, notes, media, gemini },
           clock,
           forecast,
           options,

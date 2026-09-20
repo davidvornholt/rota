@@ -1,4 +1,5 @@
 import { Effect } from 'effect';
+import type { DayPlan } from '#/shared/data/outfit.ts';
 import type {
   OutfitEntry,
   WearSource,
@@ -77,10 +78,25 @@ export const makeProposalOperations = (deps: SettlementDeps) =>
           pinned: [],
           excluded: new Set(latest?.payload.excludedGarmentIds ?? []),
           releaseAll: false,
+          rejectedProposalId: null,
         });
       });
 
     return {
+      savePlan: (
+        clock: WardrobeClock,
+        plan: Pick<DayPlan, 'entries' | 'basedOn' | 'forecast'>,
+      ) =>
+        exclusive(
+          Effect.gen(function* () {
+            if ((yield* deps.wearLog.readDay(clock.today)).length > 0) {
+              return yield* new ProposalStateError(
+                'This day is already logged. Edit it in history.',
+              );
+            }
+            yield* deps.outfits.savePlan(clock.today, plan);
+          }),
+        ),
       complete: (clock: WardrobeClock, pinned: ReadonlyArray<OutfitEntry>) =>
         exclusive(
           Effect.gen(function* () {
@@ -103,15 +119,13 @@ export const makeProposalOperations = (deps: SettlementDeps) =>
                   []),
               ].filter((id) => !pinnedIds.has(id)),
             );
-            const next = yield* deps.generate(clock, forecast, {
+            return yield* deps.generate(clock, forecast, {
               pinned,
               excluded,
               releaseAll: true,
+              rejectedProposalId:
+                latest?.status === 'pending' ? latest.id : null,
             });
-            if (latest?.status === 'pending') {
-              yield* deps.proposals.setStatus(latest.id, 'rejected');
-            }
-            return next;
           }),
         ),
       ensure: (clock: WardrobeClock) => exclusive(ensure(clock)),
