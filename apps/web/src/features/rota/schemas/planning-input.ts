@@ -8,7 +8,9 @@ const noteLength = 280;
 export const PlanningDateSchema = Schema.Struct({
   date: Schema.NullOr(LocalDateSchema),
 });
-const entryAction = (action: 'suggest' | 'plan' | 'wear') =>
+const entryAction = <Action extends 'suggest' | 'plan' | 'wear'>(
+  action: Action,
+) =>
   Schema.Struct({
     action: Schema.Literal(action),
     entries: OutfitEntriesSchema,

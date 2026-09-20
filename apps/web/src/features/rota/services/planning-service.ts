@@ -9,6 +9,7 @@ import {
   wearFactsByGarment,
 } from '#/shared/data/garment-view.ts';
 import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
+import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
@@ -104,9 +105,20 @@ export const planningView = (clock: WardrobeClock) =>
     } satisfies PlanningView;
   });
 
+export const suggestPlanning = (
+  clock: WardrobeClock,
+  entries: ReadonlyArray<OutfitEntry>,
+) =>
+  Effect.gen(function* () {
+    const garments = yield* GarmentRepository;
+    yield* validateEntries(entries, yield* garments.list(), false);
+    const proposals = yield* ProposalService;
+    yield* proposals.complete(clock, entries);
+  });
+
 const applyEntryChange = (
   clock: WardrobeClock,
-  change: Extract<PlanningChange, { action: 'suggest' | 'plan' | 'wear' }>,
+  change: Extract<PlanningChange, { action: 'plan' | 'wear' }>,
 ) =>
   Effect.gen(function* () {
     const garments = yield* GarmentRepository;
@@ -114,10 +126,6 @@ const applyEntryChange = (
     const outfits = yield* OutfitRepository;
     const all = yield* garments.list();
     yield* validateEntries(change.entries, all, change.action === 'wear');
-    if (change.action === 'suggest') {
-      yield* proposals.complete(clock, change.entries);
-      return;
-    }
     if (change.action === 'plan') {
       const today = yield* TodayService;
       const view = yield* today.view(clock);
@@ -157,6 +165,9 @@ export const changePlanning = (clock: WardrobeClock, change: PlanningChange) =>
     const outfits = yield* OutfitRepository;
     switch (change.action) {
       case 'suggest':
+        return yield* new ProposalStateError(
+          'Start a background suggestion instead.',
+        );
       case 'plan':
       case 'wear':
         yield* applyEntryChange(clock, change);

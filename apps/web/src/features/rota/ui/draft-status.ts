@@ -52,6 +52,7 @@ export const draftStatus = ({
   entries,
   pinned,
   busy,
+  suggesting,
 }: PlanningController) => {
   const tomorrow = view.day.today > view.actualToday;
   const selected = entries.flatMap((entry) => {
@@ -77,7 +78,7 @@ export const draftStatus = ({
     suggestLabel = 'Suggest an outfit';
   }
   if (busy) {
-    suggestLabel = 'One moment …';
+    suggestLabel = suggesting ? 'Choosing an outfit …' : 'Saving …';
   }
   return {
     tomorrow,

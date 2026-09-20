@@ -1,8 +1,11 @@
 import { Effect } from 'effect';
 import type { PlanningChange } from '#/features/rota/schemas/planning-input.ts';
 import type { PlanningView } from '#/features/rota/schemas/planning-view.ts';
+import type { SuggestionJob } from '#/features/rota/schemas/suggestion-job.ts';
 import { emptyPlan } from '#/shared/data/outfit.ts';
+import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import type { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
+import type { LocalDate } from '#/shared/time/local-date.ts';
 import { addDays, localDate } from '#/shared/time/local-date.ts';
 import { demoProposal, shirt } from './today-proposal.ts';
 
@@ -262,3 +265,98 @@ export const changePlanningFn = ({
     }),
   );
 export const tomorrow = addDays(demoProposal.today, 1);
+
+type SuggestionInput = {
+  readonly date: LocalDate;
+  readonly requestId: string;
+  readonly entries: ReadonlyArray<OutfitEntry>;
+};
+type FixtureRequest<T> = {
+  readonly data: T;
+  readonly fetch: typeof serverFunctionFetch;
+};
+const jobKey = (date: string) => `fixture-suggestion-${date}`;
+const storedJob = (
+  date: string,
+): { job: SuggestionJob; entries: ReadonlyArray<OutfitEntry> } | null => {
+  const stored = sessionStorage.getItem(jobKey(date));
+  return stored === null ? null : JSON.parse(stored);
+};
+export const startSuggestionFn = async ({
+  data,
+  fetch: request,
+}: FixtureRequest<SuggestionInput>): Promise<SuggestionJob> => {
+  const previous = storedJob(data.date);
+  const job: SuggestionJob =
+    previous?.job.status === 'running' || previous?.job.id === data.requestId
+      ? previous.job
+      : {
+          id: data.requestId,
+          date: data.date,
+          status: 'running',
+          startedAt: Date.now(),
+          message: null,
+        };
+  sessionStorage.setItem(
+    jobKey(data.date),
+    JSON.stringify({ job, entries: data.entries }),
+  );
+  if (new URLSearchParams(location.search).has('job-network')) {
+    await request('/fixture-suggestion-start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+  }
+  return job;
+};
+export const suggestionStatusFn = async ({
+  data,
+  fetch: request,
+}: FixtureRequest<{
+  readonly date: LocalDate;
+  readonly requestId: string | null;
+}>): Promise<SuggestionJob | null> => {
+  const stored = storedJob(data.date);
+  if (
+    stored === null ||
+    (data.requestId === null && stored.job.status !== 'running')
+  ) {
+    return null;
+  }
+  if (stored.job.status !== 'running') {
+    return stored.job;
+  }
+  let status: 'running' | 'succeeded' | 'failed' = 'succeeded';
+  if (new URLSearchParams(location.search).has('job-network')) {
+    const response = await request('/fixture-suggestion-status');
+    ({ status } = (await response.json()) as {
+      status: 'running' | 'succeeded' | 'failed';
+    });
+  }
+  if (status === 'succeeded') {
+    await changePlanningFn({
+      data: {
+        date: data.date,
+        change: { action: 'suggest', entries: stored.entries, basedOn: null },
+      },
+      fetch: request,
+    });
+  }
+  const job = {
+    ...stored.job,
+    status,
+    message:
+      status === 'failed'
+        ? 'Choosing an outfit timed out. Your current outfit is unchanged. Try again.'
+        : null,
+  };
+  sessionStorage.setItem(jobKey(data.date), JSON.stringify({ ...stored, job }));
+  return job;
+};
+export const planningFn = ({
+  data,
+}: FixtureRequest<{ readonly date: LocalDate | null }>) =>
+  Promise.resolve(
+    structuredClone(planningFixture(data.date ?? demoProposal.today)),
+  );

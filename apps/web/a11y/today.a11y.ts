@@ -264,10 +264,17 @@ for (const status of failedStatuses) {
   test(`a ${status} suggestion failure preserves selected pieces and recovers on retry`, async ({
     page,
   }) => {
-    await page.route('**/fixture-planning-action', (route) =>
+    await page.route('**/fixture-suggestion-start', (route) =>
       route.fulfill({ status, body: '' }),
     );
-    await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?failure`);
+    await page.route('**/fixture-suggestion-status', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'succeeded' }),
+      }),
+    );
+    await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?job-network`);
     await page.getByRole('button', { name: 'Suggest another' }).click();
     await expect(page.getByRole('alert')).toBeVisible();
     await expect(
@@ -275,7 +282,7 @@ for (const status of failedStatuses) {
     ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Wear this' })).toBeEnabled();
     expect(await scanWcag22AaViolations(page)).toEqual([]);
-    await page.route('**/fixture-planning-action', (route) =>
+    await page.route('**/fixture-suggestion-start', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',

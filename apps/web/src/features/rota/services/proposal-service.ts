@@ -10,10 +10,9 @@ import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
 
 import { Gemini } from '#/shared/ai/gemini.ts';
-import type { ImagePart } from '#/shared/ai/gemini-request.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { writeError } from '#/shared/data/errors/data-errors.ts';
-import { displayImage, type Garment } from '#/shared/data/garment.ts';
+import { displayImage } from '#/shared/data/garment.ts';
 import { cleanTopOn } from '#/shared/data/garment-care.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import type { SavedOutfit } from '#/shared/data/outfit.ts';
@@ -43,6 +42,7 @@ import {
   choicesWithPins,
   recentSummary,
 } from './proposal-assembly.ts';
+import { proposalImages } from './proposal-images.ts';
 import { makeProposalOperations } from './proposal-operations.ts';
 import {
   type BuiltPrompt,
@@ -50,6 +50,7 @@ import {
   proposalSystemPrompt,
 } from './proposal-prompt.ts';
 import type { SettlementDeps } from './proposal-settlement.ts';
+import { proposalStage } from './proposal-stage.ts';
 
 export type GenerateOptions = {
   readonly pinned: ReadonlyArray<OutfitEntry>;
@@ -89,38 +90,6 @@ const withOutfitContext = (
   };
 };
 
-const imageConcurrency = 4;
-
-const imageBytes = (media: MediaStore, garment: Garment) =>
-  Effect.gen(function* () {
-    const image = displayImage(garment);
-    const bytes = image === undefined ? undefined : yield* media.get(image.key);
-    return image === undefined || bytes === undefined
-      ? undefined
-      : ({ mimeType: image.mime, data: bytes } satisfies ImagePart);
-  }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
-
-/** The pictures the model will see, keyed by garment; a missing file just means no picture. */
-const imagesFor = (media: MediaStore, shown: ReadonlyArray<Garment>) =>
-  Effect.forEach(
-    [...new Map(shown.map((garment) => [garment.id, garment])).values()],
-    (garment) =>
-      Effect.map(
-        imageBytes(media, garment),
-        (image) => [garment.id, image] as const,
-      ),
-    { concurrency: imageConcurrency },
-  ).pipe(
-    Effect.map(
-      (pairs) =>
-        new Map(
-          pairs.flatMap(([id, image]) =>
-            image === undefined ? [] : [[id, image] as const],
-          ),
-        ),
-    ),
-  );
-
 const ask = (gemini: Gemini, prompt: BuiltPrompt) =>
   gemini
     .generateJson({
@@ -148,6 +117,59 @@ type GenerateDeps = {
   readonly gemini: Gemini;
 };
 
+// Keep the proposal and saved selection atomic after the model has finished.
+const persistProposal = (
+  {
+    sql,
+    outfits,
+    proposals,
+  }: Pick<GenerateDeps, 'sql' | 'outfits' | 'proposals'>,
+  {
+    date,
+    forecast,
+    payload,
+    model,
+    rejectedProposalId,
+  }: {
+    readonly date: WardrobeClock['today'];
+    readonly forecast: ForecastWindow['today'];
+    readonly payload: ProposalPayload;
+    readonly model: string;
+    readonly rejectedProposalId: string | null;
+  },
+) =>
+  proposalStage(
+    'persist',
+    sql
+      .withTransaction(
+        Effect.gen(function* () {
+          const proposal = yield* proposals.insert(
+            date,
+            payload,
+            payload.headline,
+            model,
+          );
+          yield* outfits.savePlan(date, {
+            entries: payload.items.map(({ garmentId, slot }) => ({
+              garmentId,
+              slot,
+            })),
+            basedOn: null,
+            forecast,
+          });
+          if (rejectedProposalId !== null) {
+            yield* proposals.setStatus(rejectedProposalId, 'rejected');
+          }
+          return proposal;
+        }),
+      )
+      .pipe(
+        Effect.catchTag('SqlError', (cause) =>
+          Effect.fail(writeError('The daily suggestion')(cause)),
+        ),
+      ),
+  );
+
 /** Asks Gemini for the day, given a forecast window and what to leave out. */
 const generateProposal = (
   {
@@ -165,14 +187,18 @@ const generateProposal = (
   options: GenerateOptions,
 ) =>
   Effect.gen(function* () {
-    const [all, history, occasion, plan, todayPlan, saved] = yield* Effect.all([
-      garments.list(),
-      wearLog.history(),
-      notes.read(clock.today),
-      outfits.plan(clock.today),
-      outfits.plan(clock.actualToday),
-      outfits.list(),
-    ]);
+    const [all, history, occasion, plan, todayPlan, saved] =
+      yield* proposalStage(
+        'context',
+        Effect.all([
+          garments.list(),
+          wearLog.history(),
+          notes.read(clock.today),
+          outfits.plan(clock.today),
+          outfits.plan(clock.actualToday),
+          outfits.list(),
+        ]),
+      );
     yield* validateEntries(options.pinned, all, false);
     const log = projectedLog(history, todayPlan, clock);
     const input: RotationInput = {
@@ -203,10 +229,21 @@ const generateProposal = (
     if (empty !== undefined) {
       return yield* new SlotEmptyError(empty.slot);
     }
-    const images = yield* imagesFor(media, [
-      ...continuing.map((c) => c.garment),
-      ...slotChoices.flatMap((open) => open.candidates.map((c) => c.garment)),
-    ]);
+    const images = yield* proposalStage(
+      'images',
+      proposalImages(
+        media,
+        [
+          ...continuing.map((c) => c.garment),
+          ...slotChoices.flatMap((open) =>
+            open.candidates.map((c) => c.garment),
+          ),
+        ].map((garment) => ({
+          garmentId: garment.id,
+          image: displayImage(garment),
+        })),
+      ),
+    );
     const prompt = buildProposalPrompt({
       cleanTop: input.cleanTop,
       today: clock.today,
@@ -220,9 +257,9 @@ const generateProposal = (
       recent: recentSummary(log, all, clock.today),
       imageFor: (garment) => images.get(garment.id),
     });
-    const answer = yield* ask(
-      gemini,
-      withOutfitContext(prompt, options.pinned, saved),
+    const answer = yield* proposalStage(
+      'model',
+      ask(gemini, withOutfitContext(prompt, options.pinned, saved)),
     );
     const items = yield* answerToItems(answer, prompt.aliases, input);
     if (
@@ -245,33 +282,16 @@ const generateProposal = (
       forecastStale: forecast.stale,
       occasion,
     };
-    // The model call is complete before opening a transaction. A failed write
-    // must preserve both the previous proposal and its saved daily selection.
-    return yield* sql
-      .withTransaction(
-        Effect.gen(function* () {
-          const proposal = yield* proposals.insert(
-            clock.today,
-            payload,
-            answer.headline,
-            gemini.model,
-          );
-          yield* outfits.savePlan(clock.today, {
-            entries: items.map(({ garmentId, slot }) => ({ garmentId, slot })),
-            basedOn: null,
-            forecast: forecast.today,
-          });
-          if (options.rejectedProposalId !== null) {
-            yield* proposals.setStatus(options.rejectedProposalId, 'rejected');
-          }
-          return proposal;
-        }),
-      )
-      .pipe(
-        Effect.catchTag('SqlError', (cause) =>
-          Effect.fail(writeError('The daily suggestion')(cause)),
-        ),
-      );
+    return yield* persistProposal(
+      { sql, outfits, proposals },
+      {
+        date: clock.today,
+        forecast: forecast.today,
+        payload,
+        model: gemini.model,
+        rejectedProposalId: options.rejectedProposalId,
+      },
+    );
   });
 
 export class ProposalService extends Effect.Service<ProposalService>()(
