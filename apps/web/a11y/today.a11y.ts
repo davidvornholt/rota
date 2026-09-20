@@ -222,7 +222,7 @@ test('laundry shows return dates and handles early washing and late returns', as
 }) => {
   await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?returned`);
   await page.getByRole('button', { name: 'Laundry', exact: true }).click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog', { name: 'Laundry', exact: true });
   await dialog
     .getByRole('button', {
       name: 'Still in laundry: Blue Oxford shirt',
@@ -243,8 +243,12 @@ test('laundry shows return dates and handles early washing and late returns', as
     .getByText('Send a piece to laundry early', { exact: true })
     .click();
   await dialog
-    .getByRole('combobox', { name: 'Piece', exact: true })
-    .selectOption('demo-chinos');
+    .getByRole('button', { name: 'Choose a piece', exact: true })
+    .click();
+  await page
+    .getByRole('dialog', { name: 'Choose a piece', exact: true })
+    .getByRole('button', { name: 'Navy chinos', exact: false })
+    .click();
   await dialog.getByRole('button', { name: 'Put in basket' }).click();
   await expect(
     dialog.getByText('Expected 11 Sept', { exact: true }),

@@ -15,7 +15,7 @@ type GarmentPickerProps = {
   readonly eyebrow: string;
   readonly title: string;
   readonly groups: ReadonlyArray<GarmentPickerGroup>;
-  /** The garment in the slot right now; drawn as chosen. */
+  /** The selected garment, drawn as chosen. */
   readonly selectedId?: string;
   /** The choice of nothing, offered first: "None" for an optional slot, "Not logged" for a required one. */
   readonly empty?: { readonly label: string; readonly onPick: () => void };
@@ -122,8 +122,7 @@ const gridClass = 'grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5';
 
 /**
  * The one way to choose a garment: a dialog of pictures, name and colours
- * under each, for everything that could go in the slot. Used to swap a slot
- * of today's proposal and to fill a slot of a past day; picking closes it.
+ * under each. Shared by outfit planning, history, and laundry; picking closes it.
  */
 export const GarmentPicker = ({
   eyebrow,
