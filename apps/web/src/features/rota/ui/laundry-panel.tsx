@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { hasWearBudget } from '#/shared/data/garment-types.ts';
+import type { GarmentView } from '#/shared/data/garment-view.ts';
 import { addDays, formatDayMonth } from '#/shared/time/local-date.ts';
 import {
   fieldClass,
@@ -14,6 +15,31 @@ import { Notice } from '#/shared/ui/notice.tsx';
 import type { PlanningController } from './use-planning.ts';
 
 const recentReturnDays = 7;
+
+const LaundryItem = ({
+  garment,
+  status,
+  children,
+}: {
+  readonly garment: GarmentView;
+  readonly status: string;
+  readonly children: ReactNode;
+}) => (
+  <li className="flex items-center gap-4 py-4">
+    <GarmentFigure
+      alt=""
+      className="w-16 shrink-0 sm:w-20"
+      colors={garment.colors}
+      image={garment.image}
+      name={garment.name}
+    />
+    <span className="min-w-0 flex-1 break-words">
+      {garment.name}
+      <span className="mt-1 block text-ink-muted text-xs">{status}</span>
+    </span>
+    {children}
+  </li>
+);
 
 export const LaundryPanel = ({
   controller,
@@ -80,19 +106,11 @@ export const LaundryPanel = ({
           <h3 className="type-eyebrow">In laundry</h3>
           <ul className="mt-2 divide-y divide-rule">
             {waiting.map((garment) => (
-              <li
+              <LaundryItem
                 key={garment.id}
-                className="flex items-center justify-between gap-4 py-4"
+                garment={garment}
+                status={`Expected ${garment.readyOn === null ? 'soon' : formatDayMonth(garment.readyOn)}`}
               >
-                <span>
-                  {garment.name}
-                  <span className="mt-1 block text-ink-muted text-xs">
-                    Expected{' '}
-                    {garment.readyOn === null
-                      ? 'soon'
-                      : formatDayMonth(garment.readyOn)}
-                  </span>
-                </span>
                 <IconButton
                   icon="check"
                   label={`Back clean: ${garment.name}`}
@@ -101,7 +119,7 @@ export const LaundryPanel = ({
                     change(garment.id, 'washed').catch(() => undefined);
                   }}
                 />
-              </li>
+              </LaundryItem>
             ))}
           </ul>
         </section>
@@ -111,16 +129,11 @@ export const LaundryPanel = ({
           <h3 className="type-eyebrow">Expected back</h3>
           <ul className="mt-2 divide-y divide-rule">
             {returned.map((garment) => (
-              <li
+              <LaundryItem
                 key={garment.id}
-                className="flex items-center justify-between gap-4 py-4"
+                garment={garment}
+                status="Available again"
               >
-                <span>
-                  {garment.name}
-                  <span className="mt-1 block text-ink-muted text-xs">
-                    Available again
-                  </span>
-                </span>
                 <IconButton
                   icon="clock"
                   label={`Still in laundry: ${garment.name}`}
@@ -129,7 +142,7 @@ export const LaundryPanel = ({
                     change(garment.id, 'postpone').catch(() => undefined);
                   }}
                 />
-              </li>
+              </LaundryItem>
             ))}
           </ul>
         </section>
