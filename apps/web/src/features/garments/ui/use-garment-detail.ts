@@ -54,9 +54,9 @@ export const useGarmentDetail = (initial: GarmentView) => {
     },
   });
   const care = useMutation({
-    mutationFn: () =>
+    mutationFn: (action: 'laundry' | 'washed') =>
       setGarmentCareFn({
-        data: { id, care: garment.inLaundry ? 'washed' : 'laundry' },
+        data: { id, care: action },
         fetch: serverFunctionFetch,
       }),
     onSuccess: (next) => {
