@@ -293,7 +293,7 @@ test('garment care stays on details, preserves edits, and switches to one back-c
   page,
 }) => {
   await page.goto(
-    `${fixtureUrl()}a11y/fixtures/review-card.html?detail&completed`,
+    `${fixtureUrl()}a11y/fixtures/review-card.html?detail&completed&worn`,
   );
   await page
     .getByRole('textbox', { name: 'Name', exact: true })
@@ -316,6 +316,9 @@ test('garment care stays on details, preserves edits, and switches to one back-c
   await expect(
     page.getByRole('button', { name: 'Back clean', exact: true }),
   ).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: 'Mark clean', exact: true }),
+  ).toHaveCount(0);
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await page.getByRole('button', { name: 'Back clean', exact: true }).click();
   await expect(
@@ -324,4 +327,74 @@ test('garment care stays on details, preserves edits, and switches to one back-c
   await expect(
     page.getByRole('textbox', { name: 'Name', exact: true }),
   ).toHaveValue('My edited shirt');
+});
+
+test('marking a worn garment clean resets its counter, keeps history and edits, and hides the action', async ({
+  page,
+}) => {
+  await page.goto(
+    `${fixtureUrl()}a11y/fixtures/review-card.html?detail&completed&worn`,
+  );
+  const markClean = page.getByRole('button', {
+    name: 'Mark clean',
+    exact: true,
+  });
+  await page
+    .getByRole('textbox', { name: 'Name', exact: true })
+    .fill('My edited shirt');
+  await expect(page.getByText('3 / 4', { exact: true })).toBeVisible();
+  await markClean.focus();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('0 / 4', { exact: true })).toBeVisible();
+  await expect(markClean).toHaveCount(0);
+  await expect(page.getByText('12×', { exact: true })).toBeVisible();
+  await expect(page.getByText('7 Sept', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('textbox', { name: 'Name', exact: true }),
+  ).toHaveValue('My edited shirt');
+  await expect(
+    page.getByRole('button', { name: 'Send to laundry', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Back clean', exact: true }),
+  ).toHaveCount(0);
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+});
+
+test('mark clean blocks duplicate care actions while saving and allows retry after failure', async ({
+  page,
+}) => {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/fixture-care-action', async (route) => {
+    await gate;
+    await route.abort('failed');
+  });
+  await page.goto(
+    `${fixtureUrl()}a11y/fixtures/review-card.html?detail&completed&worn&care-failure`,
+  );
+  const markClean = page.getByRole('button', {
+    name: 'Mark clean',
+    exact: true,
+  });
+  await markClean.click();
+  await expect(markClean).toBeDisabled();
+  await expect(markClean).toHaveAttribute('aria-busy', 'true');
+  await expect(
+    page.getByRole('button', { name: 'Send to laundry', exact: true }),
+  ).toBeDisabled();
+  release();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(markClean).toBeEnabled();
+  await expect(page.getByText('3 / 4', { exact: true })).toBeVisible();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await page.route('**/fixture-care-action', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  );
+  await markClean.click();
+  await expect(page.getByText('0 / 4', { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
 });
