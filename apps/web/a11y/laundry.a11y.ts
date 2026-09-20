@@ -46,6 +46,56 @@ test('early laundry previews the selected photograph and resets after sending', 
   ).toBeVisible();
 });
 
+test('laundry shows photos in both lists and a fallback for garments without photos', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?returned`);
+  await page
+    .getByRole('button', { name: 'Send Navy chinos to laundry', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Laundry', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  const returned = dialog.getByRole('region', { name: 'Expected back' });
+  const returnedPhoto = returned.locator('img');
+  await expect(returnedPhoto).toBeVisible();
+  await expect(returnedPhoto).toHaveAttribute(
+    'src',
+    '/a11y/fixtures/shirt.svg',
+  );
+  await expect(returnedPhoto).toHaveAttribute('alt', '');
+  await expect
+    .poll(() =>
+      returnedPhoto.evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  const waiting = dialog.getByRole('region', { name: 'In laundry' });
+  await expect(
+    waiting.getByRole('listitem').filter({ hasText: 'Navy chinos' }),
+  ).toBeVisible();
+  await expect(waiting.locator('svg rect')).toHaveAttribute('fill', '#24364b');
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+
+  await returned
+    .getByRole('button', { name: 'Still in laundry: Blue Oxford shirt' })
+    .click();
+  await expect(returned).toHaveCount(0);
+  await expect(waiting.locator('img')).toBeVisible();
+  await expect(waiting.locator('img')).toHaveAttribute(
+    'src',
+    '/a11y/fixtures/shirt.svg',
+  );
+  await expect(
+    waiting.getByText('Expected 8 Sept', { exact: true }),
+  ).toBeVisible();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await waiting
+    .getByRole('button', { name: 'Back clean: Blue Oxford shirt' })
+    .click();
+  await expect(
+    waiting.getByRole('listitem').filter({ hasText: 'Blue Oxford shirt' }),
+  ).toHaveCount(0);
+});
+
 test('sending a proposed garment keeps other draft choices and leaves replacement manual after reload', async ({
   page,
 }) => {
