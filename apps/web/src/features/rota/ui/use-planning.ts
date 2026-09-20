@@ -71,6 +71,9 @@ export const usePlanning = (
   };
   const consumedSeedRef = useRef('');
   useEffect(() => {
+    if (mutation.recovering) {
+      return;
+    }
     const key = `${seed.garment ?? ''}:${seed.outfit ?? ''}`;
     if (consumedSeedRef.current === key) {
       return;
@@ -96,8 +99,16 @@ export const usePlanning = (
     setEntries: (next: ReadonlyArray<OutfitEntry>) => select(next, basedOn),
     pinned,
     basedOn,
-    message,
-    busy: mutation.isPending && mutation.variables?.action !== 'plan',
+    message: mutation.recovering
+      ? 'Checking for an ongoing suggestion …'
+      : message,
+    suggesting:
+      mutation.isPending &&
+      (mutation.variables?.action === 'suggest' ||
+        mutation.variables?.action === 'resume-suggestion'),
+    busy:
+      mutation.recovering ||
+      (mutation.isPending && mutation.variables?.action !== 'plan'),
     planSave,
     failure: mutation.variables?.action === 'plan' ? null : mutation.error,
     change: mutation.mutateAsync,

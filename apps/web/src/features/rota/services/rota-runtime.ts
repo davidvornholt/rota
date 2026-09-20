@@ -7,6 +7,7 @@ import { featureRuntime } from '#/shared/runtime/infrastructure.ts';
 import { readWardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import { ForecastService } from './forecast-service.ts';
 import { ProposalService } from './proposal-service.ts';
+import { SuggestionJobs } from './suggestion-jobs.ts';
 import { TodayService } from './today-service.ts';
 
 /** The rota feature's runtime, in its own server-only module. */
@@ -14,6 +15,7 @@ export const rotaRuntime = featureRuntime('rota', () =>
   TodayService.Default.pipe(
     Layer.provideMerge(ProposalService.Default),
     Layer.provideMerge(ForecastService.Default),
+    Layer.merge(SuggestionJobs.Default),
   ),
 );
 
