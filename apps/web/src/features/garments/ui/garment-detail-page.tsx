@@ -30,7 +30,7 @@ const Fact = ({
   value,
 }: {
   readonly label: string;
-  readonly value: string;
+  readonly value: ReactNode;
 }) => (
   <div className="border-rule border-t py-3">
     <dt className="type-eyebrow">{label}</dt>
@@ -49,7 +49,7 @@ type PictureProps = {
   readonly choosing: boolean;
   readonly replaceControl: ReactNode;
   readonly renderControl: ReactNode;
-  readonly onCare: () => void;
+  readonly onCare: (action: 'laundry' | 'washed') => void;
   readonly carePending: boolean;
 };
 
@@ -121,7 +121,26 @@ const Picture = ({
       {hasWearBudget(garment) ? (
         <Fact
           label="Wears since washing"
-          value={`${garment.wearsSinceWash} / ${garment.effectiveBudget}`}
+          value={
+            <span className="flex min-h-11 flex-wrap items-center gap-x-3">
+              <span role="status">
+                {garment.wearsSinceWash} / {garment.effectiveBudget}
+              </span>
+              {garment.status === 'active' &&
+              !garment.inLaundry &&
+              garment.wearsSinceWash > 0 ? (
+                <button
+                  aria-busy={carePending}
+                  className={`${linkButtonClass} font-sans tracking-normal disabled:cursor-not-allowed disabled:opacity-50`}
+                  disabled={choosing || carePending}
+                  onClick={() => onCare('washed')}
+                  type="button"
+                >
+                  Mark clean
+                </button>
+              ) : null}
+            </span>
+          }
         />
       ) : null}
       <Fact
@@ -234,7 +253,7 @@ export const GarmentDetailPage = ({
         <div className="lg:col-span-5">
           <Picture
             choosing={lifecyclePending}
-            onCare={() => care.mutate()}
+            onCare={(action) => care.mutate(action)}
             carePending={care.isPending}
             garment={garment}
             onChoose={(choice) => choose.mutate(choice)}

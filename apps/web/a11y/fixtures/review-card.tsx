@@ -65,6 +65,14 @@ const query = new URLSearchParams(globalThis.location.search);
 const detail = query.has('detail');
 setFixtureGarment({
   ...garment,
+  ...(query.has('worn')
+    ? {
+        wearsSinceWash: 3,
+        effectiveBudget: 4,
+        wears: 12,
+        lastWornOn: localDate('2026-09-07'),
+      }
+    : {}),
   status: detail ? 'active' : 'review',
   studioState: query.has('waiting')
     ? { status: 'waiting', retryAt: Date.now() + cooldownMs }

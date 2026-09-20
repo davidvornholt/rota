@@ -10,7 +10,7 @@ export const GarmentCareControl = ({
   disabled,
 }: {
   readonly garment: GarmentView;
-  readonly onCare: () => void;
+  readonly onCare: (action: 'laundry' | 'washed') => void;
   readonly pending: boolean;
   readonly disabled: boolean;
 }) =>
@@ -19,7 +19,7 @@ export const GarmentCareControl = ({
       <IconButton
         icon={garment.inLaundry ? 'check' : 'laundry'}
         label={garment.inLaundry ? 'Back clean' : 'Send to laundry'}
-        onClick={onCare}
+        onClick={() => onCare(garment.inLaundry ? 'washed' : 'laundry')}
         pending={pending}
         disabled={disabled}
       />
