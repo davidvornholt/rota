@@ -69,7 +69,9 @@ test('laundry shows photos in both lists and a fallback for garments without pho
     )
     .toBeGreaterThan(0);
   const waiting = dialog.getByRole('region', { name: 'In laundry' });
-  await expect(waiting.getByText('Navy chinos', { exact: true })).toBeVisible();
+  await expect(
+    waiting.getByRole('listitem').filter({ hasText: 'Navy chinos' }),
+  ).toBeVisible();
   await expect(waiting.locator('svg rect')).toHaveAttribute('fill', '#24364b');
   expect(await scanWcag22AaViolations(page)).toEqual([]);
 
@@ -90,7 +92,7 @@ test('laundry shows photos in both lists and a fallback for garments without pho
     .getByRole('button', { name: 'Back clean: Blue Oxford shirt' })
     .click();
   await expect(
-    waiting.getByText('Blue Oxford shirt', { exact: true }),
+    waiting.getByRole('listitem').filter({ hasText: 'Blue Oxford shirt' }),
   ).toHaveCount(0);
 });
 
