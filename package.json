@@ -15,9 +15,9 @@
     "test:a11y": "turbo run test:a11y"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.13",
+    "@biomejs/biome": "2.5.14",
     "@davidvornholt/standards": "0.27.0",
-    "turbo": "^2.10.12",
+    "turbo": "^2.11.4",
     "typescript": "7.0.2"
   },
   "engines": {
@@ -28,6 +28,6 @@
     "postgresVersion": "18"
   },
   "patchedDependencies": {
-    "drizzle-kit@0.31.10": "patches/drizzle-kit@0.31.10.patch"
+    "drizzle-kit@0.31.11": "patches/drizzle-kit@0.31.11.patch"
   }
 }
