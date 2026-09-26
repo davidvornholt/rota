@@ -19,7 +19,8 @@
     "test": "bun test",
     "test:a11y": "playwright test --config playwright.config.ts",
     "test:planning-db": "bun --env-file=.env.local run scripts/verify-planning.ts",
-    "test:family": "bun --env-file=.env.local run scripts/family-check.ts"
+    "test:family": "bun --env-file=.env.local run scripts/family-check.ts",
+    "test:oauth": "bun --env-file=.env.local run scripts/oauth-check.ts"
   },
   "dependencies": {
     "@better-auth/passkey": "1.7.6",

@@ -10,6 +10,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { env } from '#/shared/env.ts';
 import { authPool, withAccessTransaction } from './access-transaction.ts';
+import { authResponse } from './auth-handler.ts';
 import { createAuthOptions } from './auth-options.ts';
 import { familyPasskeys } from './passkeys.ts';
 
@@ -31,4 +32,4 @@ export const auth = betterAuth({
 });
 
 export const handleAuth = (request: Request) =>
-  withAccessTransaction(() => auth.handler(request));
+  authResponse(() => withAccessTransaction(() => auth.handler(request)));
