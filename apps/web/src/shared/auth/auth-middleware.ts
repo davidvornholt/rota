@@ -9,12 +9,12 @@ import { applyPrivateResponseHeaders } from './private-response.ts';
 import { authorizedIdentity } from './session.ts';
 import { runSessionRequired } from './session-required.ts';
 
-/** Attach to every server function or route handler that reads or writes wardrobe data. */
+/** Attach to every server function that reads or writes wardrobe data. */
 export const sessionRequired = createMiddleware().server(({ next }) => {
   const request = getRequest();
   let identity: Identity | null = null;
   return runSessionRequired({
-    request,
+    transport: 'server-function',
     authorize: async () => {
       identity = await authorizedIdentity(request.headers);
       return identity !== null;

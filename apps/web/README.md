@@ -23,3 +23,5 @@ Each person has a separate wardrobe, settings, location, daily notes, history, a
 ## Authentication checks
 
 `bun run test:family` exercises real PostgreSQL and Chromium WebAuthn registration, additional passkeys, recovery, suspension, account isolation, billing records, and accessibility of the new screens. It requires a dedicated local database named `rota_family`, configured through `config/dev.local.yaml` and generated with `bun standards dev-env`. Apply migrations and build first. The check creates and removes its own demo accounts and runs a temporary server on port 3211. `FAMILY_SCREENSHOT_DIR` optionally captures demo-only screenshots with access codes hidden.
+
+`bun run test:oauth` checks the previous-schema migration and real Better Auth GitHub callbacks against an empty local database named `rota_oauth`. It uses the generated environment, replaces only GitHub HTTP transport with deterministic fixtures, and verifies existing-account reuse, new-account creation, encrypted tokens, session reads, and rejected identities/state. Recreate this disposable database before each run.

@@ -18,7 +18,7 @@ export const guardedRoute =
     let identity: Identity | null = null;
     try {
       return await runSessionRequired({
-        request,
+        transport: 'route',
         authorize: async () => {
           identity = await authorizedIdentity(request.headers);
           return identity !== null;

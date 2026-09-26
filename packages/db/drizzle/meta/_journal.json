@@ -57,6 +57,13 @@
       "when": 1789837375198,
       "tag": "0007_dizzy_red_skull",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790412949654,
+      "tag": "0008_better_auth_provider_identity",
+      "breakpoints": true
     }
   ]
 }

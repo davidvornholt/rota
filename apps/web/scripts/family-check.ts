@@ -36,6 +36,8 @@ if (
   );
 }
 const ok = 200;
+const seeOther = 303;
+const serverError = 500;
 const notFound = 404;
 const hashLength = 64;
 const port = 3211;
@@ -130,6 +132,14 @@ try {
       }
     })
     .toBe(ok);
+  // A caller-controlled RPC header must not change a real route's transport.
+  const spoofedRoute = await fetch(`${origin}/api/media/fixture`, {
+    headers: { 'x-tsr-serverFn': 'true' },
+    redirect: 'manual',
+  });
+  expect(spoofedRoute.status).toBe(seeOther);
+  expect(spoofedRoute.headers.get('location')).toBe('/login');
+  expect(spoofedRoute.headers.get('cache-control')).toContain('no-store');
   const admin = await makePerson('Morgan (demo administrator)');
   const owner = await newPage();
   await owner.page.goto(`${origin}/login`);
@@ -193,7 +203,14 @@ try {
     .getByRole('button', { name: 'Add a passkey', exact: true })
     .click();
   await expect(family.page.getByRole('status')).toHaveText('Passkey added.');
-  await family.page.goto(`${origin}/people`);
+  const deniedPeople = await family.page.goto(`${origin}/people`);
+  expect(deniedPeople?.status()).toBe(serverError);
+  await expect(
+    family.page.getByRole('heading', {
+      name: 'Something went wrong',
+      exact: true,
+    }),
+  ).toBeVisible();
   await expect(
     family.page.getByRole('heading', { name: 'People', exact: true }),
   ).toHaveCount(0);
@@ -295,9 +312,14 @@ try {
   ).toBe(notFound);
   await Promise.all(runtimes.map((runtime) => runtime.dispose()));
   await owner.page.goto(`${origin}/people/${admin.memberId}`);
+  // Inspecting your own wardrobe opens its editable list, not a garment detail.
+  await expect(owner.page).toHaveURL(`${origin}/wardrobe`);
   await expect(
-    owner.page.getByRole('heading', { name: 'Blue shirt' }),
-  ).toBeVisible();
+    owner.page.getByRole('link', {
+      name: 'Blue shirt Not worn yet',
+      exact: true,
+    }),
+  ).toHaveAttribute('href', `/wardrobe/${garmentId}`);
   await scan(owner.page);
   await capture(owner.page, 'family-admin-wardrobe');
   await checkUsage(alex);

@@ -302,9 +302,7 @@ it('returns a safe timeout through authentication while retaining the previous p
   };
   const failedDependency = 424;
   const response = runSessionRequired({
-    request: new Request('https://rota.test/_serverFn/note', {
-      headers: { 'x-tsr-serverFn': 'true' },
-    }),
+    transport: 'server-function',
     authorize: () => Promise.resolve(true),
     next: () =>
       Effect.runPromise(

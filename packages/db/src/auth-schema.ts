@@ -30,17 +30,13 @@ export const session = pgTable('session', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-/**
- * `issuer` namespaces an identity to the authority that minted it, so the same
- * `account_id` from two providers cannot collide. better-auth looks accounts up
- * by (issuer, account_id) on every OAuth callback, so the column and its unique
- * index are part of the contract, not an optimisation.
- */
+/** Better Auth 1.7.3+ identifies accounts by provider and account ID. Legacy
+ * issuer values remain readable during upgrades but are no longer required. */
 export const account = pgTable(
   'account',
   {
     id: text('id').primaryKey(),
-    issuer: text('issuer').notNull(),
+    issuer: text('issuer'),
     accountId: text('account_id').notNull(),
     providerId: text('provider_id').notNull(),
     userId: text('user_id')
@@ -57,8 +53,8 @@ export const account = pgTable(
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex('account_issuer_account_id_unique').on(
-      table.issuer,
+    uniqueIndex('account_provider_account_id_unique').on(
+      table.providerId,
       table.accountId,
     ),
   ],
