@@ -2,15 +2,13 @@ import { signInPrivateRedirect } from './private-response.ts';
 import { runProtectedCall } from './protected-call.ts';
 
 type SessionRequiredCall<T> = {
-  readonly request: Request;
+  readonly transport: 'server-function' | 'route';
   readonly authorize: () => Promise<boolean>;
   readonly next: () => Promise<T>;
   readonly publishHeaders: () => void;
   readonly publishStatus: (status: number) => void;
 };
 
-const isServerFunctionRequest = (request: Request): boolean =>
-  request.headers.get('x-tsr-serverFn') === 'true';
 const unauthorized = 401;
 
 /**
@@ -19,10 +17,11 @@ const unauthorized = 401;
  * A server function must reject instead: TanStack Start hands a thrown
  * Response back to the browser as the call's successful result, so the failure
  * becomes an Error with the already-vetted message and the status goes out on
- * the event.
+ * the event. The caller declares its transport because functions invoked during
+ * SSR have the outer page request, without the client RPC header.
  */
 export const runSessionRequired = async <T>({
-  request,
+  transport,
   authorize,
   next,
   publishHeaders,
@@ -34,7 +33,7 @@ export const runSessionRequired = async <T>({
     if (!(error instanceof Response)) {
       throw error;
     }
-    if (isServerFunctionRequest(request)) {
+    if (transport === 'server-function') {
       publishStatus(error.status);
       // biome-ignore lint/style/useErrorCause: The Error travels to the browser through seroval, which keeps only its message and cannot carry a Response as the cause.
       throw new Error(await error.text());
