@@ -102,7 +102,7 @@ export const AppShell = () => {
   };
 
   return (
-    <div className="relative flex min-h-svh flex-col bg-paper pb-16 sm:pb-0">
+    <div className="relative flex min-h-svh flex-col bg-paper pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-[env(safe-area-inset-bottom)]">
       <a className={skipLinkClass} href={`#${mainId}`}>
         Skip to content
       </a>
@@ -170,7 +170,7 @@ export const AppShell = () => {
           </div>
         ) : null}
       </footer>
-      <div className="fixed inset-x-0 bottom-0 z-10 border-rule border-t bg-paper sm:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-10 border-rule border-t bg-paper pb-[env(safe-area-inset-bottom)] sm:hidden">
         <Navigation className="px-3" />
       </div>
     </div>
