@@ -97,9 +97,16 @@
     overflow: hidden;
   }
 
+  /*
+   * The page runs under notches and rounded corners (`viewport-fit=cover`), so
+   * the sides keep content in the safe area. Edges that touch the top or bottom
+   * of the screen add their own inset.
+   */
   body {
     min-height: 100svh;
     overflow-wrap: anywhere;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   ::selection {

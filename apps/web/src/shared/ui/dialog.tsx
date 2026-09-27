@@ -80,7 +80,7 @@ export const Dialog = ({
       }}
       ref={ref}
     >
-      <div className="px-5 pt-5 pb-6 motion-safe:animate-dialog-in sm:px-8 sm:pt-6 sm:pb-8">
+      <div className="px-5 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] motion-safe:animate-dialog-in sm:px-8 sm:pt-6 sm:pb-8">
         <div className="flex items-start justify-between gap-6 border-rule border-b pb-4">
           <div>
             {eyebrow === undefined ? null : (
