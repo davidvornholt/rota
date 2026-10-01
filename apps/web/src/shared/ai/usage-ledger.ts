@@ -1,14 +1,13 @@
 import { Data, Effect } from 'effect';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import { pool } from '#/shared/db/pool.ts';
-import { env } from '#/shared/env.ts';
 import { apiPrice } from './api-prices.ts';
 import {
+  bedrockTokens,
   estimateUsd,
   foundryTokens,
   type TokenPrices,
   type TokenUsage,
-  vertexTokens,
 } from './usage-cost.ts';
 
 class UsageError extends Data.TaggedError('UsageError')<{
@@ -35,7 +34,7 @@ export const makeUsageLedger = Effect.gen(function* () {
       model,
       operation,
     }: {
-      readonly provider: 'vertex' | 'foundry';
+      readonly provider: 'bedrock' | 'foundry';
       readonly model: string;
       readonly operation: string;
     },
@@ -55,8 +54,6 @@ export const makeUsageLedger = Effect.gen(function* () {
     const price = apiPrice({
       provider,
       model,
-      location: env.GOOGLE_VERTEX_LOCATION,
-      at: new Date(),
     });
     const id = crypto.randomUUID();
     await pool.query(
@@ -82,7 +79,7 @@ export const makeUsageLedger = Effect.gen(function* () {
     }
     const { usage, success } = extract(result);
     const tokens =
-      provider === 'vertex' ? vertexTokens(usage) : foundryTokens(usage);
+      provider === 'bedrock' ? bedrockTokens(usage) : foundryTokens(usage);
     await pool.query(
       `update api_usage set status = $6, usage = $2, input_tokens = $3,
       output_tokens = $4, estimated_usd = $5 where id = $1`,

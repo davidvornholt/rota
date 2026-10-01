@@ -22,22 +22,21 @@ const count = (value: unknown): number | undefined =>
     ? value
     : undefined;
 
-export const vertexTokens = (raw: unknown): TokenUsage | null => {
+export const bedrockTokens = (raw: unknown): TokenUsage | null => {
   const usage = object(raw);
-  const input = count(usage.promptTokenCount);
-  const output = count(usage.candidatesTokenCount);
-  const thoughts = count(usage.thoughtsTokenCount) ?? 0;
-  const cachedInput = count(usage.cachedContentTokenCount) ?? 0;
-  if (input === undefined || output === undefined || cachedInput > input) {
+  const input = count(usage.inputTokens);
+  const output = count(usage.outputTokens);
+  const cachedInput = count(usage.cacheReadInputTokens) ?? 0;
+  // Converse output already includes thinking; cache reads are separate input.
+  // We do not request cache writes, whose price depends on cache duration.
+  if (
+    input === undefined ||
+    output === undefined ||
+    (count(usage.cacheWriteInputTokens) ?? 0) > 0
+  ) {
     return null;
   }
-  return {
-    input: input - cachedInput,
-    output: output + thoughts,
-    cachedInput,
-    imageInput: 0,
-    imageOutput: 0,
-  };
+  return { input, output, cachedInput, imageInput: 0, imageOutput: 0 };
 };
 export const foundryTokens = (raw: unknown): TokenUsage | null => {
   const usage = object(raw);

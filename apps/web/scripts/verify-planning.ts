@@ -12,8 +12,8 @@ import {
 } from '#/features/rota/services/planning-service.ts';
 import { ProposalService } from '#/features/rota/services/proposal-service.ts';
 import { TodayService } from '#/features/rota/services/today-service.ts';
-import { GeminiError } from '#/shared/ai/errors/ai-errors.ts';
-import { Gemini } from '#/shared/ai/gemini.ts';
+import { Bedrock } from '#/shared/ai/bedrock.ts';
+import { BedrockError } from '#/shared/ai/errors/ai-errors.ts';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
@@ -81,14 +81,14 @@ const forecastLayer = Layer.succeed(
       }),
   }),
 );
-const geminiLayer = Layer.succeed(
-  Gemini,
-  Gemini.make({
-    model: 'deterministic-test-model',
+const bedrockLayer = Layer.succeed(
+  Bedrock,
+  Bedrock.make({
+    model: 'global.anthropic.claude-sonnet-5-5',
     generateJson: (input) => {
       if (failGeneration) {
         return Effect.fail(
-          new GeminiError({
+          new BedrockError({
             message: 'Test failure.',
             reason: 'timeout',
             cause: undefined,
@@ -117,7 +117,7 @@ const geminiLayer = Layer.succeed(
       }).pipe(
         Effect.mapError(
           (cause) =>
-            new GeminiError({
+            new BedrockError({
               message: 'Bad test answer.',
               reason: 'answer',
               cause,
@@ -342,7 +342,7 @@ try {
   const infrastructure = Layer.mergeAll(
     repositories,
     forecastLayer,
-    geminiLayer,
+    bedrockLayer,
     mediaLayer,
   );
   const services = TodayService.Default.pipe(

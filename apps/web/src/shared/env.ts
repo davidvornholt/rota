@@ -42,11 +42,10 @@ const serverEnv = createEnv({
     GITHUB_CLIENT_SECRET: z.string().min(1),
     /** Positive decimal GitHub account ID of the only allowed account. */
     GITHUB_ALLOWED_ACCOUNT_ID: z.string().regex(/^[1-9]\d*$/u),
-    GEMINI_MODEL: z.string().min(1),
-    GOOGLE_VERTEX_PROJECT: z.string().min(1),
-    GOOGLE_VERTEX_LOCATION: z.string().min(1),
-    /** One-line service-account JSON; parsed once at boot in the Gemini layer. */
-    GOOGLE_VERTEX_CREDENTIALS_JSON: z.string().min(1),
+    BEDROCK_MODEL: z.literal('global.anthropic.claude-sonnet-5-5'),
+    AWS_REGION: z.string().min(1),
+    AWS_ACCESS_KEY_ID: z.string().min(1),
+    AWS_SECRET_ACCESS_KEY: z.string().min(1),
     FOUNDRY_OPENAI_ENDPOINT: z.url(),
     FOUNDRY_OPENAI_API_KEY: z.string().min(1),
     FOUNDRY_IMAGE_DEPLOYMENT: z.string().min(1),

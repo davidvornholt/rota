@@ -5,7 +5,6 @@ import { estimateUsd } from '../src/shared/ai/usage-cost.ts';
 import { makeUsageLedger } from '../src/shared/ai/usage-ledger.ts';
 import { WardrobeOwner } from '../src/shared/auth/identity.ts';
 import { pool } from '../src/shared/db/pool.ts';
-import { env } from '../src/shared/env.ts';
 
 const databaseCostDecimals = 8;
 export const checkUsage = async (member: { id: string; userId: string }) => {
@@ -19,11 +18,11 @@ export const checkUsage = async (member: { id: string; userId: string }) => {
     ),
   );
   const operation = {
-    provider: 'vertex' as const,
-    model: 'gemini-3.8-flash',
+    provider: 'bedrock' as const,
+    model: 'global.anthropic.claude-sonnet-5-5',
     operation: 'Outfit suggestion',
   };
-  const usage = { promptTokenCount: 1000, candidatesTokenCount: 100 };
+  const usage = { inputTokens: 1000, outputTokens: 100 };
   await ledger.measure(
     operation,
     () => Promise.resolve(usage),
@@ -54,14 +53,7 @@ export const checkUsage = async (member: { id: string; userId: string }) => {
     from api_usage where owner_id = $1 order by created_at`,
     [member.id],
   );
-  const [success, failure] = spending.rows;
-  const priceAt = (at: Date) =>
-    apiPrice({
-      ...operation,
-      location: env.GOOGLE_VERTEX_LOCATION,
-      at,
-    });
-  const price = priceAt(success?.createdAt ?? new Date());
+  const price = apiPrice(operation);
   if (!price) {
     throw new Error(
       'The family billing fixture requires a supported code-owned model.',
@@ -82,7 +74,7 @@ export const checkUsage = async (member: { id: string; userId: string }) => {
     {
       status: 'failed',
       cost: null,
-      price: priceAt(failure?.createdAt ?? new Date()),
+      price,
     },
     { status: 'success', cost: null, price: null },
   ]);

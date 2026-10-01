@@ -1,12 +1,12 @@
 import { colorName } from '#/shared/data/color-name.ts';
 /**
- * The morning question, written out for Gemini. The engine has already decided
+ * The morning question, written out for Bedrock. The engine has already decided
  * what may continue and which garments are worth considering; this turns that
  * into text and pictures the model reads in one pass, with a short alias per
  * garment so the answer can name them without a chance of a typo.
  */
 
-import type { ImagePart, PromptPart } from '#/shared/ai/gemini-request.ts';
+import type { ImagePart, PromptPart } from '#/shared/ai/bedrock-request.ts';
 import type { Garment } from '#/shared/data/garment.ts';
 import {
   formalityInstruction,

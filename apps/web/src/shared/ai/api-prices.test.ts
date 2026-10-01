@@ -1,48 +1,29 @@
 import { expect, it } from 'bun:test';
 import { apiPrice } from './api-prices.ts';
 
-const vertex = {
-  provider: 'vertex',
-  model: 'gemini-3.8-flash',
-  location: 'global',
-  at: new Date('2026-12-31T23:59:59Z'),
+const bedrock = {
+  provider: 'bedrock',
+  model: 'global.anthropic.claude-sonnet-5-5',
 } as const;
-
-it('uses published global introductory rates until their expiry', () => {
-  expect(apiPrice(vertex)).toMatchObject({
-    input: 0.75,
-    output: 3.75,
-    imageInput: 0.75,
-    cachedInput: 0.075,
+it('prices the exact global Sonnet profile at standard rates', () => {
+  expect(apiPrice(bedrock)).toMatchObject({
+    input: 2,
+    output: 10,
+    imageInput: 2,
+    cachedInput: 0.2,
+    checkedOn: '2026-10-01',
   });
+});
+it('keeps unknown models and other profiles unpriced', () => {
+  expect(apiPrice({ ...bedrock, model: 'unknown' })).toBeUndefined();
   expect(
-    apiPrice({ ...vertex, at: new Date('2027-01-01T00:00:00Z') }),
-  ).toMatchObject({ input: 1.5, output: 7.5, cachedInput: 0.15 });
+    apiPrice({ ...bedrock, model: 'eu.anthropic.claude-sonnet-5-5' }),
+  ).toBeUndefined();
+  expect(apiPrice({ ...bedrock, provider: 'foundry' })).toBeUndefined();
 });
-
-it('uses regional rates for non-global Vertex requests', () => {
-  expect(apiPrice({ ...vertex, location: 'europe-west1' })).toMatchObject({
-    input: 0.825,
-    output: 4.125,
-    cachedInput: 0.0825,
-  });
-  expect(
-    apiPrice({
-      ...vertex,
-      location: 'europe-west1',
-      at: new Date('2027-01-01T00:00:00Z'),
-    }),
-  ).toMatchObject({ input: 1.65, output: 8.25, cachedInput: 0.165 });
-});
-
-it('does not assume rates for unknown model or deployment names', () => {
-  expect(apiPrice({ ...vertex, model: 'unknown' })).toBeUndefined();
-  expect(apiPrice({ ...vertex, provider: 'foundry' })).toBeUndefined();
-});
-
 it('labels Foundry image estimates with their actual OpenAI reference source', () => {
   expect(
-    apiPrice({ ...vertex, provider: 'foundry', model: 'gpt-image-2.5-flare' }),
+    apiPrice({ provider: 'foundry', model: 'gpt-image-2.5-flare' }),
   ).toMatchObject({
     input: 5,
     imageInput: 8,
