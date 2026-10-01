@@ -1,14 +1,13 @@
 import { expect, it } from 'bun:test';
-import { estimateUsd, foundryTokens, vertexTokens } from './usage-cost.ts';
+import { bedrockTokens, estimateUsd, foundryTokens } from './usage-cost.ts';
 
-const expectedVertexCost = 0.002_82;
+const expectedBedrockCost = 0.002_82;
 const expectedImageCost = 0.0079;
 it('counts thinking and cached input without double billing them', () => {
-  const tokens = vertexTokens({
-    promptTokenCount: 1000,
-    cachedContentTokenCount: 200,
-    candidatesTokenCount: 100,
-    thoughtsTokenCount: 300,
+  const tokens = bedrockTokens({
+    inputTokens: 800,
+    cacheReadInputTokens: 200,
+    outputTokens: 400,
   });
   expect(tokens).toEqual({
     input: 800,
@@ -34,7 +33,7 @@ it('counts thinking and cached input without double billing them', () => {
         cachedInput: 0.1,
       },
     ),
-  ).toBeCloseTo(expectedVertexCost);
+  ).toBeCloseTo(expectedBedrockCost);
 });
 it('prices image edits by their separate text and image token rates', () => {
   const tokens = foundryTokens(
@@ -72,14 +71,14 @@ it('leaves incomplete or unsupported billing metadata unknown', () => {
   for (const raw of [
     null,
     {},
-    { promptTokenCount: -1, candidatesTokenCount: 1 },
+    { inputTokens: -1, outputTokens: 1 },
     {
-      promptTokenCount: 1,
-      candidatesTokenCount: 1,
-      cachedContentTokenCount: 2,
+      inputTokens: 1,
+      outputTokens: 1,
+      cacheWriteInputTokens: 2,
     },
   ]) {
-    expect(vertexTokens(raw)).toBeNull();
+    expect(bedrockTokens(raw)).toBeNull();
   }
   expect(
     foundryTokens(JSON.parse('{"input_tokens":100,"output_tokens":500}')),

@@ -1,7 +1,7 @@
 /**
  * The rotation engine: everything about what to wear that does not need a
  * model. It reads the wear log, identifies continuing garments, and offers
- * available alternatives. Weather and outfit suitability belong to Gemini.
+ * available alternatives. Weather and outfit suitability belong to Bedrock.
  */
 
 import type { Garment } from '#/shared/data/garment.ts';

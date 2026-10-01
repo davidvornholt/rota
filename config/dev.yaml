@@ -15,11 +15,9 @@ apps:
     BETTER_AUTH_URL: http://localhost:3000
     GITHUB_CLIENT_ID: Ov23liMZSmT9ereDMgRP
     GITHUB_ALLOWED_ACCOUNT_ID: "157214705"
-    # Gemini runs through Vertex AI with a service account (the JSON is a
-    # secret); the global location avoids regional availability gaps.
-    GEMINI_MODEL: gemini-3.8-flash
-    GOOGLE_VERTEX_PROJECT: project-6fcd7666-a4cc-44a1-be1
-    GOOGLE_VERTEX_LOCATION: global
+    # Bedrock runtime uses the global Sonnet 5.5 profile; all requests use high effort.
+    BEDROCK_MODEL: global.anthropic.claude-sonnet-5-5
+    AWS_REGION: eu-central-1
     # Studio renders come from GPT-Image-2.5 Flare in Microsoft Foundry. The
     # endpoint is the resource root; the app appends the v1 images path.
     FOUNDRY_OPENAI_ENDPOINT: https://prosabridge-prod.openai.azure.com

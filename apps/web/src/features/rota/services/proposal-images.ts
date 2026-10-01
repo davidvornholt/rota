@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { ImagePart } from '#/shared/ai/gemini-request.ts';
+import type { ImagePart } from '#/shared/ai/bedrock-request.ts';
 import type { GarmentImage } from '#/shared/data/garment.ts';
 import type { MediaStore } from '#/shared/media/media-store.ts';
 import { ProposalGenerationError } from '../errors/rota-errors.ts';

@@ -3,8 +3,8 @@ export const usageFn = () =>
     {
       ownerId: 'demo',
       name: 'Alex',
-      provider: 'vertex',
-      model: 'gemini-3.8-flash',
+      provider: 'bedrock',
+      model: 'global.anthropic.claude-sonnet-5-5',
       operation: 'Outfit suggestion',
       attempts: 3,
       failures: 0,

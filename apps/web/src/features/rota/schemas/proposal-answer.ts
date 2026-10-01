@@ -2,7 +2,7 @@ import { Schema } from 'effect';
 import type { Slot } from '#/shared/data/garment-types.ts';
 
 /**
- * What Gemini answers with. Garments are named by the short aliases the prompt
+ * What Bedrock answers with. Garments are named by the short aliases the prompt
  * introduced (C1, B2, T1 …), never by id: an alias is one token the model
  * cannot mistype, and the engine maps it back.
  */

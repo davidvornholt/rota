@@ -1,6 +1,6 @@
 import { Data } from 'effect';
 
-export class GeminiError extends Data.TaggedError('GeminiError')<{
+export class BedrockError extends Data.TaggedError('BedrockError')<{
   readonly reason: 'request' | 'timeout' | 'answer';
   readonly message: string;
   readonly cause: unknown;

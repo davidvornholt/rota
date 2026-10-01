@@ -20,7 +20,7 @@ import type { SqlError } from '@effect/sql/SqlError';
 import { pgClientLayer } from '@rota/db/effect-client';
 import { Cause, Effect, type Fiber, Layer, ManagedRuntime } from 'effect';
 
-import { Gemini } from '#/shared/ai/gemini.ts';
+import { Bedrock } from '#/shared/ai/bedrock.ts';
 import { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
@@ -43,7 +43,7 @@ export type Infrastructure =
   | WeatherRepository
   | DayNoteRepository
   | MediaStore
-  | Gemini
+  | Bedrock
   | StudioRenderer
   | WeatherApi;
 
@@ -60,7 +60,7 @@ export const infrastructureLayer: Layer.Layer<
   WeatherRepository.Default,
   DayNoteRepository.Default,
   MediaStore.Default,
-  Gemini.Default,
+  Bedrock.Default,
   StudioRenderer.Default,
   WeatherApi.Default,
 ).pipe(Layer.provideMerge(Layer.suspend(() => pgClientLayer(pool))));

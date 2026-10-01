@@ -1,7 +1,7 @@
 /**
  * Makes, remakes, and settles the day's proposal.
  *
- * The engine narrows; Gemini chooses; the wear log records. A proposal is a row
+ * The engine narrows; Bedrock chooses; the wear log records. A proposal is a row
  * with a status, and the day is decided the moment a `wear_log` row exists for
  * it — everything else here is bookkeeping around that fact.
  */
@@ -9,7 +9,7 @@
 import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
 
-import { Gemini } from '#/shared/ai/gemini.ts';
+import { Bedrock } from '#/shared/ai/bedrock.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { writeError } from '#/shared/data/errors/data-errors.ts';
 import { displayImage } from '#/shared/data/garment.ts';
@@ -90,8 +90,8 @@ const withOutfitContext = (
   };
 };
 
-const ask = (gemini: Gemini, prompt: BuiltPrompt) =>
-  gemini
+const ask = (bedrock: Bedrock, prompt: BuiltPrompt) =>
+  bedrock
     .generateJson({
       purpose: 'outfit',
       system: proposalSystemPrompt,
@@ -114,7 +114,7 @@ type GenerateDeps = {
   readonly proposals: ProposalRepository;
   readonly notes: DayNoteRepository;
   readonly media: MediaStore;
-  readonly gemini: Gemini;
+  readonly bedrock: Bedrock;
 };
 
 // Keep the proposal and saved selection atomic after the model has finished.
@@ -170,7 +170,7 @@ const persistProposal = (
       ),
   );
 
-/** Asks Gemini for the day, given a forecast window and what to leave out. */
+/** Asks Bedrock for the day, given a forecast window and what to leave out. */
 const generateProposal = (
   {
     sql,
@@ -180,7 +180,7 @@ const generateProposal = (
     proposals,
     notes,
     media,
-    gemini,
+    bedrock,
   }: GenerateDeps,
   clock: WardrobeClock,
   forecast: ForecastWindow,
@@ -259,7 +259,7 @@ const generateProposal = (
     });
     const answer = yield* proposalStage(
       'model',
-      ask(gemini, withOutfitContext(prompt, options.pinned, saved)),
+      ask(bedrock, withOutfitContext(prompt, options.pinned, saved)),
     );
     const items = yield* answerToItems(answer, prompt.aliases, input);
     if (
@@ -288,7 +288,7 @@ const generateProposal = (
         date: clock.today,
         forecast: forecast.today,
         payload,
-        model: gemini.model,
+        model: bedrock.model,
         rejectedProposalId: options.rejectedProposalId,
       },
     );
@@ -305,7 +305,7 @@ export class ProposalService extends Effect.Service<ProposalService>()(
       const proposals = yield* ProposalRepository;
       const notes = yield* DayNoteRepository;
       const media = yield* MediaStore;
-      const gemini = yield* Gemini;
+      const bedrock = yield* Bedrock;
       const forecasts = yield* ForecastService;
       const generate = (
         clock: WardrobeClock,
@@ -313,7 +313,7 @@ export class ProposalService extends Effect.Service<ProposalService>()(
         options: GenerateOptions,
       ) =>
         generateProposal(
-          { sql, outfits, garments, wearLog, proposals, notes, media, gemini },
+          { sql, outfits, garments, wearLog, proposals, notes, media, bedrock },
           clock,
           forecast,
           options,

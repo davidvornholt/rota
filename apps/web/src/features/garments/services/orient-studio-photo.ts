@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { Gemini } from '#/shared/ai/gemini.ts';
+import type { Bedrock } from '#/shared/ai/bedrock.ts';
 import { rotateImage, type SourcePhoto } from '#/shared/media/rotate-image.ts';
 import {
   PhotoOrientationSchema,
@@ -8,11 +8,11 @@ import {
 
 /** Retries need only orientation, leaving the owner's edited attributes alone. */
 export const orientStudioPhoto = (
-  gemini: Pick<Gemini, 'generateJson'>,
+  bedrock: Pick<Bedrock, 'generateJson'>,
   photo: SourcePhoto,
 ) =>
   Effect.gen(function* () {
-    const orientation = yield* gemini.generateJson({
+    const orientation = yield* bedrock.generateJson({
       purpose: 'garment',
       system:
         'Identify the upright orientation of a garment in a wardrobe photo.',
