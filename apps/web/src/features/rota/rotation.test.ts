@@ -117,13 +117,15 @@ describe('wears between washes', () => {
 describe('continuations', () => {
   const settings = { laundryDays: 4, cooldownDays: 7, categoryBudgets: {} };
 
-  it('carries over garments with budget left and drops the ones that are spent', () => {
+  it('carries over bottoms with budget left, never spent or upper-body pieces', () => {
     const log = [
       worn('2026-09-01', 'chinos', 'bottom'),
       worn('2026-09-02', 'chinos', 'bottom'),
       worn('2026-09-02', 'oxford', 'top'),
       worn('2026-09-03', 'chinos', 'bottom'),
+      worn('2026-09-03', 'tee', 'under'),
       worn('2026-09-03', 'oxford', 'top'),
+      worn('2026-09-03', 'linen', 'over'),
     ];
     const result = continuations({
       cleanTop: false,
@@ -131,7 +133,9 @@ describe('continuations', () => {
       log,
       garments: [
         garment('chinos', ['bottom']),
+        garment('tee', ['under', 'top']),
         garment('oxford', ['top', 'over']),
+        garment('linen', ['top', 'over']),
       ],
       settings,
       excluded: new Set(),
@@ -292,6 +296,24 @@ describe('daily variety and laundry', () => {
     expect(
       candidatesFor({ ...input, garments: [top] }, 'top', new Set()),
     ).toEqual([]);
+  });
+  it('keeps everything worn above the waist yesterday out of every upper-body slot', () => {
+    const tee = garment('tee', ['under', 'top']);
+    const oxford = garment('oxford', ['top', 'over']);
+    const fresh = garment('fresh', ['under', 'top', 'over']);
+    const log = [
+      worn('2026-09-03', 'tee', 'top'),
+      worn('2026-09-03', 'oxford', 'over'),
+    ];
+    for (const slot of ['under', 'top', 'over'] as const) {
+      expect(
+        candidatesFor(
+          { ...input, garments: [tee, oxford, fresh], log },
+          slot,
+          new Set(),
+        ).map((item) => item.garment.id),
+      ).toEqual(['fresh']);
+    }
   });
   it('reuses a top on separate days and only a wash resets its allowance', () => {
     const log = [

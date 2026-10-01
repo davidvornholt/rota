@@ -21,6 +21,7 @@ import { ProposalAnswerError } from '../errors/rota-errors.ts';
 import {
   type Continuation,
   candidatesFor,
+  outfitOn,
   type RotationInput,
 } from '../rotation.ts';
 import type { ProposalAnswer } from '../schemas/proposal-answer.ts';
@@ -77,17 +78,23 @@ export const recentSummary = (
 ): ReadonlyArray<RecentDay> => {
   const names = new Map(garments.map((garment) => [garment.id, garment.name]));
   const from = addDays(today, -recentDays);
-  const byDay = new Map<LocalDate, Array<string>>();
-  for (const entry of log.filter(
-    (candidate) => candidate.wornOn >= from && candidate.wornOn < today,
-  )) {
-    const list = byDay.get(entry.wornOn) ?? [];
-    list.push(names.get(entry.garmentId) ?? 'unknown garment');
-    byDay.set(entry.wornOn, list);
-  }
-  return [...byDay.entries()]
-    .sort(([left], [right]) => (left < right ? -1 : 1))
-    .map(([date, list]) => ({ date, names: list }));
+  const recent = log.filter(
+    (entry) => entry.wornOn >= from && entry.wornOn < today,
+  );
+  return [...new Set(recent.map((entry) => entry.wornOn))]
+    .sort((left, right) => (left < right ? -1 : 1))
+    .map((date) => {
+      const outfit = outfitOn(recent, date);
+      return {
+        date,
+        pieces: slotOrder.flatMap((slot) => {
+          const id = outfit[slot];
+          return id === undefined
+            ? []
+            : [{ slot, name: names.get(id) ?? 'unknown garment' }];
+        }),
+      };
+    });
 };
 
 type Pick = {

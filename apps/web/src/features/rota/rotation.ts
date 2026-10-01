@@ -11,6 +11,7 @@ import {
   hasWearBudget,
   type Slot,
   slotOrder,
+  upperBodySlots,
 } from '#/shared/data/garment-types.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import {
@@ -113,7 +114,7 @@ const activeById = (garments: ReadonlyArray<Garment>) =>
       .map((garment) => [garment.id, garment] as const),
   );
 
-/** Yesterday's garments that still have budget left and are not excluded. */
+/** Yesterday's garments below the waist that still have budget left and are not excluded. */
 export const continuations = (
   input: RotationInput,
 ): ReadonlyArray<Continuation> => {
@@ -127,7 +128,7 @@ export const continuations = (
     const id = outfit[slot];
     const garment = id === undefined ? undefined : active.get(id);
     if (
-      slot === 'top' ||
+      upperBodySlots.has(slot) ||
       garment === undefined ||
       !hasWearBudget(garment) ||
       input.excluded.has(garment.id) ||
@@ -210,12 +211,14 @@ export const candidatesFor = (
       },
     ];
   });
-  // Daily top variety is a hard suggestion constraint; explicit manual picks may override it.
-  const previous = outfitOn(input.log, addDays(input.today, -1)).top;
-  const varied =
-    slot === 'top'
-      ? all.filter((candidate) => candidate.garment.id !== previous)
-      : all;
+  // Daily upper-body variety is a hard suggestion constraint; explicit manual picks may override it.
+  const yesterday = outfitOn(input.log, addDays(input.today, -1));
+  const wornAboveWaist = new Set(
+    [...upperBodySlots].flatMap((upper) => yesterday[upper] ?? []),
+  );
+  const varied = upperBodySlots.has(slot)
+    ? all.filter((candidate) => !wornAboveWaist.has(candidate.garment.id))
+    : all;
   const rested = varied.filter((candidate) => !candidate.inCooldown);
   // Between clean-top days, keep partly worn tops in play even when the
   // style cooldown prefers a less recent piece. Rest does not mean washing.
