@@ -2,11 +2,16 @@ import { describe, expect, it } from 'bun:test';
 import { Effect } from 'effect';
 import type { Garment } from '#/shared/data/garment.ts';
 import type { Slot } from '#/shared/data/garment-types.ts';
+import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import { continuations, type RotationInput } from '../rotation.ts';
 import { proposalAnswerJsonSchema } from '../schemas/proposal-answer.ts';
-import { answerToItems, slotChoicesFor } from './proposal-assembly.ts';
+import {
+  answerToItems,
+  recentSummary,
+  slotChoicesFor,
+} from './proposal-assembly.ts';
 import {
   buildProposalPrompt,
   proposalSystemPrompt,
@@ -227,6 +232,47 @@ describe('rejected alternatives', () => {
     expect(over?.turnedDownOnly).toBeFalse();
     expect(over?.candidates).toEqual([]);
   });
+});
+
+it('describes each recent day with every piece’s role in worn order', () => {
+  const shirt = garment('shirt', ['top', 'over']);
+  const worn = (date: string, garmentId: string, slot: Slot): WearEntry => ({
+    wornOn: localDate(date),
+    garmentId,
+    slot,
+    source: 'override',
+  });
+  const rotation = input([shorts, linen, tee, shirt], []);
+  const recent = recentSummary(
+    [
+      worn('2026-09-06', 'shirt', 'over'),
+      worn('2026-09-06', 'tee', 'top'),
+      worn('2026-09-06', 'shorts', 'bottom'),
+      worn('2026-09-05', 'linen', 'top'),
+      worn('2026-08-20', 'linen', 'top'),
+    ],
+    rotation.garments,
+    rotation.today,
+  );
+  const prompt = buildProposalPrompt({
+    cleanTop: false,
+    today: rotation.today,
+    weather: warm,
+    yesterday: undefined,
+    upcoming: [],
+    forecastStale: false,
+    occasion: null,
+    continuations: [],
+    slotChoices: slotChoicesFor(rotation, []),
+    recent,
+    imageFor: () => undefined,
+  });
+  const text = prompt.parts
+    .flatMap((part) => ('text' in part ? [part.text] : []))
+    .join('\n');
+  expect(text).toContain(
+    'Recent outfits, oldest first: Sat 5 Sept: top linen | Sun 6 Sept: bottom shorts, top tee, over layer shirt.',
+  );
 });
 
 it('shows an original image once while offering the garment in each eligible slot', () => {

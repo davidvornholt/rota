@@ -37,7 +37,11 @@ export type SlotChoices = {
 
 export type RecentDay = {
   readonly date: LocalDate;
-  readonly names: ReadonlyArray<string>;
+  /** What was worn, in worn order. */
+  readonly pieces: ReadonlyArray<{
+    readonly slot: Slot;
+    readonly name: string;
+  }>;
 };
 
 export type PromptInput = {
@@ -72,8 +76,9 @@ export const proposalSystemPrompt = [
   "You are the valet behind Rota, a one-person wardrobe app. Choose today's outfit from the available wardrobe for the supplied forecast and the wearer's note.",
   "Rotation is a preference: keep continuing garments when appropriate, but weather and the note take priority. You may replace any or all of them. Explain a replacement in the new garment's reason.",
   "Judge the outfit as a whole. Choose only the offered aliases. The forecast covers 05:00–20:00 in the wardrobe location's time zone.",
+  'Use the recent outfits to vary the look: avoid repeating the colours, style or combination of the last few days, even with different garments.',
   "Consider every outfit slot. Include suitable shoes and a bag whenever offered; they may repeat freely. Omit them only when no offered choice suits the weather, outfit or wearer's note.",
-  "Choose an underlayer or overlayer only when the forecast, outfit or wearer's note makes it useful. Account for the whole outfit's warmth; leave unnecessary layers out in hot weather. A continuing layer is not a reason to keep it when it would be too warm.",
+  "Choose an underlayer or overlayer only when the forecast, outfit or wearer's note makes it useful. Account for the whole outfit's warmth; leave unnecessary layers out in hot weather.",
   'Write for the wearer in plain, specific, second-person English. No exclamation marks, no emoji, no sales tone.',
 ].join(' ');
 
@@ -90,6 +95,11 @@ const restWords = (days: number | null): string =>
   days === null
     ? 'never worn yet'
     : `last worn ${days} day${days === 1 ? '' : 's'} ago`;
+
+const describeRecentDay = (day: RecentDay): string =>
+  `${formatWeekday(day.date, 'short')} ${formatDayMonth(day.date)}: ${day.pieces
+    .map((piece) => `${slotLabel[piece.slot].toLowerCase()} ${piece.name}`)
+    .join(', ')}`;
 
 const describeGarment = (garment: Garment): string =>
   [
@@ -193,12 +203,7 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
 
   if (input.recent.length > 0) {
     say(
-      `Recently worn: ${input.recent
-        .map(
-          (day) =>
-            `${formatWeekday(day.date, 'short')} ${formatDayMonth(day.date)}: ${day.names.join(', ')}`,
-        )
-        .join(' | ')}.`,
+      `Recent outfits, oldest first: ${input.recent.map(describeRecentDay).join(' | ')}.`,
     );
   }
 

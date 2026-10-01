@@ -1,4 +1,4 @@
-import { hasWearBudget } from '#/shared/data/garment-types.ts';
+import { hasWearBudget, upperBodySlots } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import type { PlanningController } from './use-planning.ts';
@@ -20,8 +20,8 @@ const concernFor = (
   if (slot === 'top' && cleanTop && garment.wearsSinceWash > 0) {
     return [`${garment.name} has been worn since washing.`];
   }
-  if (slot === 'top' && garment.daysSinceWorn === 1) {
-    return [`${garment.name} repeats yesterday’s top.`];
+  if (upperBodySlots.has(slot) && garment.daysSinceWorn === 1) {
+    return [`${garment.name} was worn yesterday.`];
   }
   return [];
 };

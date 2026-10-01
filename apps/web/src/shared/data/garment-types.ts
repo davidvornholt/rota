@@ -22,6 +22,13 @@ export const slotOrder: ReadonlyArray<Slot> = [
   'bag',
 ];
 
+/** Slots worn above the waist. */
+export const upperBodySlots: ReadonlySet<Slot> = new Set([
+  'under',
+  'top',
+  'over',
+]);
+
 export const slotLabel: Readonly<Record<Slot, string>> = {
   bottom: 'Bottom',
   under: 'Under layer',
