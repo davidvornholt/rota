@@ -2,7 +2,8 @@
  * Where image bytes live. Development keeps them in a directory; production
  * puts them in an S3-compatible bucket (Cloudflare R2). Either way a key is the
  * SHA-256 of the bytes plus an extension, so the same image stored twice is one
- * object and a key never names different bytes later.
+ * object and a key never names different bytes later. Smaller copies are
+ * stored beside their original under a key derived from it.
  */
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -10,7 +11,9 @@ import { Effect } from 'effect';
 
 import { type MediaStoreConfig, mediaStoreConfig } from '#/shared/env.ts';
 import { MediaStoreError } from './errors/media-errors.ts';
+import { makeMediaCopies } from './media-copies.ts';
 import { extensionByMime } from './media-keys.ts';
+import { mediaUrl, variantMime } from './media-variants.ts';
 
 export type StoredMedia = {
   readonly key: string;
@@ -103,7 +106,7 @@ const backendFor = (config: MediaStoreConfig): Backend =>
 export class MediaStore extends Effect.Service<MediaStore>()(
   'shared/MediaStore',
   {
-    sync: () => {
+    effect: Effect.gen(function* () {
       const backend = backendFor(mediaStoreConfig);
 
       const put = (
@@ -135,10 +138,23 @@ export class MediaStore extends Effect.Service<MediaStore>()(
             }),
         });
 
-      /** Images always pass through the authenticated ownership check. */
-      const urlFor = (key: string): string => `/api/media/${key}`;
+      const variant = yield* makeMediaCopies({
+        get,
+        keep: (key, data) =>
+          Effect.tryPromise({
+            try: () => backend.write(key, data, variantMime),
+            catch: (cause) =>
+              new MediaStoreError({
+                message: 'The resized image could not be stored.',
+                cause,
+              }),
+          }),
+      });
 
-      return { put, get, urlFor };
-    },
+      /** Images always pass through the authenticated ownership check. */
+      const urlFor = mediaUrl;
+
+      return { put, get, variant, urlFor };
+    }),
   },
 ) {}

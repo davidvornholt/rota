@@ -24,6 +24,7 @@ export const EarlyLaundry = ({
           image={selected.image}
           name={selected.name}
           colors={selected.colors}
+          sizes="6rem"
         />
         <figcaption className="type-display text-xl">
           {selected.name}

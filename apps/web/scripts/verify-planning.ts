@@ -132,6 +132,7 @@ const mediaLayer = Layer.succeed(
   MediaStore.make({
     urlFor: (key) => `/demo/${key}`,
     get: () => Effect.succeed(undefined),
+    variant: () => Effect.succeed(undefined),
     put: () => Effect.succeed({ key: 'demo', bytes: 0 }),
   }),
 );

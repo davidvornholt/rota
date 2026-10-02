@@ -16,6 +16,7 @@ import { OutfitActionsFixture } from './outfit-actions.tsx';
 
 const photo = {
   url: '/a11y/fixtures/shirt.svg',
+  srcSet: '/a11y/fixtures/shirt.svg 300w',
   width: 300,
   height: 400,
   fit: 'contain',
@@ -89,7 +90,11 @@ if (query.has('completed')) {
   setFixtureGarment({
     ...fixtureGarment(),
     studioState: { status: 'succeeded' },
-    studio: { ...photo, url: `${photo.url}?studio` },
+    studio: {
+      ...photo,
+      url: `${photo.url}?studio`,
+      srcSet: `${photo.url}?studio 300w`,
+    },
   });
 }
 
@@ -98,7 +103,11 @@ const finish = () => {
     ...fixtureGarment(),
     studioState: { status: 'succeeded' },
     studioError: null,
-    studio: { ...photo, url: `${photo.url}?studio` },
+    studio: {
+      ...photo,
+      url: `${photo.url}?studio`,
+      srcSet: `${photo.url}?studio 300w`,
+    },
   });
 };
 const wait = () => {

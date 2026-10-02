@@ -72,6 +72,7 @@ const ImageChoiceControl = ({
                 colors={garment.colors}
                 image={image}
                 name={garment.name}
+                sizes="(min-width: 1024px) 9rem, 50vw"
               />
             </div>
             <label className="mt-1 flex min-h-11 cursor-pointer items-center justify-center gap-2 text-ink-muted text-xs">
@@ -97,7 +98,12 @@ const ImageChoiceControl = ({
 
 const ProcessingCard = ({ garment }: { readonly garment: GarmentView }) => (
   <li className="grid gap-4 border-rule border-t py-5 sm:grid-cols-[10rem_1fr] sm:gap-6">
-    <GarmentFigure alt="" image={garment.original} name="New garment" />
+    <GarmentFigure
+      alt=""
+      image={garment.original}
+      name="New garment"
+      sizes="(min-width: 640px) 10rem, 100vw"
+    />
     <div>
       <p className="type-eyebrow">Reading</p>
       <p className="type-display mt-1 text-2xl text-ink" role="status">

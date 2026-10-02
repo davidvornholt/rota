@@ -26,6 +26,7 @@ export const wardrobe = [
     daysSinceWorn: 2,
     image: {
       url: '/a11y/fixtures/shirt.svg',
+      srcSet: '/a11y/fixtures/shirt.svg 300w',
       width: 300,
       height: 400,
       fit: 'contain' as const,

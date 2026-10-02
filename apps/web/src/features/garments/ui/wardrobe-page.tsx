@@ -46,6 +46,7 @@ const GarmentCell = ({ garment }: { readonly garment: GarmentView }) => (
         colors={garment.colors}
         image={garment.image}
         name={garment.name}
+        sizes="(min-width: 1024px) 13rem, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
       />
       <span className="mt-2 block text-ink text-sm leading-snug">
         {garment.name}

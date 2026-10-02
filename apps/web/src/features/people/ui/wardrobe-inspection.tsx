@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { mediaUrl, tileWidth } from '#/shared/media/media-variants.ts';
 import { frameClass, linkButtonClass } from '#/shared/ui/classes.ts';
 import type { AdminGarment } from '../services/people-fns.ts';
 export const WardrobeInspection = ({
@@ -37,7 +38,7 @@ export const WardrobeInspection = ({
                       height={800}
                       alt={`${garment.name || garment.category || 'Garment'} — ${label.toLowerCase()}`}
                       className="aspect-[3/4] w-full bg-paper-deep object-contain"
-                      src={`/api/media/${key}`}
+                      src={mediaUrl(key, tileWidth)}
                     />
                     <figcaption className="mt-2 text-ink-muted text-sm">
                       {label}
