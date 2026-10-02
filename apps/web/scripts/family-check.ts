@@ -363,7 +363,10 @@ try {
   await recovered.page
     .getByRole('button', { name: 'Sign out', exact: true })
     .click();
-  expect((await signedOut).headers()['clear-site-data']).toBe('"cache"');
+  // `headers()` leaves out security headers such as Clear-Site-Data.
+  expect((await (await signedOut).allHeaders())['clear-site-data']).toBe(
+    '"cache"',
+  );
   await expect(recovered.page).toHaveURL(`${origin}/login`);
   process.stdout.write(
     'Family check passed: registration, recovery, session revocation, tenant isolation, costs, and accessibility.\n',
