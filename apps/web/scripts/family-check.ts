@@ -22,6 +22,7 @@ import {
   checkCodeActions,
   checkPeopleActions,
 } from './family-actions-check.ts';
+import { checkMediaCopies } from './family-media-check.ts';
 import { checkRevocation, expectRevoked } from './family-revocation-check.ts';
 import { checkUsage } from './family-usage-check.ts';
 
@@ -311,6 +312,13 @@ try {
       await family.context.request.get(`${origin}/api/media/${photoKey}`)
     ).status(),
   ).toBe(notFound);
+  await checkMediaCopies({
+    origin,
+    mediaDirectory,
+    photoKey,
+    owner: owner.context.request,
+    stranger: family.context.request,
+  });
   await Promise.all(runtimes.map((runtime) => runtime.dispose()));
   await owner.page.goto(`${origin}/people/${admin.memberId}`);
   // Inspecting your own wardrobe opens its editable list, not a garment detail.

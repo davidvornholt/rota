@@ -68,6 +68,7 @@ const OutfitPiece = ({
             colors={garment.colors}
             image={garment.image}
             name={garment.name}
+            sizes="(min-width: 1024px) 19rem, 50vw"
           />
         )}
         <span className="type-display mt-2 block text-ink text-xl sm:text-2xl">

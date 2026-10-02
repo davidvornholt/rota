@@ -222,6 +222,7 @@ export const GarmentStrip = ({
               colors={garment.colors}
               image={garment.image}
               name={garment.name}
+              sizes="(min-width: 1024px) 11rem, (min-width: 640px) 25vw, 33vw"
             />
             <span className="mt-1 block truncate text-ink text-xs">
               {garment.name}

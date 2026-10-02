@@ -14,7 +14,32 @@ type EnlargeableFigureProps = {
   /** The line under the large picture, after the name; "Studio render" or "Photo". */
   readonly caption?: string;
   readonly className?: string;
+  /** The thumbnail's rendered width, as an `<img sizes>` value. */
+  readonly sizes: string;
   readonly loading?: 'lazy' | 'eager';
+};
+
+/** The large picture is at most as wide as the screen. */
+const largeSizes = '100vw';
+/** How long pressing waits for the large picture before opening without it. */
+const largeLoadWait = 400;
+
+/**
+ * Starts loading the copy the large picture will show, settling once it is
+ * ready or the wait runs out. The thumbnail is a smaller copy, so without this
+ * the transition would grow it into an empty frame.
+ */
+const loadLarge = (image: GarmentImageView): Promise<void> => {
+  const large = new Image();
+  large.sizes = largeSizes;
+  large.srcset = image.srcSet;
+  large.src = image.url;
+  return Promise.race([
+    large.decode().catch(() => undefined),
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, largeLoadWait);
+    }),
+  ]);
 };
 
 const prefersReducedMotion = () =>
@@ -47,9 +72,11 @@ export const EnlargeableFigure = ({
   colors,
   caption,
   className,
+  sizes,
   loading,
 }: EnlargeableFigureProps) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const openingRef = useRef(false);
   const headingRef = useRef<HTMLParagraphElement>(null);
   const titleId = useId();
   const [open, setOpen] = useState(false);
@@ -78,7 +105,17 @@ export const EnlargeableFigure = ({
     flushSync(() => setMoving(true));
     transition(() => setOpen(next)).then(settle, settle);
   };
-  const show = () => move(true);
+  const show = () => {
+    if (image === undefined || openingRef.current) {
+      return;
+    }
+    openingRef.current = true;
+    const enlarge = () => {
+      openingRef.current = false;
+      move(true);
+    };
+    loadLarge(image).then(enlarge, enlarge);
+  };
   const hide = () => move(false);
 
   if (image === undefined) {
@@ -89,6 +126,7 @@ export const EnlargeableFigure = ({
         colors={colors}
         image={undefined}
         name={name}
+        sizes={sizes}
       />
     );
   }
@@ -111,6 +149,7 @@ export const EnlargeableFigure = ({
           image={image}
           loading={loading}
           name={name}
+          sizes={sizes}
         />
       </button>
       <dialog
@@ -153,7 +192,9 @@ export const EnlargeableFigure = ({
                 ].join(' ')}
                 decoding="async"
                 height={image.height}
+                sizes={largeSizes}
                 src={image.url}
+                srcSet={image.srcSet}
                 width={image.width}
               />
             ) : null}

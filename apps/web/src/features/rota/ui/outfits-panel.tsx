@@ -34,6 +34,7 @@ const Preview = ({
             image={garment?.image}
             key={entry.slot}
             name={garment?.name ?? 'Unavailable piece'}
+            sizes="(min-width: 1024px) 10rem, (min-width: 640px) 25vw, 50vw"
           />
         );
       })}

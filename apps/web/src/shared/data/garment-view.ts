@@ -12,11 +12,18 @@ import {
   type Slot,
 } from '#/shared/data/garment-types.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
+import {
+  mediaSrcSet,
+  type VariantWidth,
+} from '#/shared/media/media-variants.ts';
 import { daysBetween, type LocalDate } from '#/shared/time/local-date.ts';
 import { careFromDates } from './garment-care.ts';
 
 export type GarmentImageView = {
+  /** The original; the `src` a browser without `srcset` would load. */
   readonly url: string;
+  /** Smaller copies for thumbnails; the browser picks one by its displayed size. */
+  readonly srcSet: string;
   readonly width: number;
   readonly height: number;
   /** Studio renders sit on the paper; originals fill their frame. */
@@ -99,14 +106,22 @@ export const wearFactsByGarment = (
   return facts;
 };
 
+type MediaUrlFor = (key: string, width?: VariantWidth) => string;
+
 const imageView = (
   image: Garment['images']['original'],
   fit: GarmentImageView['fit'],
-  urlFor: (key: string) => string,
+  urlFor: MediaUrlFor,
 ): GarmentImageView | undefined =>
   image === undefined
     ? undefined
-    : { url: urlFor(image.key), width: image.width, height: image.height, fit };
+    : {
+        url: urlFor(image.key),
+        srcSet: mediaSrcSet((width) => urlFor(image.key, width), image.width),
+        width: image.width,
+        height: image.height,
+        fit,
+      };
 
 export type GarmentViewInput = {
   readonly garment: Garment;
@@ -115,7 +130,7 @@ export type GarmentViewInput = {
   readonly laundryDays: number;
   readonly categoryBudgets: Readonly<Record<string, number>>;
   readonly today: LocalDate;
-  readonly urlFor: (key: string) => string;
+  readonly urlFor: MediaUrlFor;
 };
 
 const settledStudioState = (garment: Garment): StudioState => {

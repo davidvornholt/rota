@@ -41,6 +41,12 @@ const randomImageBytes = (length: number): Uint8Array => {
 };
 
 const productionWardrobeImages = 37;
+/**
+ * Re-encoding 37 high-entropy photos through several resolution passes is CPU
+ * work that takes 2–4 s on an idle machine; on a CI runner that also builds and
+ * type-checks in parallel it can pass Bun's 5 s default, so it gets its own limit.
+ */
+const largeWardrobeTimeoutMs = 30_000;
 it.each([10, productionWardrobeImages])(
   'fits %i large PNG photos into the request budget without dropping candidates',
   async (imageCount) => {
@@ -79,4 +85,5 @@ it.each([10, productionWardrobeImages])(
     const requestBudgetBytes = 12_582_912;
     expect(imageBytes).toBeLessThanOrEqual(requestBudgetBytes);
   },
+  largeWardrobeTimeoutMs,
 );

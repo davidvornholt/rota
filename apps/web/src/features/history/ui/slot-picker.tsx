@@ -43,6 +43,7 @@ export const SlotPicker = ({
           colors={chosen?.colors}
           image={chosen?.image}
           name={chosen?.name ?? '·'}
+          sizes="(min-width: 640px) 6rem, 5rem"
         />
         <span className="block min-w-0">
           <span className="type-eyebrow block">{slotLabel[slot]}</span>

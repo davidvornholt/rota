@@ -10,6 +10,7 @@ import { guardedRoute } from '#/shared/auth/route-guard.ts';
 import { pool } from '#/shared/db/pool.ts';
 import { isMediaKey, mimeOfKey } from '#/shared/media/media-keys.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
+import { requestedVariant } from '#/shared/media/media-variants.ts';
 
 const notFound = () =>
   approvePrivateResponse(
@@ -21,16 +22,16 @@ const notFound = () =>
 const routePrefix = /^\/api\/media\//u;
 
 /**
- * Serves stored images when the media store has no public domain (development,
- * or a bucket without a custom domain). Keys are content hashes, so a hit can
- * be cached for good.
+ * Serves a stored image, or a smaller copy of it with `?w=`, to the wardrobe's
+ * owner or an administrator. Like every authenticated response, it stays out
+ * of caches.
  */
 const serveMedia = async (request: Request): Promise<Response> => {
-  const key = decodeURIComponent(
-    new URL(request.url).pathname.replace(routePrefix, ''),
-  );
+  const url = new URL(request.url);
+  const key = decodeURIComponent(url.pathname.replace(routePrefix, ''));
   const mime = mimeOfKey(key);
-  if (!isMediaKey(key) || mime === undefined) {
+  const requested = requestedVariant(url);
+  if (!isMediaKey(key) || mime === undefined || requested.kind === 'invalid') {
     return notFound();
   }
   const actor = currentIdentity();
@@ -42,15 +43,25 @@ const serveMedia = async (request: Request): Promise<Response> => {
   if (!access.rowCount) {
     return notFound();
   }
-  const bytes = await garmentsRuntime.run(
-    Effect.flatMap(MediaStore, (media) => media.get(key)),
+  const served = await garmentsRuntime.run(
+    Effect.flatMap(MediaStore, (media) =>
+      requested.kind === 'variant'
+        ? media.variant(key, requested.width)
+        : media
+            .get(key)
+            .pipe(
+              Effect.map((bytes) =>
+                bytes === undefined ? undefined : { bytes, mime },
+              ),
+            ),
+    ),
   );
-  if (bytes === undefined) {
+  if (served === undefined) {
     return notFound();
   }
-  return new Response(bytes as BodyInit, {
+  return new Response(served.bytes as BodyInit, {
     headers: {
-      'content-type': mime,
+      'content-type': served.mime,
       'cache-control': 'private, no-store',
       'x-content-type-options': 'nosniff',
     },

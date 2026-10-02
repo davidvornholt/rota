@@ -30,6 +30,7 @@ const LaundryItem = ({
       colors={garment.colors}
       image={garment.image}
       name={garment.name}
+      sizes="(min-width: 640px) 5rem, 4rem"
     />
     <span className="min-w-0 flex-1 break-words">
       {garment.name}

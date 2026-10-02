@@ -70,6 +70,7 @@ const Picture = ({
       image={garment.image}
       loading="eager"
       name={garment.name}
+      sizes="(min-width: 1024px) 27rem, 100vw"
     />
     <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1">
       {garment.studio !== undefined && garment.original !== undefined ? (

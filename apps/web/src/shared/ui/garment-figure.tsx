@@ -7,6 +7,8 @@ type GarmentFigureProps = {
   readonly name: string;
   readonly colors?: ReadonlyArray<GarmentColor>;
   readonly className?: string;
+  /** The rendered width, as an `<img sizes>` value, so the smallest sharp copy loads. */
+  readonly sizes: string;
   /** Images above the fold load eagerly; grids lazily. */
   readonly loading?: 'eager' | 'lazy';
   /** Empty when the picture is decoration beside a visible name. */
@@ -23,6 +25,7 @@ export const GarmentFigure = ({
   name,
   colors = [],
   className = '',
+  sizes,
   loading = 'lazy',
   alt,
 }: GarmentFigureProps) => {
@@ -59,7 +62,9 @@ export const GarmentFigure = ({
           decoding="async"
           height={image.height}
           loading={loading}
+          sizes={sizes}
           src={image.url}
+          srcSet={image.srcSet}
           width={image.width}
         />
       )}

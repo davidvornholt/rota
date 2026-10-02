@@ -64,6 +64,7 @@ const Tile = ({
         colors={garment.colors}
         image={garment.image}
         name={garment.name}
+        sizes="(min-width: 768px) 10rem, (min-width: 640px) 25vw, 33vw"
       />
       <span className="mt-2 block text-ink text-sm leading-snug">
         {garment.name}
