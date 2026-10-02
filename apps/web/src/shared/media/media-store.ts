@@ -6,7 +6,7 @@
  * stored beside their original under a key derived from it.
  */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { Effect } from 'effect';
 
 import { type MediaStoreConfig, mediaStoreConfig } from '#/shared/env.ts';
@@ -40,6 +40,7 @@ type Backend = {
     mime: string,
   ) => Promise<void>;
   readonly read: (key: string) => Promise<Uint8Array | undefined>;
+  readonly exists: (key: string) => Promise<boolean>;
 };
 
 const isMissingFile = (error: unknown): boolean =>
@@ -70,6 +71,17 @@ const localBackend = (directory: string): Backend => {
         throw error;
       }
     },
+    exists: async (key) => {
+      try {
+        await access(new URL(key, root));
+        return true;
+      } catch (error) {
+        if (isMissingFile(error)) {
+          return false;
+        }
+        throw error;
+      }
+    },
   };
 };
 
@@ -95,6 +107,7 @@ const s3Backend = (
       const file = client.file(key);
       return (await file.exists()) ? file.bytes() : undefined;
     },
+    exists: (key) => client.file(key).exists(),
   };
 };
 
@@ -138,8 +151,17 @@ export class MediaStore extends Effect.Service<MediaStore>()(
             }),
         });
 
-      const variant = yield* makeMediaCopies({
+      const { variant, warm } = yield* makeMediaCopies({
         get,
+        has: (key) =>
+          Effect.tryPromise({
+            try: () => backend.exists(key),
+            catch: (cause) =>
+              new MediaStoreError({
+                message: 'The image store could not be checked.',
+                cause,
+              }),
+          }),
         keep: (key, data) =>
           Effect.tryPromise({
             try: () => backend.write(key, data, variantMime),
@@ -154,7 +176,7 @@ export class MediaStore extends Effect.Service<MediaStore>()(
       /** Images always pass through the authenticated ownership check. */
       const urlFor = mediaUrl;
 
-      return { put, get, variant, urlFor };
+      return { put, get, variant, warm, urlFor };
     }),
   },
 ) {}

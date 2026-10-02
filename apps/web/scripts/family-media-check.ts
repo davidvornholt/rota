@@ -18,7 +18,10 @@ type MediaCopyCheck = {
   readonly stranger: APIRequestContext;
 };
 
-/** Smaller copies pass the same ownership check as the original and are kept beside it. */
+/**
+ * Smaller copies pass the same ownership check as the original and are kept
+ * beside it. A served picture may be cached privately; a refusal may not.
+ */
 export const checkMediaCopies = async ({
   origin,
   mediaDirectory,
@@ -31,15 +34,17 @@ export const checkMediaCopies = async ({
   const copy = await owner.get(copyUrl);
   expect(copy.status()).toBe(ok);
   expect(copy.headers()['content-type']).toBe('image/webp');
-  expect(copy.headers()['cache-control']).toContain('no-store');
+  expect(copy.headers()['cache-control']).toBe(
+    'private, max-age=31536000, immutable',
+  );
   expect(
     await Bun.file(
       `${mediaDirectory}/${variantKey(photoKey, smallWidth)}`,
     ).exists(),
   ).toBe(true);
-  expect(
-    (
-      await owner.get(`${origin}/api/media/${photoKey}?w=${unlistedWidth}`)
-    ).status(),
-  ).toBe(notFound);
+  const unlisted = await owner.get(
+    `${origin}/api/media/${photoKey}?w=${unlistedWidth}`,
+  );
+  expect(unlisted.status()).toBe(notFound);
+  expect(unlisted.headers()['cache-control']).toContain('no-store');
 };

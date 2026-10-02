@@ -133,6 +133,7 @@ const mediaLayer = Layer.succeed(
     urlFor: (key) => `/demo/${key}`,
     get: () => Effect.succeed(undefined),
     variant: () => Effect.succeed(undefined),
+    warm: () => Effect.void,
     put: () => Effect.succeed({ key: 'demo', bytes: 0 }),
   }),
 );
