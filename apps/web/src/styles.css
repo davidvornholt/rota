@@ -183,4 +183,15 @@
   .garment-frame[data-fit="cover"] > img {
     object-fit: cover;
   }
+
+  /* Set by GarmentFigure while a picture is still on its way. */
+  .garment-frame > img[data-loading] {
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .garment-frame > img {
+      transition: opacity 180ms var(--ease-out-strong);
+    }
+  }
 }

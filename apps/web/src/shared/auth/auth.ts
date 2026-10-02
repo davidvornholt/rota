@@ -13,6 +13,7 @@ import { authPool, withAccessTransaction } from './access-transaction.ts';
 import { authResponse } from './auth-handler.ts';
 import { createAuthOptions } from './auth-options.ts';
 import { familyPasskeys } from './passkeys.ts';
+import { clearCacheOnSignOut } from './sign-out-cache.ts';
 
 const schema = { account, passkey, session, user, verification };
 const db = drizzle(authPool, { schema });
@@ -32,4 +33,8 @@ export const auth = betterAuth({
 });
 
 export const handleAuth = (request: Request) =>
-  authResponse(() => withAccessTransaction(() => auth.handler(request)));
+  authResponse(() =>
+    withAccessTransaction(() => auth.handler(request)).then((response) =>
+      clearCacheOnSignOut(request, response),
+    ),
+  );

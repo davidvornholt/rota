@@ -20,11 +20,16 @@ const notFound = () =>
     }),
   );
 const routePrefix = /^\/api\/media\//u;
+/**
+ * A key names the same bytes forever, so the browser may keep an answer and
+ * skip asking again. `private` keeps it out of shared caches; signing out
+ * clears the browser's copy (see `clearCacheOnSignOut`).
+ */
+const lastingCache = 'private, max-age=31536000, immutable';
 
 /**
  * Serves a stored image, or a smaller copy of it with `?w=`, to the wardrobe's
- * owner or an administrator. Like every authenticated response, it stays out
- * of caches.
+ * owner or an administrator.
  */
 const serveMedia = async (request: Request): Promise<Response> => {
   const url = new URL(request.url);
@@ -51,7 +56,9 @@ const serveMedia = async (request: Request): Promise<Response> => {
             .get(key)
             .pipe(
               Effect.map((bytes) =>
-                bytes === undefined ? undefined : { bytes, mime },
+                bytes === undefined
+                  ? undefined
+                  : { bytes, mime, lasting: true },
               ),
             ),
     ),
@@ -62,7 +69,9 @@ const serveMedia = async (request: Request): Promise<Response> => {
   return new Response(served.bytes as BodyInit, {
     headers: {
       'content-type': served.mime,
-      'cache-control': 'private, no-store',
+      'cache-control': served.lasting
+        ? lastingCache
+        : privateResponseHeaders['cache-control'],
       'x-content-type-options': 'nosniff',
     },
   });

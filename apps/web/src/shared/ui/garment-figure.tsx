@@ -16,6 +16,27 @@ type GarmentFigureProps = {
 };
 
 /**
+ * A picture still on its way fades in when it arrives; one the browser already
+ * holds shows at once. The mark goes on the element itself, after the markup
+ * is in place, so server-rendered pictures stay visible without JavaScript.
+ */
+const revealOnLoad = (image: HTMLImageElement | null) => {
+  if (image === null || image.complete) {
+    return;
+  }
+  image.dataset.loading = '';
+  const reveal = () => {
+    delete image.dataset.loading;
+  };
+  image.addEventListener('load', reveal, { once: true });
+  image.addEventListener('error', reveal, { once: true });
+  return () => {
+    image.removeEventListener('load', reveal);
+    image.removeEventListener('error', reveal);
+  };
+};
+
+/**
  * A garment's picture in the fixed 3:4 frame. A studio render sits on the
  * paper; a phone photo fills the frame. A garment still without a picture shows
  * its dominant colour as a swatch, which is what the wardrobe knows about it.
@@ -62,6 +83,7 @@ export const GarmentFigure = ({
           decoding="async"
           height={image.height}
           loading={loading}
+          ref={revealOnLoad}
           sizes={sizes}
           src={image.url}
           srcSet={image.srcSet}

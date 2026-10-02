@@ -356,6 +356,18 @@ try {
   await owner.page.goto(`${origin}/people`);
   await scan(owner.page);
   await checkPeopleActions(owner.page, capture);
+  // Pictures are cached in the browser, so signing out must clear that cache.
+  const signedOut = recovered.page.waitForResponse((response) =>
+    response.url().endsWith('/api/auth/sign-out'),
+  );
+  await recovered.page
+    .getByRole('button', { name: 'Sign out', exact: true })
+    .click();
+  // `headers()` leaves out security headers such as Clear-Site-Data.
+  expect((await (await signedOut).allHeaders())['clear-site-data']).toBe(
+    '"cache"',
+  );
+  await expect(recovered.page).toHaveURL(`${origin}/login`);
   process.stdout.write(
     'Family check passed: registration, recovery, session revocation, tenant isolation, costs, and accessibility.\n',
   );
