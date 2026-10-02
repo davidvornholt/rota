@@ -30,3 +30,53 @@ it('keeps normal image requests unchanged and resizes large wardrobes without lo
     height: 1000,
   });
 });
+
+const randomImageBytes = (length: number): Uint8Array => {
+  const bytes = new Uint8Array(length);
+  const maximumRandomChunk = 65_536;
+  for (let start = 0; start < length; start += maximumRandomChunk) {
+    crypto.getRandomValues(bytes.subarray(start, start + maximumRandomChunk));
+  }
+  return bytes;
+};
+
+const productionWardrobeImages = 37;
+it.each([10, productionWardrobeImages])(
+  'fits %i large PNG photos into the request budget without dropping candidates',
+  async (imageCount) => {
+    const width = 1024;
+    const channels = 3;
+    const data = await sharp(randomImageBytes(width * width * channels), {
+      raw: { width, height: width, channels },
+    })
+      .png()
+      .toBuffer();
+    const parts: Array<PromptPart> = Array.from(
+      { length: imageCount },
+      (_, index) => [
+        { text: `candidate-${index}` },
+        { image: { mimeType: 'image/png', data } },
+      ],
+    ).flat();
+    const prepared = await Effect.runPromise(prepareBedrockParts(parts));
+    expect(prepared).toHaveLength(parts.length);
+    expect(prepared.filter((part) => 'text' in part)).toEqual(
+      parts.filter((part) => 'text' in part),
+    );
+    const images = prepared.flatMap((part) =>
+      'image' in part ? [part.image] : [],
+    );
+    expect(images).toHaveLength(imageCount);
+    expect(images.every((image) => image.mimeType === 'image/jpeg')).toBe(true);
+    const metadata = await Promise.all(
+      images.map((image) => sharp(image.data).metadata()),
+    );
+    expect(metadata.every((image) => (image.width ?? 0) <= width)).toBe(true);
+    const imageBytes = images.reduce(
+      (total, image) => total + image.data.byteLength,
+      0,
+    );
+    const requestBudgetBytes = 12_582_912;
+    expect(imageBytes).toBeLessThanOrEqual(requestBudgetBytes);
+  },
+);
