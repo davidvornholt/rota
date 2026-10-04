@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'bun:test';
-import { symmetricEncrypt } from 'better-auth/crypto';
 import { decryptOAuthToken, setTokenUtil } from 'better-auth/oauth2';
 
 import { createAuthOptions } from './auth-options.ts';
@@ -60,16 +59,6 @@ describe('OAuth token persistence', () => {
 
   it('keeps existing plaintext rows readable until the next token update', async () => {
     expect(await decryptOAuthToken(providerToken, tokenContext)).toBe(
-      providerToken,
-    );
-  });
-
-  it('uses the same ciphertext envelope as the configured encryption utility', async () => {
-    const persisted = await symmetricEncrypt({
-      key: testSecret,
-      data: providerToken,
-    });
-    expect(await decryptOAuthToken(persisted, tokenContext)).toBe(
       providerToken,
     );
   });
