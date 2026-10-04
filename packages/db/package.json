@@ -20,9 +20,9 @@
   },
   "dependencies": {
     "@effect/sql": "^0.52.1",
-    "@effect/sql-pg": "^0.53.0",
+    "@effect/sql-pg": "^4.0.0",
     "drizzle-orm": "^0.45.3",
-    "effect": "^3.22.2",
+    "effect": "^4.0.0",
     "pg": "^8.23.1"
   },
   "devDependencies": {
