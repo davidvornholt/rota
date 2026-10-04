@@ -36,7 +36,6 @@ try {
   if (
     (
       await pool.query(
-        // biome-ignore lint/security/noSecrets: SQL catalog query contains no credential.
         "select count(*)::int as count from information_schema.tables where table_schema='public'",
       )
     ).rows[0].count !== 0

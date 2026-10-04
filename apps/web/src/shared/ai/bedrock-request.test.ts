@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import type { ConverseCommandOutput } from '@aws-sdk/client-bedrock-runtime';
+import {
+  AccessDeniedException,
+  type ConverseCommandOutput,
+  ThrottlingException,
+} from '@aws-sdk/client-bedrock-runtime';
 import {
   Deferred,
   Effect,
@@ -163,7 +167,12 @@ it('retries a throttled Bedrock attempt and keeps high effort for garment reques
       });
       if (calls === 1) {
         Effect.runSync(Deferred.succeed(started, undefined));
-        return Promise.reject({ $metadata: { httpStatusCode: 429 } });
+        return Promise.reject(
+          new ThrottlingException({
+            message: 'Too many requests.',
+            $metadata: { httpStatusCode: 429 },
+          }),
+        );
       }
       return Promise.resolve(answer('{"choice":"chinos"}'));
     }, 'test-model');
@@ -182,7 +191,12 @@ it('does not retry an access denial', async () => {
   let calls = 0;
   const generate = makeGenerateJson(() => {
     calls += 1;
-    return Promise.reject({ $metadata: { httpStatusCode: 403 } });
+    return Promise.reject(
+      new AccessDeniedException({
+        message: 'Access denied.',
+        $metadata: { httpStatusCode: 403 },
+      }),
+    );
   }, 'test-model');
   expect(await Effect.runPromise(Effect.either(generate(input)))).toMatchObject(
     { _tag: 'Left', left: { reason: 'request' } },
