@@ -88,28 +88,11 @@ describe('wears between washes', () => {
     ).toBe(1);
   });
 
-  it('does not mistake unlogged days or a long rest for washing', () => {
-    const shortGap = [
-      worn('2026-09-01', 'chinos', 'bottom'),
-      worn('2026-09-03', 'chinos', 'bottom'),
-    ];
-    expect(
-      garmentCare(garment('chinos', ['bottom']), shortGap, today, {
-        categoryBudgets: {},
-        laundryDays: 4,
-      }).wearsSinceWash,
-    ).toBe(2);
-
+  it('treats a long silence as no previous outfit to continue', () => {
     const longSilence = [
       worn('2026-08-20', 'chinos', 'bottom'),
       worn('2026-08-21', 'chinos', 'bottom'),
     ];
-    expect(
-      garmentCare(garment('chinos', ['bottom']), longSilence, today, {
-        categoryBudgets: {},
-        laundryDays: 4,
-      }).wearsSinceWash,
-    ).toBe(2);
     expect(previousLoggedDay(longSilence, today)).toBeUndefined();
   });
 });

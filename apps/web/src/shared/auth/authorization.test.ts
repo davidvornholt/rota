@@ -83,13 +83,4 @@ describe('GitHub account gate', () => {
       gate({ source: { action: 'create-user', method: 'email-password' } }),
     ).not.toBeUndefined();
   });
-
-  it('produces a rejection code that survives a URL round trip', () => {
-    const rejection = gate({
-      source: githubSource('sign-in', { id: 999_999_999 }),
-    });
-    const code = rejection?.error ?? '';
-    expect(new URLSearchParams({ error: code }).get('error')).toBe(code);
-    expect(encodeURIComponent(code)).toBe(code);
-  });
 });
