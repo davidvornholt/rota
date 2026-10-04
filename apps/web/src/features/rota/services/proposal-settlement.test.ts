@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { Deferred, Effect, Fiber, TestClock, TestContext } from 'effect';
+import { Deferred, Effect, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { runSessionRequired } from '#/shared/auth/session-required.ts';
 import type { DayPlan } from '#/shared/data/outfit.ts';
 import type { Proposal } from '#/shared/data/proposal-repository.ts';
@@ -193,13 +194,13 @@ describe('completing an outfit', () => {
   it('leaves the previous proposal intact when completion fails', async () => {
     const { deps, recorded } = depsWith('fails');
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         Effect.flatMap(makeProposalOperations(deps), (operations) =>
           operations.complete(clock, []),
         ),
       ),
     );
-    expect(result._tag).toBe('Left');
+    expect(result._tag).toBe('Failure');
     expect(recorded.statuses).toEqual([]);
   });
 });
@@ -222,9 +223,9 @@ describe('proposal operations', () => {
         },
       ]);
     const result = await Effect.runPromise(
-      Effect.either(operations.savePlan(clock, draft)),
+      Effect.result(operations.savePlan(clock, draft)),
     );
-    expect(result._tag).toBe('Left');
+    expect(result._tag).toBe('Failure');
     expect(recorded.plans).toEqual([draft]);
   });
 
@@ -247,9 +248,9 @@ describe('proposal operations', () => {
             return pending;
           }),
       });
-      const first = yield* Effect.fork(operations.ensure(clock));
+      const first = yield* Effect.forkChild(operations.ensure(clock));
       yield* Deferred.await(started);
-      const second = yield* Effect.fork(operations.ensure(clock));
+      const second = yield* Effect.forkChild(operations.ensure(clock));
       yield* Deferred.succeed(finish, undefined);
       return yield* Effect.all([Fiber.join(first), Fiber.join(second)]);
     });
@@ -269,7 +270,7 @@ describe('proposal operations', () => {
         generate: () =>
           stuck
             ? Deferred.succeed(started, undefined).pipe(
-                Effect.zipRight(Effect.never),
+                Effect.andThen(Effect.never),
                 Effect.onInterrupt(() =>
                   Effect.sync(() => {
                     interrupted = true;
@@ -278,15 +279,17 @@ describe('proposal operations', () => {
               )
             : Effect.succeed(pending),
       });
-      const first = yield* Effect.fork(Effect.either(operations.ensure(clock)));
+      const first = yield* Effect.forkChild(
+        Effect.result(operations.ensure(clock)),
+      );
       yield* Deferred.await(started);
       yield* TestClock.adjust('361 seconds');
       const outcome = yield* Fiber.join(first);
-      expect(outcome._tag).toBe('Left');
+      expect(outcome._tag).toBe('Failure');
       expect(interrupted).toBeTrue();
       stuck = false;
       return yield* operations.ensure(clock);
-    }).pipe(Effect.provide(TestContext.TestContext));
+    }).pipe(Effect.provide(TestClock.layer()));
     expect(await Effect.runPromise(result)).toEqual(pending);
   });
 });

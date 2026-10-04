@@ -77,7 +77,9 @@ const latestYear = 2100;
 
 const HistoryQuerySchema = Schema.Struct({
   year: Schema.optional(
-    Schema.Int.pipe(Schema.between(earliestYear, latestYear)),
+    Schema.Int.check(
+      Schema.isBetween({ minimum: earliestYear, maximum: latestYear }),
+    ),
   ),
 });
 const decodeHistoryQuery = Schema.decodeUnknownSync(HistoryQuerySchema);

@@ -26,7 +26,7 @@ export const makeStudioJobs = () => {
               active.delete(id);
             }),
           ),
-          Effect.forkDaemon,
+          Effect.forkDetach,
         );
         return true;
       }),

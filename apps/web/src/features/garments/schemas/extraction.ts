@@ -27,14 +27,17 @@ export const ExtractionSchema = Schema.Struct({
   name: Schema.String,
   category: GarmentCategorySchema,
   subcategory: Schema.String,
-  slots: Schema.Array(SlotSchema).pipe(Schema.minItems(1)),
+  slots: Schema.Array(SlotSchema).check(Schema.isMinLength(1)),
   warmth: GarmentScaleSchema,
   rainOk: Schema.Boolean,
   formality: GarmentScaleSchema,
-  wearBudgetDays: Schema.Int.pipe(
-    Schema.between(scaleMinimum, longestSuggestedBudget),
+  wearBudgetDays: Schema.Int.check(
+    Schema.isBetween({
+      minimum: scaleMinimum,
+      maximum: longestSuggestedBudget,
+    }),
   ),
-  colors: Schema.Array(GarmentColorSchema).pipe(Schema.minItems(1)),
+  colors: Schema.Array(GarmentColorSchema).check(Schema.isMinLength(1)),
   pattern: Schema.String,
   material: Schema.String,
   fit: Schema.String,

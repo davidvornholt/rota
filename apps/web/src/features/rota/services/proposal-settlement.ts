@@ -42,10 +42,10 @@ export type GenerateError =
   | NotFoundError;
 
 export type SettlementDeps = {
-  readonly outfits: OutfitRepository;
-  readonly proposals: ProposalRepository;
-  readonly wearLog: WearLogRepository;
-  readonly forecasts: ForecastService;
+  readonly outfits: OutfitRepository['Service'];
+  readonly proposals: ProposalRepository['Service'];
+  readonly wearLog: WearLogRepository['Service'];
+  readonly forecasts: ForecastService['Service'];
   readonly generate: (
     clock: WardrobeClock,
     forecast: ForecastWindow,

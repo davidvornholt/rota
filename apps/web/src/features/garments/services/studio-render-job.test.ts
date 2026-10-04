@@ -1,12 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
-import {
-  Deferred,
-  Duration,
-  Effect,
-  Fiber,
-  TestClock,
-  TestContext,
-} from 'effect';
+import { Deferred, Duration, Effect, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
 import { studioPersistenceTimeout } from '#/shared/ai/studio-budgets.ts';
 import type { StudioRenderInput } from '#/shared/ai/studio-request.ts';
@@ -134,11 +128,11 @@ it('passes lazy source preparation to the renderer and stops storage when it fai
         photoEffect: Effect.fail('Photo orientation is unavailable.'),
         report: () => Effect.void,
       },
-    ).pipe(Effect.either),
+    ).pipe(Effect.result),
   );
   expect(result).toMatchObject({
-    _tag: 'Left',
-    left: {
+    _tag: 'Failure',
+    failure: {
       _tag: 'StudioRenderError',
       message:
         'The source photo could not be prepared for the studio picture. Try again.',
@@ -201,10 +195,10 @@ describe('studio job deadlines', () => {
               }),
             ),
           )
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         yield* TestClock.adjust('30 minutes');
         yield* Fiber.join(fiber);
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
     expect(job.error()).toBeNull();
     expect(job.attachImage).toHaveBeenCalledTimes(1);
@@ -221,7 +215,7 @@ describe('studio job deadlines', () => {
             Effect.andThen(Effect.never),
           ),
         );
-        const fiber = yield* Effect.fork(
+        const fiber = yield* Effect.forkChild(
           job.render(
             Effect.succeed({
               bytes: new Uint8Array([1]),
@@ -234,7 +228,7 @@ describe('studio job deadlines', () => {
         expect(job.put).toHaveBeenCalledTimes(1);
         yield* TestClock.adjust(studioPersistenceTimeout);
         yield* Fiber.join(fiber);
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
     expect(job.error()).toBe(
       'The studio picture could not be saved. Try again later.',
@@ -266,7 +260,7 @@ describe('studio job deadlines', () => {
         expect(jobs.progress().has(row.id)).toBe(false);
         yield* jobs.start(row.id, () => Effect.void);
         expect(jobs.progress().has(row.id)).toBe(true);
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
   });
 });

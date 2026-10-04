@@ -15,7 +15,7 @@ type CandidateImage = {
 
 /** Missing files remain optional; a stalled or failed store must not silently degrade the model's input. */
 export const proposalImages = (
-  media: Pick<MediaStore, 'get'>,
+  media: Pick<MediaStore['Service'], 'get'>,
   shown: ReadonlyArray<CandidateImage>,
 ) =>
   Effect.forEach(
@@ -31,12 +31,14 @@ export const proposalImages = (
         }
         const bytes = yield* media.get(image.key).pipe(
           Effect.mapError((cause) => new ProposalGenerationError(false, cause)),
-          Effect.timeoutFail({
+          Effect.timeoutOrElse({
             duration: imageDeadline,
-            onTimeout: () =>
-              new ProposalGenerationError(
-                true,
-                'Image read deadline exceeded.',
+            orElse: () =>
+              Effect.fail(
+                new ProposalGenerationError(
+                  true,
+                  'Image read deadline exceeded.',
+                ),
               ),
           }),
         );
@@ -60,12 +62,14 @@ export const proposalImages = (
           ),
         ),
     ),
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: preparationDeadline,
-      onTimeout: () =>
-        new ProposalGenerationError(
-          true,
-          'Image preparation deadline exceeded.',
+      orElse: () =>
+        Effect.fail(
+          new ProposalGenerationError(
+            true,
+            'Image preparation deadline exceeded.',
+          ),
         ),
     }),
   );

@@ -59,19 +59,19 @@ const setup = (
         stored = days.map((value) => ({ ...value, issuedOn, locationLabel }));
       }),
   );
-  const layer = ForecastService.Default.pipe(
+  const layer = ForecastService.layer.pipe(
     Layer.provide(
       Layer.merge(
         Layer.succeed(
           WeatherApi,
-          WeatherApi.make({
+          WeatherApi.of({
             forecast,
             searchLocations: () => Effect.succeed([]),
           }),
         ),
         Layer.succeed(
           WeatherRepository,
-          WeatherRepository.make({
+          WeatherRepository.of({
             readRange: () => Effect.sync(() => stored),
             history: () => Effect.sync(() => stored),
             store,
@@ -111,10 +111,10 @@ describe('forecast cache', () => {
 
   it('reports an unavailable forecast when fetching fails with an empty cache', async () => {
     const { result } = setup([], Effect.fail(unavailable));
-    const outcome = await Effect.runPromise(Effect.either(result));
+    const outcome = await Effect.runPromise(Effect.result(result));
     expect(outcome).toMatchObject({
-      _tag: 'Left',
-      left: { _tag: 'ForecastUnavailableError' },
+      _tag: 'Failure',
+      failure: { _tag: 'ForecastUnavailableError' },
     });
   });
 });

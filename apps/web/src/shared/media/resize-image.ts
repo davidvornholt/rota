@@ -1,12 +1,12 @@
-import { Data, Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import sharp from 'sharp';
 import { maximumSourcePixels } from './image-limits.ts';
 import type { VariantWidth } from './media-variants.ts';
 
-export class ImageResizeError extends Data.TaggedError('ImageResizeError')<{
-  readonly message: string;
-  readonly cause: unknown;
-}> {}
+export class ImageResizeError extends Schema.TaggedError<ImageResizeError>()(
+  'ImageResizeError',
+  { message: Schema.String, cause: Schema.Defect() },
+) {}
 
 /** Keeps studio renders' transparent edges clean while staying a fraction of the PNG. */
 const webpQuality = 80;

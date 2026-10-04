@@ -1,10 +1,10 @@
 // biome-ignore-all lint/suspicious/noMisplacedAssertion: This executable database smoke check runs directly with Bun and uses node:assert, not a test-runner callback.
 import assert from 'node:assert/strict';
-import { SqlClient } from '@effect/sql';
 import { pgClientLayer } from '@rota/db/effect-client';
 import { migrateDatabase } from '@rota/db/migrate';
 import { createPool } from '@rota/db/pool';
 import { Effect, Layer, Schema } from 'effect';
+import { SqlClient } from 'effect/sql';
 import { ForecastService } from '#/features/rota/services/forecast-service.ts';
 import {
   changePlanning,
@@ -60,7 +60,7 @@ let weatherHigh = 20;
 let sawSavedOutfit = false;
 const forecastLayer = Layer.succeed(
   ForecastService,
-  ForecastService.make({
+  ForecastService.of({
     refresh: () => Effect.succeed(undefined),
     ensure: (_settings, date, issuedOn) =>
       Effect.succeed({
@@ -84,7 +84,7 @@ const forecastLayer = Layer.succeed(
 );
 const bedrockLayer = Layer.succeed(
   Bedrock,
-  Bedrock.make({
+  Bedrock.of({
     model: 'global.anthropic.claude-sonnet-5-5',
     generateJson: (input) => {
       if (failGeneration) {
@@ -111,7 +111,7 @@ const bedrockLayer = Layer.succeed(
           ([slot, value]) => [slot, value.enum[0] ?? null],
         ),
       );
-      return Schema.decodeUnknown(input.schema)({
+      return Schema.decodeUnknownEffect(input.schema)({
         outfit,
         headline: 'A test outfit.',
         reasons: [],
@@ -130,7 +130,7 @@ const bedrockLayer = Layer.succeed(
 );
 const mediaLayer = Layer.succeed(
   MediaStore,
-  MediaStore.make({
+  MediaStore.of({
     urlFor: (key) => `/demo/${key}`,
     get: () => Effect.succeed(undefined),
     variant: () => Effect.succeed(undefined),
@@ -250,8 +250,8 @@ const verify = Effect.gen(function* () {
   );
   assert.equal(generated.plan.basedOn, null);
   failGeneration = true;
-  const failed = yield* Effect.either(suggestPlanning(nextClock, [entries[0]]));
-  assert.equal(failed._tag, 'Left');
+  const failed = yield* Effect.result(suggestPlanning(nextClock, [entries[0]]));
+  assert.equal(failed._tag, 'Failure');
   assert.equal(
     (yield* planningView(nextClock)).day.proposal?.id,
     generated.day.proposal?.id,
@@ -273,10 +273,10 @@ const verify = Effect.gen(function* () {
     0,
     'Saving tomorrow never logs wear.',
   );
-  const premature = yield* Effect.either(
+  const premature = yield* Effect.result(
     changePlanning(nextClock, { action: 'wear', entries, basedOn: null }),
   );
-  assert.equal(premature._tag, 'Left');
+  assert.equal(premature._tag, 'Failure');
   const swapped = [{ garmentId: otherTopId, slot: 'top' as const }, entries[1]];
   yield* changePlanning(nextClock, {
     action: 'plan',
@@ -322,14 +322,14 @@ const pool = createPool(databaseUrl.href);
 try {
   await Effect.runPromise(migrateDatabase(pool));
   const repositories = Layer.mergeAll(
-    GarmentRepository.Default,
-    SettingsRepository.Default,
-    OutfitRepository.Default,
-    WearLogRepository.Default,
-    ProposalRepository.Default,
-    DayNoteRepository.Default,
+    GarmentRepository.layer,
+    SettingsRepository.layer,
+    OutfitRepository.layer,
+    WearLogRepository.layer,
+    ProposalRepository.layer,
+    DayNoteRepository.layer,
   ).pipe(
-    Layer.provideMerge(pgClientLayer(pool)),
+    Layer.provideMerge(pgClientLayer(databaseUrl.href)),
     Layer.provide(Layer.succeed(WardrobeOwner, owner)),
   );
   const infrastructure = Layer.mergeAll(
@@ -338,12 +338,12 @@ try {
     bedrockLayer,
     mediaLayer,
   );
-  const services = TodayService.Default.pipe(
-    Layer.provideMerge(ProposalService.Default),
+  const services = TodayService.layer.pipe(
+    Layer.provideMerge(ProposalService.layer),
     Layer.provideMerge(infrastructure),
   );
   await Effect.runPromise(verify.pipe(Effect.provide(services)));
-  await verifyPlanningIsolation(pool);
+  await verifyPlanningIsolation(pool, databaseUrl.href);
   await Effect.runPromise(
     Effect.logInfo(
       'Planning integration passed: migrations, suggestions, pinned garments, saved outfits, plans, wear, weather changes and laundry.',

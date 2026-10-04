@@ -1,11 +1,12 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { Data, Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import type { Pool } from 'pg';
 
-export class DatabaseMigrationError extends Data.TaggedError(
+export class DatabaseMigrationError extends Schema.TaggedError<DatabaseMigrationError>()(
   'DatabaseMigrationError',
-)<{ readonly message: string; readonly cause: unknown }> {}
+  { message: Schema.String, cause: Schema.Defect() },
+) {}
 
 export const migrationFolder = decodeURIComponent(
   new URL('../drizzle', import.meta.url).pathname,

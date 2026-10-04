@@ -11,6 +11,7 @@ import {
   longestWearBudget,
   scaleMinimum,
 } from '#/shared/data/garment-types.ts';
+import { UuidSchema } from '#/shared/data/uuid-schema.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 
 const shortTextLength = 120;
@@ -20,53 +21,64 @@ const mostColors = 5;
 export const renderInstructionsLength = 1000;
 const highestPrice = 100_000;
 
-const shortText = Schema.String.pipe(Schema.maxLength(shortTextLength));
+const shortText = Schema.String.check(Schema.isMaxLength(shortTextLength));
 
 /** The editable fields of a garment, as the review card and the detail page send them. */
 export const GarmentEditSchema = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(nameLength)),
+  name: Schema.String.check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(nameLength),
+  ),
   category: GarmentCategorySchema,
   subcategory: shortText,
-  slots: Schema.Array(SlotSchema).pipe(Schema.minItems(1)),
+  slots: Schema.Array(SlotSchema).check(Schema.isMinLength(1)),
   warmth: GarmentScaleSchema,
   rainOk: Schema.Boolean,
   formality: GarmentScaleSchema,
   wearBudget: Schema.NullOr(
-    Schema.Int.pipe(Schema.between(scaleMinimum, longestWearBudget)),
+    Schema.Int.check(
+      Schema.isBetween({ minimum: scaleMinimum, maximum: longestWearBudget }),
+    ),
   ),
-  colors: Schema.Array(GarmentColorSchema).pipe(
-    Schema.minItems(1),
-    Schema.maxItems(mostColors),
+  colors: Schema.Array(GarmentColorSchema).check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(mostColors),
   ),
   pattern: shortText,
   material: shortText,
   fit: shortText,
   sleeve: shortText,
   brand: shortText,
-  notes: Schema.String.pipe(Schema.maxLength(notesLength)),
-  price: Schema.NullOr(Schema.Number.pipe(Schema.between(0, highestPrice))),
+  notes: Schema.String.check(Schema.isMaxLength(notesLength)),
+  price: Schema.NullOr(
+    Schema.Number.check(
+      Schema.isBetween({ minimum: 0, maximum: highestPrice }),
+    ),
+  ),
   purchasedOn: Schema.NullOr(LocalDateSchema),
 });
 
 export type GarmentEdit = Schema.Schema.Type<typeof GarmentEditSchema>;
 
-export const GarmentIdInputSchema = Schema.Struct({ id: Schema.UUID });
+export const GarmentIdInputSchema = Schema.Struct({ id: UuidSchema });
 
 export const UpdateGarmentInputSchema = Schema.Struct({
-  id: Schema.UUID,
+  id: UuidSchema,
   edit: GarmentEditSchema,
 });
 
 export const AcceptGarmentInputSchema = Schema.Struct({
-  id: Schema.UUID,
+  id: UuidSchema,
   edit: GarmentEditSchema,
   imageChoice: ImageChoiceSchema,
 });
 
 export const RetryStudioInputSchema = Schema.Struct({
-  id: Schema.UUID,
+  id: UuidSchema,
   edit: GarmentEditSchema,
-  instructions: Schema.String.pipe(Schema.maxLength(renderInstructionsLength)),
+  instructions: Schema.String.check(
+    Schema.isMaxLength(renderInstructionsLength),
+  ),
 });
 
 export const decodeRetryStudioInput = Schema.decodeUnknownSync(
@@ -74,7 +86,7 @@ export const decodeRetryStudioInput = Schema.decodeUnknownSync(
 );
 
 export const ImageChoiceInputSchema = Schema.Struct({
-  id: Schema.UUID,
+  id: UuidSchema,
   imageChoice: ImageChoiceSchema,
 });
 
@@ -91,7 +103,7 @@ export const decodeImageChoiceInput = Schema.decodeUnknownSync(
 
 export const decodeGarmentCareInput = Schema.decodeUnknownSync(
   Schema.Struct({
-    id: Schema.UUID,
-    care: Schema.Literal('laundry', 'washed'),
+    id: UuidSchema,
+    care: Schema.Literals(['laundry', 'washed']),
   }),
 );

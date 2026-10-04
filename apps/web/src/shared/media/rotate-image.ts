@@ -1,4 +1,4 @@
-import { Data, Effect, Schema } from 'effect';
+import { Effect, Schema } from 'effect';
 import sharp from 'sharp';
 import { maximumSourcePixels } from './image-limits.ts';
 
@@ -11,7 +11,7 @@ export const imageRotations = [
   halfTurn,
   threeQuarterTurn,
 ] as const;
-export const ImageRotationSchema = Schema.Literal(...imageRotations);
+export const ImageRotationSchema = Schema.Literals(imageRotations);
 export type ImageRotation = Schema.Schema.Type<typeof ImageRotationSchema>;
 
 export type SourcePhoto = {
@@ -19,10 +19,10 @@ export type SourcePhoto = {
   readonly mime: string;
 };
 
-export class ImageRotationError extends Data.TaggedError('ImageRotationError')<{
-  readonly message: string;
-  readonly cause: unknown;
-}> {}
+export class ImageRotationError extends Schema.TaggedError<ImageRotationError>()(
+  'ImageRotationError',
+  { message: Schema.String, cause: Schema.Defect() },
+) {}
 
 /** Uploads already have EXIF orientation baked into their pixels by the browser. */
 export const rotateImage = (photo: SourcePhoto, clockwise: ImageRotation) =>

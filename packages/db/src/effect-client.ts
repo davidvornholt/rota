@@ -1,23 +1,22 @@
 /**
- * The Effect SQL client, built on the pool this package already hands out.
+ * The Effect SQL client.
  *
- * `PgClient.layer` would open a pool of its own from a connection string, which
- * would mean two pools against one database and the connection settings written
- * down twice — once here and once wherever better-auth's adapter is wired. The
- * pool stays the app's, created once by `createPool`, and this wraps it.
+ * Effect 4's `@effect/sql-pg` speaks the Postgres wire protocol itself and no
+ * longer wraps a `pg` pool, so this client keeps a small pool of its own next
+ * to the `pg` pool that better-auth's Drizzle adapter uses. Both read the same
+ * connection string, so the settings are still written down once.
  *
- * `acquire` therefore only hands the pool over: it does not open one and it must
- * not close one. The pool outlives every Effect scope in the process, because
- * better-auth holds the same object and knows nothing about Effect's scopes.
+ * The layer owns its connections: they open lazily, idle ones close again, and
+ * closing the layer's scope closes the pool. Build it once per process and
+ * share the result, because every build opens another pool.
  */
 
-import type { SqlClient } from '@effect/sql/SqlClient';
-import type { SqlError } from '@effect/sql/SqlError';
 import { PgClient } from '@effect/sql-pg';
-import { Effect, type Layer } from 'effect';
-import type pg from 'pg';
+import { type Layer, Redacted } from 'effect';
+import type { SqlClient } from 'effect/sql/SqlClient';
+import type { SqlError } from 'effect/sql/SqlError';
 
 export const pgClientLayer = (
-  pool: pg.Pool,
+  connectionString: string,
 ): Layer.Layer<PgClient.PgClient | SqlClient, SqlError> =>
-  PgClient.layerFromPool({ acquire: Effect.succeed(pool) });
+  PgClient.layer({ url: Redacted.make(connectionString) });

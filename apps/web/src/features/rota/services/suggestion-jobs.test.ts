@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { Effect, Fiber, TestClock, TestContext } from 'effect';
+import { Effect, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { localDate } from '#/shared/time/local-date.ts';
 import { ProposalStateError } from '../errors/rota-errors.ts';
 import { makeSuggestionJobs } from './suggestion-jobs.ts';
@@ -7,7 +8,7 @@ import { makeSuggestionJobs } from './suggestion-jobs.ts';
 const today = localDate('2026-09-20');
 const tomorrow = localDate('2026-09-21');
 const run = <A, E>(work: Effect.Effect<A, E>) =>
-  Effect.runPromise(work.pipe(Effect.provide(TestContext.TestContext)));
+  Effect.runPromise(work.pipe(Effect.provide(TestClock.layer())));
 
 describe('background outfit suggestions', () => {
   it('returns immediately and deduplicates concurrent requests and completed retries', async () => {
@@ -41,7 +42,7 @@ describe('background outfit suggestions', () => {
     await run(
       Effect.gen(function* () {
         const jobs = makeSuggestionJobs();
-        const request = yield* Effect.fork(
+        const request = yield* Effect.forkChild(
           jobs.start(today, 'first', Effect.sleep('1 second')),
         );
         expect((yield* Fiber.join(request)).status).toBe('running');

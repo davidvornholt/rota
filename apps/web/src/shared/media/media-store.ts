@@ -7,7 +7,7 @@
  */
 
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { Effect } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 
 import { type MediaStoreConfig, mediaStoreConfig } from '#/shared/env.ts';
 import { MediaStoreError } from './errors/media-errors.ts';
@@ -116,10 +116,10 @@ const backendFor = (config: MediaStoreConfig): Backend =>
     ? localBackend(config.MEDIA_LOCAL_DIR)
     : s3Backend(config);
 
-export class MediaStore extends Effect.Service<MediaStore>()(
+export class MediaStore extends Context.Service<MediaStore>()(
   'shared/MediaStore',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const backend = backendFor(mediaStoreConfig);
 
       const put = (
@@ -179,4 +179,6 @@ export class MediaStore extends Effect.Service<MediaStore>()(
       return { put, get, variant, warm, urlFor };
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(MediaStore, MediaStore.make);
+}

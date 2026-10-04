@@ -4,14 +4,8 @@ import {
   type ConverseCommandOutput,
   ThrottlingException,
 } from '@aws-sdk/client-bedrock-runtime';
-import {
-  Deferred,
-  Effect,
-  Fiber,
-  Schema,
-  TestClock,
-  TestContext,
-} from 'effect';
+import { Deferred, Effect, Fiber, Schema } from 'effect';
+import { TestClock } from 'effect/testing';
 import { type GenerateJsonInput, makeGenerateJson } from './bedrock-request.ts';
 
 const input: GenerateJsonInput<{ choice: string }, { choice: string }> = {
@@ -91,13 +85,13 @@ describe('Bedrock outfit requests', () => {
           finish = resolve;
         });
       }, 'test-model');
-      const fiber = yield* Effect.fork(generate(input));
+      const fiber = yield* Effect.forkChild(generate(input));
       yield* Deferred.await(started);
       yield* TestClock.adjust('200 seconds');
-      expect((yield* Fiber.poll(fiber))._tag).toBe('None');
+      expect(fiber.pollUnsafe()).toBeUndefined();
       finish?.(answer('{"choice":"chinos"}'));
       return yield* Fiber.join(fiber);
-    }).pipe(Effect.provide(TestContext.TestContext));
+    }).pipe(Effect.provide(TestClock.layer()));
     expect(await Effect.runPromise(result)).toEqual({ choice: 'chinos' });
   });
 
@@ -114,14 +108,14 @@ describe('Bedrock outfit requests', () => {
         Effect.runSync(Deferred.succeed(started, undefined));
         return new Promise(() => undefined);
       }, 'test-model');
-      const fiber = yield* Effect.fork(Effect.either(generate(input)));
+      const fiber = yield* Effect.forkChild(Effect.result(generate(input)));
       yield* Deferred.await(started);
       yield* TestClock.adjust('301 seconds');
       return yield* Fiber.join(fiber);
-    }).pipe(Effect.provide(TestContext.TestContext));
+    }).pipe(Effect.provide(TestClock.layer()));
     expect(await Effect.runPromise(result)).toMatchObject({
-      _tag: 'Left',
-      left: { _tag: 'BedrockError', reason: 'timeout' },
+      _tag: 'Failure',
+      failure: { _tag: 'BedrockError', reason: 'timeout' },
     });
     expect(aborted).toBeTrue();
     expect(calls).toBe(1);
@@ -134,8 +128,8 @@ describe('Bedrock outfit requests', () => {
       return Promise.resolve(answer('{"choice":42}'));
     }, 'test-model');
     expect(
-      await Effect.runPromise(Effect.either(generate(input))),
-    ).toMatchObject({ _tag: 'Left', left: { reason: 'answer' } });
+      await Effect.runPromise(Effect.result(generate(input))),
+    ).toMatchObject({ _tag: 'Failure', failure: { reason: 'answer' } });
     expect(calls).toBe(1);
   });
 });
@@ -149,8 +143,8 @@ it.each(['max_tokens', 'guardrail_intervened'] as const)(
       return Promise.resolve({ ...answer('{"choice":"chinos"}'), stopReason });
     }, 'test-model');
     expect(
-      await Effect.runPromise(Effect.either(generate(input))),
-    ).toMatchObject({ _tag: 'Left', left: { reason: 'answer' } });
+      await Effect.runPromise(Effect.result(generate(input))),
+    ).toMatchObject({ _tag: 'Failure', failure: { reason: 'answer' } });
     expect(calls).toBe(1);
   },
 );
@@ -176,13 +170,13 @@ it('retries a throttled Bedrock attempt and keeps high effort for garment reques
       }
       return Promise.resolve(answer('{"choice":"chinos"}'));
     }, 'test-model');
-    const fiber = yield* Effect.fork(
+    const fiber = yield* Effect.forkChild(
       generate({ ...input, purpose: 'garment' }),
     );
     yield* Deferred.await(started);
     yield* TestClock.adjust('3 seconds');
     return yield* Fiber.join(fiber);
-  }).pipe(Effect.provide(TestContext.TestContext));
+  }).pipe(Effect.provide(TestClock.layer()));
   expect(await Effect.runPromise(result)).toEqual({ choice: 'chinos' });
   expect(calls).toBe(2);
 });
@@ -198,8 +192,8 @@ it('does not retry an access denial', async () => {
       }),
     );
   }, 'test-model');
-  expect(await Effect.runPromise(Effect.either(generate(input)))).toMatchObject(
-    { _tag: 'Left', left: { reason: 'request' } },
+  expect(await Effect.runPromise(Effect.result(generate(input)))).toMatchObject(
+    { _tag: 'Failure', failure: { reason: 'request' } },
   );
   expect(calls).toBe(1);
 });

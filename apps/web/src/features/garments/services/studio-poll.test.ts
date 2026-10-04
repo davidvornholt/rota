@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { Effect, Fiber, TestClock, TestContext } from 'effect';
+import { Effect, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import type { StudioState } from '#/shared/ai/studio-progress.ts';
 import { pollStudioRender } from './studio-poll.ts';
 
@@ -15,13 +16,13 @@ describe('studio polling', () => {
         Effect.gen(function* () {
           const fiber = yield* pollStudioRender(() =>
             Promise.resolve({ studioState, studioError: null }),
-          ).pipe(Effect.fork);
+          ).pipe(Effect.forkChild);
           yield* TestClock.adjust('30 minutes');
-          expect(yield* Fiber.poll(fiber)).toMatchObject({ _tag: 'None' });
+          expect(fiber.pollUnsafe()).toBeUndefined();
           studioState = { status: 'succeeded' };
           yield* TestClock.adjust('2 seconds');
           expect(yield* Fiber.join(fiber)).toMatchObject({ studioState });
-        }).pipe(Effect.provide(TestContext.TestContext)),
+        }).pipe(Effect.provide(TestClock.layer())),
       );
     },
     longQueueSimulationTimeoutMs,
@@ -32,13 +33,13 @@ describe('studio polling', () => {
       Effect.gen(function* () {
         const fiber = yield* pollStudioRender(
           () => new Promise<never>(() => undefined),
-        ).pipe(Effect.either, Effect.fork);
+        ).pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust('32 seconds');
         expect(yield* Fiber.join(fiber)).toMatchObject({
-          _tag: 'Left',
-          left: { _tag: 'StudioRequestError' },
+          _tag: 'Failure',
+          failure: { _tag: 'StudioRequestError' },
         });
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
   });
 
@@ -50,15 +51,15 @@ describe('studio polling', () => {
             studioState: { status: 'failed' } as const,
             studioError: 'The provider timed out.',
           }),
-        ).pipe(Effect.either, Effect.fork);
+        ).pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust('2 seconds');
         expect(yield* Fiber.join(fiber)).toMatchObject({
-          _tag: 'Left',
-          left: {
+          _tag: 'Failure',
+          failure: {
             message: 'The studio render failed: The provider timed out.',
           },
         });
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
   });
 });

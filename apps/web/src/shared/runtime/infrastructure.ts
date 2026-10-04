@@ -4,21 +4,22 @@ import {
   WardrobeOwner,
 } from '#/shared/auth/identity.ts';
 /**
- * Everything a feature needs from below it: the SQL client over the one pool,
- * the repositories, the media store, the two model clients, and the weather
- * API. Features add their own services on top and turn the result into a
- * runtime with `featureRuntime`, which is the one place an Effect becomes the
- * promise TanStack Start speaks in.
+ * Everything a feature needs from below it: the SQL client, the repositories,
+ * the media store, the two model clients, and the weather API. Features add
+ * their own services on top and turn the result into a runtime with
+ * `featureRuntime`, which is the one place an Effect becomes the promise
+ * TanStack Start speaks in.
  *
  * Nothing here runs at import. Building a runtime reads the validated
  * environment and touches the pool, and the client bundle imports route files
  * that import features; a pool opened there would be a pool opened in a browser.
  */
 
-import type { SqlClient } from '@effect/sql/SqlClient';
-import type { SqlError } from '@effect/sql/SqlError';
+import type { PgClient } from '@effect/sql-pg';
 import { pgClientLayer } from '@rota/db/effect-client';
 import { Cause, Effect, type Fiber, Layer, ManagedRuntime } from 'effect';
+import type { SqlClient } from 'effect/sql/SqlClient';
+import type { SqlError } from 'effect/sql/SqlError';
 
 import { Bedrock } from '#/shared/ai/bedrock.ts';
 import { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
@@ -29,7 +30,7 @@ import { ProposalRepository } from '#/shared/data/proposal-repository.ts';
 import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { WeatherRepository } from '#/shared/data/weather-repository.ts';
-import { pool } from '#/shared/db/pool.ts';
+import { env } from '#/shared/env.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import { WeatherApi } from '#/shared/weather/open-meteo.ts';
 
@@ -47,30 +48,45 @@ export type Infrastructure =
   | StudioRenderer
   | WeatherApi;
 
+/**
+ * The SQL client owns a connection pool, so it is built once per process and
+ * shared by every wardrobe's runtime. The repositories above it are built per
+ * runtime, because each one is bound to its owner.
+ */
+let sqlRuntime:
+  | ManagedRuntime.ManagedRuntime<PgClient.PgClient | SqlClient, SqlError>
+  | undefined;
+const sharedSqlLayer = Layer.effectContext(
+  Effect.suspend(() => {
+    sqlRuntime ??= ManagedRuntime.make(pgClientLayer(env.DATABASE_URL));
+    return sqlRuntime.contextEffect;
+  }),
+);
+
 export const infrastructureLayer: Layer.Layer<
   Infrastructure,
   SqlError,
   WardrobeOwner
 > = Layer.mergeAll(
-  GarmentRepository.Default,
-  WearLogRepository.Default,
-  ProposalRepository.Default,
-  OutfitRepository.Default,
-  SettingsRepository.Default,
-  WeatherRepository.Default,
-  DayNoteRepository.Default,
-  MediaStore.Default,
-  Bedrock.Default,
-  StudioRenderer.Default,
-  WeatherApi.Default,
-).pipe(Layer.provideMerge(Layer.suspend(() => pgClientLayer(pool))));
+  GarmentRepository.layer,
+  WearLogRepository.layer,
+  ProposalRepository.layer,
+  OutfitRepository.layer,
+  SettingsRepository.layer,
+  WeatherRepository.layer,
+  DayNoteRepository.layer,
+  MediaStore.layer,
+  Bedrock.layer,
+  StudioRenderer.layer,
+  WeatherApi.layer,
+).pipe(Layer.provideMerge(sharedSqlLayer));
 
 const logged = <A, E, R>(
   label: string,
   effect: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R> =>
   effect.pipe(
-    Effect.tapErrorCause((cause) => Effect.logError(`${label} failed.`, cause)),
+    Effect.tapCause((cause) => Effect.logError(`${label} failed.`, cause)),
     Effect.tapDefect((defect) =>
       Effect.logError(`${label} died.`, Cause.die(defect)),
     ),
@@ -114,7 +130,7 @@ export const featureRuntime = <R, E>(
 
   const fork = <A, E2>(
     effect: Effect.Effect<A, E2, Services>,
-  ): Fiber.RuntimeFiber<A, E | E2 | SqlError> =>
+  ): Fiber.Fiber<A, E | E2 | SqlError> =>
     get(currentIdentity()).runFork(logged(label, effect));
 
   return { run, fork };

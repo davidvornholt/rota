@@ -53,7 +53,7 @@ describe('picture copy warm-up', () => {
       warm: () => Deferred.await(gate),
     });
     const first = Effect.runFork(warmup);
-    await Effect.runPromise(Effect.yieldNow());
+    await Effect.runPromise(Effect.yieldNow);
     expect(await Effect.runPromise(warmup)).toBe(0);
     await Effect.runPromise(Deferred.succeed(gate, undefined));
     expect(await Effect.runPromise(Fiber.join(first))).toBe(1);

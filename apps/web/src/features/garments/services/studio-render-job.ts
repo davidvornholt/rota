@@ -17,17 +17,25 @@ export const withStudioPersistenceDeadline = <A, E, R>(
   work: Effect.Effect<A, E, R>,
 ) =>
   work.pipe(
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: studioPersistenceTimeout,
-      onTimeout: () =>
-        new StudioRenderError({ message: saveErrorMessage, cause: undefined }),
+      orElse: () =>
+        Effect.fail(
+          new StudioRenderError({
+            message: saveErrorMessage,
+            cause: undefined,
+          }),
+        ),
     }),
   );
 
 type StudioDependencies = {
-  readonly garments: Pick<GarmentRepository, 'attachImage' | 'setImageChoice'>;
-  readonly media: Pick<MediaStore, 'put'>;
-  readonly studio: Pick<StudioRenderer, 'render'>;
+  readonly garments: Pick<
+    GarmentRepository['Service'],
+    'attachImage' | 'setImageChoice'
+  >;
+  readonly media: Pick<MediaStore['Service'], 'put'>;
+  readonly studio: Pick<StudioRenderer['Service'], 'render'>;
 };
 
 type RenderJobInput<E> = {
@@ -89,22 +97,24 @@ export const renderStudio = <E>(
   });
 
 export const makeStudioWork =
-  (garments: Pick<GarmentRepository, 'setStudioError'>) =>
+  (garments: Pick<GarmentRepository['Service'], 'setStudioError'>) =>
   <E>(id: string, render: Effect.Effect<void, E>) => {
     const setStudioError = (message: string | null) =>
       garments.setStudioError(id, message).pipe(
-        Effect.timeoutFail({
+        Effect.timeoutOrElse({
           duration: studioErrorTimeout,
-          onTimeout: () =>
-            new StudioRenderError({
-              message: saveErrorMessage,
-              cause: undefined,
-            }),
+          orElse: () =>
+            Effect.fail(
+              new StudioRenderError({
+                message: saveErrorMessage,
+                cause: undefined,
+              }),
+            ),
         }),
       );
     const recordStudioError = (message: string) =>
       setStudioError(message).pipe(
-        Effect.catchAllCause((cause) =>
+        Effect.catchCause((cause) =>
           Effect.logWarning('Could not record the studio error.', cause).pipe(
             Effect.asVoid,
           ),
@@ -112,7 +122,7 @@ export const makeStudioWork =
       );
     return setStudioError(null).pipe(
       Effect.andThen(render),
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         Effect.logWarning(
           `Studio render failed for garment ${id}.`,
           error,
@@ -126,7 +136,7 @@ export const makeStudioWork =
           ),
         ),
       ),
-      Effect.catchAllCause((cause) =>
+      Effect.catchCause((cause) =>
         Effect.logWarning('Could not finish the studio job.', cause).pipe(
           Effect.andThen(recordStudioError(saveErrorMessage)),
         ),

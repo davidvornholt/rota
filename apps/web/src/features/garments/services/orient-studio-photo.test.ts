@@ -1,5 +1,5 @@
 import { expect, it, mock } from 'bun:test';
-import { Effect, Schema } from 'effect';
+import { Effect, Schema, Struct } from 'effect';
 import sharp from 'sharp';
 import type { GenerateJsonInput } from '#/shared/ai/bedrock-request.ts';
 import { BedrockError } from '#/shared/ai/errors/ai-errors.ts';
@@ -25,7 +25,9 @@ it('analyzes the original on regeneration and applies the reported rotation', as
     expect(input.parts[0]).toEqual({
       image: { mimeType: photo.mime, data: photo.bytes },
     });
-    return Schema.decodeUnknown(input.schema)({ rotationClockwise: 180 }).pipe(
+    return Schema.decodeUnknownEffect(input.schema)({
+      rotationClockwise: 180,
+    }).pipe(
       Effect.mapError(
         (cause) =>
           new BedrockError({
@@ -55,13 +57,13 @@ it('propagates analyzer failures without silently rendering an unprepared photo'
     orientStudioPhoto(
       { generateJson: () => Effect.fail(failure) },
       { bytes: pixels, mime: 'image/png' },
-    ).pipe(Effect.either),
+    ).pipe(Effect.result),
   );
-  expect(result).toMatchObject({ _tag: 'Left', left: failure });
+  expect(result).toMatchObject({ _tag: 'Failure', failure });
 });
 
 it('requires the same rotation contract during initial garment analysis', () => {
-  const schema = ExtractionSchema.pipe(Schema.pick('rotationClockwise'));
+  const schema = ExtractionSchema.mapFields(Struct.pick(['rotationClockwise']));
   expect(Schema.is(schema)({ rotationClockwise: 180 })).toBe(true);
   expect(Schema.is(schema)({ rotationClockwise: 45 })).toBe(false);
   expect(Schema.is(schema)({})).toBe(false);

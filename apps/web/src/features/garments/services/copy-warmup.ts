@@ -36,7 +36,7 @@ export const makeCopyWarmup = <R>({
       for (const key of batch) {
         yield* warm(key).pipe(
           Effect.tap(() => Effect.sync(() => ready.add(key))),
-          Effect.catchAll((error) =>
+          Effect.catch((error) =>
             Effect.logWarning(
               'Could not prepare smaller copies of a stored picture.',
               error,
@@ -46,7 +46,7 @@ export const makeCopyWarmup = <R>({
       }
       return batch.length;
     }).pipe(
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         Effect.logWarning(
           'Could not list stored pictures to prepare copies.',
           error,

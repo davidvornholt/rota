@@ -1,6 +1,6 @@
-import { Data } from 'effect';
+import { Schema } from 'effect';
 
-export class WeatherError extends Data.TaggedError('WeatherError')<{
-  readonly message: string;
-  readonly cause: unknown;
-}> {}
+export class WeatherError extends Schema.TaggedError<WeatherError>()(
+  'WeatherError',
+  { message: Schema.String, cause: Schema.Defect() },
+) {}

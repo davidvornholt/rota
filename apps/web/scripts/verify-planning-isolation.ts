@@ -10,14 +10,14 @@ import { defaultSettings } from '#/shared/data/settings.ts';
 import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 
-const isolationRuntime = (pool: ReturnType<typeof createPool>, id: string) =>
+const isolationRuntime = (databaseUrl: string, id: string) =>
   ManagedRuntime.make(
     Layer.mergeAll(
-      GarmentRepository.Default,
-      OutfitRepository.Default,
-      SettingsRepository.Default,
+      GarmentRepository.layer,
+      OutfitRepository.layer,
+      SettingsRepository.layer,
     ).pipe(
-      Layer.provide(pgClientLayer(pool)),
+      Layer.provide(pgClientLayer(databaseUrl)),
       Layer.provide(
         Layer.succeed(WardrobeOwner, {
           id,
@@ -32,9 +32,10 @@ const isolationRuntime = (pool: ReturnType<typeof createPool>, id: string) =>
 /** Exercise the new planning writes under two distinct wardrobe identities. */
 export const verifyPlanningIsolation = async (
   pool: ReturnType<typeof createPool>,
+  databaseUrl: string,
 ) => {
   const runtimes = ['planning-first', 'planning-second'].map((id) =>
-    isolationRuntime(pool, id),
+    isolationRuntime(databaseUrl, id),
   );
   const [first, second] = runtimes;
   assert(first && second);

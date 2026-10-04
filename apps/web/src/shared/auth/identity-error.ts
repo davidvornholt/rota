@@ -1,4 +1,5 @@
-import { Data } from 'effect';
-export class IdentityRequired extends Data.TaggedError('IdentityRequired')<{
-  readonly message: string;
-}> {}
+import { Schema } from 'effect';
+export class IdentityRequired extends Schema.TaggedError<IdentityRequired>()(
+  'IdentityRequired',
+  { message: Schema.String },
+) {}

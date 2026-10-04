@@ -11,34 +11,42 @@ import {
   scaleMaximum,
   scaleMinimum,
 } from './garment-types.ts';
+import { UuidSchema } from './uuid-schema.ts';
 
-export const SlotSchema: Schema.Schema<Slot> = Schema.Literal(
+export const SlotSchema: Schema.Codec<Slot> = Schema.Literals([
   'bottom',
   'under',
   'top',
   'over',
   'shoes',
   'bag',
+]);
+
+export const GarmentStatusSchema: Schema.Codec<GarmentStatus> = Schema.Literals(
+  ['processing', 'review', 'active', 'retired'],
 );
 
-export const GarmentStatusSchema: Schema.Schema<GarmentStatus> = Schema.Literal(
-  'processing',
-  'review',
-  'active',
-  'retired',
-);
-
-export const ImageChoiceSchema: Schema.Schema<ImageChoice> = Schema.Literal(
+export const ImageChoiceSchema: Schema.Codec<ImageChoice> = Schema.Literals([
   'studio',
   'original',
+]);
+
+const hexColor = Schema.String.check(Schema.isPattern(/^#[0-9a-fA-F]{6}$/u));
+
+/**
+ * A colour is exactly `{ hex }`. Decoding a struct strips unknown keys, so the
+ * record form keeps them visible long enough to reject the retired `name`.
+ */
+export const GarmentColorSchema = Schema.Record(Schema.String, hexColor).pipe(
+  Schema.refine(
+    (color): color is GarmentColor =>
+      Object.keys(color).length === 1 && Object.hasOwn(color, 'hex'),
+    { expected: 'a colour with only a hex value' },
+  ),
 );
 
-export const GarmentColorSchema: Schema.Schema<GarmentColor> = Schema.Struct({
-  hex: Schema.String.pipe(Schema.pattern(/^#[0-9a-fA-F]{6}$/u)),
-}).annotations({ parseOptions: { onExcessProperty: 'error' } });
-
-export const GarmentCategorySchema: Schema.Schema<GarmentCategory> =
-  Schema.Literal(...garmentCategories);
+export const GarmentCategorySchema: Schema.Codec<GarmentCategory> =
+  Schema.Literals(garmentCategories);
 
 export const GarmentImageSchema = Schema.Struct({
   key: Schema.String,
@@ -48,8 +56,8 @@ export const GarmentImageSchema = Schema.Struct({
 });
 export type GarmentImage = Schema.Schema.Type<typeof GarmentImageSchema>;
 
-export const GarmentScaleSchema = Schema.Int.pipe(
-  Schema.between(scaleMinimum, scaleMaximum),
+export const GarmentScaleSchema = Schema.Int.check(
+  Schema.isBetween({ minimum: scaleMinimum, maximum: scaleMaximum }),
 );
 
 const NumericFromRow = Schema.NullOr(Schema.NumberFromString);
@@ -61,32 +69,20 @@ const NumericFromRow = Schema.NullOr(Schema.NumberFromString);
  * already parsed, jsonb already objects.
  */
 export const GarmentFromRow = Schema.Struct({
-  id: Schema.UUID,
+  id: UuidSchema,
   status: GarmentStatusSchema,
   name: Schema.String,
   category: Schema.String,
   subcategory: Schema.String,
   slots: Schema.Array(SlotSchema),
   warmth: GarmentScaleSchema,
-  rainOk: Schema.propertySignature(Schema.Boolean).pipe(
-    Schema.fromKey('rain_ok'),
-  ),
+  rainOk: Schema.Boolean,
   formality: GarmentScaleSchema,
-  wearBudget: Schema.propertySignature(Schema.NullOr(Schema.Number)).pipe(
-    Schema.fromKey('wear_budget'),
-  ),
-  washedOn: Schema.propertySignature(Schema.NullOr(LocalDateSchema)).pipe(
-    Schema.fromKey('washed_on'),
-  ),
-  washedAfterWear: Schema.propertySignature(Schema.Boolean).pipe(
-    Schema.fromKey('washed_after_wear'),
-  ),
-  laundryStartedOn: Schema.propertySignature(
-    Schema.NullOr(LocalDateSchema),
-  ).pipe(Schema.fromKey('laundry_started_on')),
-  laundryReadyOn: Schema.propertySignature(Schema.NullOr(LocalDateSchema)).pipe(
-    Schema.fromKey('laundry_ready_on'),
-  ),
+  wearBudget: Schema.NullOr(Schema.Number),
+  washedOn: Schema.NullOr(LocalDateSchema),
+  washedAfterWear: Schema.Boolean,
+  laundryStartedOn: Schema.NullOr(LocalDateSchema),
+  laundryReadyOn: Schema.NullOr(LocalDateSchema),
   colors: Schema.Array(GarmentColorSchema),
   pattern: Schema.String,
   material: Schema.String,
@@ -95,29 +91,32 @@ export const GarmentFromRow = Schema.Struct({
   brand: Schema.String,
   notes: Schema.String,
   price: NumericFromRow,
-  purchasedOn: Schema.propertySignature(Schema.NullOr(LocalDateSchema)).pipe(
-    Schema.fromKey('purchased_on'),
-  ),
-  imageChoice: Schema.propertySignature(ImageChoiceSchema).pipe(
-    Schema.fromKey('image_choice'),
-  ),
-  processingError: Schema.propertySignature(Schema.NullOr(Schema.String)).pipe(
-    Schema.fromKey('processing_error'),
-  ),
-  studioError: Schema.propertySignature(Schema.NullOr(Schema.String)).pipe(
-    Schema.fromKey('studio_error'),
-  ),
-  retiredAt: Schema.propertySignature(
-    Schema.NullOr(Schema.ValidDateFromSelf),
-  ).pipe(Schema.fromKey('retired_at')),
-  createdAt: Schema.propertySignature(Schema.ValidDateFromSelf).pipe(
-    Schema.fromKey('created_at'),
-  ),
+  purchasedOn: Schema.NullOr(LocalDateSchema),
+  imageChoice: ImageChoiceSchema,
+  processingError: Schema.NullOr(Schema.String),
+  studioError: Schema.NullOr(Schema.String),
+  retiredAt: Schema.NullOr(Schema.Date),
+  createdAt: Schema.Date,
   images: Schema.Struct({
     original: Schema.optional(GarmentImageSchema),
     studio: Schema.optional(GarmentImageSchema),
   }),
-});
+}).pipe(
+  Schema.encodeKeys({
+    rainOk: 'rain_ok',
+    wearBudget: 'wear_budget',
+    washedOn: 'washed_on',
+    washedAfterWear: 'washed_after_wear',
+    laundryStartedOn: 'laundry_started_on',
+    laundryReadyOn: 'laundry_ready_on',
+    purchasedOn: 'purchased_on',
+    imageChoice: 'image_choice',
+    processingError: 'processing_error',
+    studioError: 'studio_error',
+    retiredAt: 'retired_at',
+    createdAt: 'created_at',
+  }),
+);
 
 export type Garment = Schema.Schema.Type<typeof GarmentFromRow>;
 

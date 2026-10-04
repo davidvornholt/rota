@@ -1,30 +1,32 @@
-import { SqlClient } from '@effect/sql';
-import { Effect, Schema } from 'effect';
+import { Context, Effect, Layer, Schema } from 'effect';
+import { SqlClient } from 'effect/sql';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
+import { UuidSchema } from '#/shared/data/uuid-schema.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import { readError, writeError } from './errors/data-errors.ts';
 import { SlotSchema } from './garment.ts';
 import type { Slot } from './garment-types.ts';
 
-export const WearSourceSchema = Schema.Literal(
+export const WearSourceSchema = Schema.Literals([
   'proposed',
   'override',
   'backfill',
   'edited',
-);
+]);
 export type WearSource = Schema.Schema.Type<typeof WearSourceSchema>;
 
 export const WearEntryFromRow = Schema.Struct({
-  wornOn: Schema.propertySignature(LocalDateSchema).pipe(
-    Schema.fromKey('worn_on'),
-  ),
-  garmentId: Schema.propertySignature(Schema.UUID).pipe(
-    Schema.fromKey('garment_id'),
-  ),
+  wornOn: LocalDateSchema,
+  garmentId: UuidSchema,
   slot: SlotSchema,
   source: WearSourceSchema,
-});
+}).pipe(
+  Schema.encodeKeys({
+    wornOn: 'worn_on',
+    garmentId: 'garment_id',
+  }),
+);
 
 export type WearEntry = Schema.Schema.Type<typeof WearEntryFromRow>;
 
@@ -33,14 +35,16 @@ export type OutfitEntry = {
   readonly slot: Slot;
 };
 
-const decodeEntries = Schema.decodeUnknown(Schema.Array(WearEntryFromRow));
+const decodeEntries = Schema.decodeUnknownEffect(
+  Schema.Array(WearEntryFromRow),
+);
 const readLog = readError('The wear log');
 const writeLog = writeError('The wear log');
 
-export class WearLogRepository extends Effect.Service<WearLogRepository>()(
+export class WearLogRepository extends Context.Service<WearLogRepository>()(
   'shared/WearLogRepository',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const owner = yield* WardrobeOwner;
 
@@ -91,4 +95,9 @@ export class WearLogRepository extends Effect.Service<WearLogRepository>()(
       return { listBetween, readDay, history, replaceDay };
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    WearLogRepository,
+    WearLogRepository.make,
+  );
+}

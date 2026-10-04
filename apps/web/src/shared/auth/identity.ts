@@ -19,7 +19,6 @@ export const currentIdentity = (): Identity => {
   }
   return identity;
 };
-export class WardrobeOwner extends Context.Tag('shared/WardrobeOwner')<
-  WardrobeOwner,
-  Identity
->() {}
+export class WardrobeOwner extends Context.Service<WardrobeOwner, Identity>()(
+  'shared/WardrobeOwner',
+) {}

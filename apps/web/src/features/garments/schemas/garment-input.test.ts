@@ -1,5 +1,5 @@
 import { expect, it } from 'bun:test';
-import { Schema } from 'effect';
+import { Schema, Struct } from 'effect';
 
 import {
   AcceptGarmentInputSchema,
@@ -23,7 +23,7 @@ it.each([
       UpdateGarmentInputSchema,
       RetryStudioInputSchema,
     ]) {
-      const schema = input.fields.edit.pipe(Schema.pick('colors'));
+      const schema = input.fields.edit.mapFields(Struct.pick(['colors']));
       expect(
         Schema.is(schema)({
           colors: Array.from({ length: count }, () => color),
@@ -34,7 +34,9 @@ it.each([
 );
 
 it('bounds render instructions and accepts an empty instruction', () => {
-  const schema = RetryStudioInputSchema.pipe(Schema.pick('instructions'));
+  const schema = RetryStudioInputSchema.mapFields(
+    Struct.pick(['instructions']),
+  );
   expect(Schema.is(schema)({ instructions: '' })).toBe(true);
   expect(
     Schema.is(schema)({ instructions: 'x'.repeat(renderInstructionsLength) }),

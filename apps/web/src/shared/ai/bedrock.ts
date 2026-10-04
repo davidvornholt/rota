@@ -2,13 +2,13 @@ import {
   BedrockRuntimeClient,
   ConverseCommand,
 } from '@aws-sdk/client-bedrock-runtime';
-import { Effect } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 import { env } from '#/shared/env.ts';
 import { makeGenerateJson } from './bedrock-request.ts';
 import { makeUsageLedger } from './usage-ledger.ts';
 
-export class Bedrock extends Effect.Service<Bedrock>()('shared/Bedrock', {
-  effect: Effect.gen(function* () {
+export class Bedrock extends Context.Service<Bedrock>()('shared/Bedrock', {
+  make: Effect.gen(function* () {
     const ledger = yield* makeUsageLedger;
     const client = new BedrockRuntimeClient({
       region: env.AWS_REGION,
@@ -45,4 +45,6 @@ export class Bedrock extends Effect.Service<Bedrock>()('shared/Bedrock', {
       )(input);
     return { generateJson, model };
   }),
-}) {}
+}) {
+  static readonly layer = Layer.effect(Bedrock, Bedrock.make);
+}

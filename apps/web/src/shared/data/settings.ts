@@ -7,29 +7,27 @@ export const SettingsSchema = Schema.Struct({
   cleanTopAnchor: Schema.NullOr(LocalDateSchema),
   laundryDays: Schema.Number,
   cooldownDays: Schema.Number,
-  categoryBudgets: Schema.Record({ key: Schema.String, value: Schema.Number }),
+  categoryBudgets: Schema.Record(Schema.String, Schema.Number),
   proposalHour: Schema.Number,
 });
 export type Settings = Schema.Schema.Type<typeof SettingsSchema>;
 
 export const SettingsFromRow = Schema.Struct({
-  laundryDays: Schema.propertySignature(Schema.Number).pipe(
-    Schema.fromKey('laundry_days'),
-  ),
+  laundryDays: Schema.Number,
   location: Schema.NullOr(LocationSchema),
-  cleanTopAnchor: Schema.propertySignature(Schema.NullOr(LocalDateSchema)).pipe(
-    Schema.fromKey('clean_top_anchor'),
-  ),
-  cooldownDays: Schema.propertySignature(Schema.Number).pipe(
-    Schema.fromKey('cooldown_days'),
-  ),
-  categoryBudgets: Schema.propertySignature(
-    Schema.Record({ key: Schema.String, value: Schema.Number }),
-  ).pipe(Schema.fromKey('category_budgets')),
-  proposalHour: Schema.propertySignature(Schema.Number).pipe(
-    Schema.fromKey('proposal_hour'),
-  ),
-});
+  cleanTopAnchor: Schema.NullOr(LocalDateSchema),
+  cooldownDays: Schema.Number,
+  categoryBudgets: Schema.Record(Schema.String, Schema.Number),
+  proposalHour: Schema.Number,
+}).pipe(
+  Schema.encodeKeys({
+    laundryDays: 'laundry_days',
+    cleanTopAnchor: 'clean_top_anchor',
+    cooldownDays: 'cooldown_days',
+    categoryBudgets: 'category_budgets',
+    proposalHour: 'proposal_hour',
+  }),
+);
 
 export const defaultSettings: Settings = {
   location: null,

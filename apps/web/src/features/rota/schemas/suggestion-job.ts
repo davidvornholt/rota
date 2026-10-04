@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
 import { OutfitEntriesSchema } from '#/shared/data/outfit.ts';
+import { UuidSchema } from '#/shared/data/uuid-schema.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 
@@ -14,12 +15,12 @@ export const decodeSuggestionStart = Schema.decodeUnknownSync(
   Schema.Struct({
     date: LocalDateSchema,
     entries: OutfitEntriesSchema,
-    requestId: Schema.UUID,
+    requestId: UuidSchema,
   }),
 );
 export const decodeSuggestionStatus = Schema.decodeUnknownSync(
   Schema.Struct({
     date: LocalDateSchema,
-    requestId: Schema.NullOr(Schema.UUID),
+    requestId: Schema.NullOr(UuidSchema),
   }),
 );

@@ -220,11 +220,11 @@ try {
   const runtimes = [admin.memberId, alex.id].map((id) =>
     ManagedRuntime.make(
       Layer.mergeAll(
-        GarmentRepository.Default,
-        DayNoteRepository.Default,
-        SettingsRepository.Default,
+        GarmentRepository.layer,
+        DayNoteRepository.layer,
+        SettingsRepository.layer,
       ).pipe(
-        Layer.provide(pgClientLayer(pool)),
+        Layer.provide(pgClientLayer(databaseUrl.href)),
         Layer.provide(
           Layer.succeed(WardrobeOwner, {
             id,

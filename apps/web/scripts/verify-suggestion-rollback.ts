@@ -1,7 +1,7 @@
 // biome-ignore-all lint/suspicious/noMisplacedAssertion: This helper belongs to the executable planning database smoke check, which uses node:assert.
 import assert from 'node:assert/strict';
-import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
+import { SqlClient } from 'effect/sql';
 import { suggestPlanning } from '#/features/rota/services/planning-service.ts';
 import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
 import { ProposalRepository } from '#/shared/data/proposal-repository.ts';
@@ -40,15 +40,15 @@ export const verifySuggestionRollback = (
         target === 'plan'
           ? sql`drop trigger fail_test_write on day_plan`
           : sql`drop trigger fail_test_write on proposal`;
-      const result = yield* Effect.either(suggestPlanning(clock, pinned)).pipe(
+      const result = yield* Effect.result(suggestPlanning(clock, pinned)).pipe(
         Effect.ensuring(
           dropTrigger.pipe(
-            Effect.zipRight(sql`drop function fail_test_write()`),
+            Effect.andThen(sql`drop function fail_test_write()`),
             Effect.orDie,
           ),
         ),
       );
-      assert.equal(result._tag, 'Left');
+      assert.equal(result._tag, 'Failure');
       assert.deepEqual(
         yield* outfits.plan(clock.today),
         previousPlan,

@@ -1,5 +1,5 @@
-import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
+import { SqlClient } from 'effect/sql';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { writeError } from '#/shared/data/errors/data-errors.ts';
 import { cleanTopOn, garmentCare } from '#/shared/data/garment-care.ts';

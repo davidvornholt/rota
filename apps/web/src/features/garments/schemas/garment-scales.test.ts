@@ -1,14 +1,14 @@
 import { expect, it } from 'bun:test';
-import { Schema } from 'effect';
+import { Schema, Struct } from 'effect';
 
 import { GarmentFromRow } from '#/shared/data/garment.ts';
 import { ExtractionSchema } from './extraction.ts';
 import { GarmentEditSchema } from './garment-input.ts';
 
 const schemas = [
-  GarmentFromRow.pipe(Schema.pick('warmth', 'formality')),
-  ExtractionSchema.pipe(Schema.pick('warmth', 'formality')),
-  GarmentEditSchema.pipe(Schema.pick('warmth', 'formality')),
+  GarmentFromRow.to.mapFields(Struct.pick(['warmth', 'formality'])),
+  ExtractionSchema.mapFields(Struct.pick(['warmth', 'formality'])),
+  GarmentEditSchema.mapFields(Struct.pick(['warmth', 'formality'])),
 ];
 
 it.each([

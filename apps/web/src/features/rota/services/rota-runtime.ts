@@ -12,10 +12,10 @@ import { TodayService } from './today-service.ts';
 
 /** The rota feature's runtime, in its own server-only module. */
 export const rotaRuntime = featureRuntime('rota', () =>
-  TodayService.Default.pipe(
-    Layer.provideMerge(ProposalService.Default),
-    Layer.provideMerge(ForecastService.Default),
-    Layer.merge(SuggestionJobs.Default),
+  TodayService.layer.pipe(
+    Layer.provideMerge(ProposalService.layer),
+    Layer.provideMerge(ForecastService.layer),
+    Layer.merge(SuggestionJobs.layer),
   ),
 );
 

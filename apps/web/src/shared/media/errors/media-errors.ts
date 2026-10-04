@@ -1,6 +1,6 @@
-import { Data } from 'effect';
+import { Schema } from 'effect';
 
-export class MediaStoreError extends Data.TaggedError('MediaStoreError')<{
-  readonly message: string;
-  readonly cause: unknown;
-}> {}
+export class MediaStoreError extends Schema.TaggedError<MediaStoreError>()(
+  'MediaStoreError',
+  { message: Schema.String, cause: Schema.Defect() },
+) {}

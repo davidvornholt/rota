@@ -114,12 +114,12 @@ describe('source photo rotation', () => {
 
     const result = await Effect.runPromise(
       rotateImage({ bytes, mime: 'image/png' }, quarterTurn).pipe(
-        Effect.either,
+        Effect.result,
       ),
     );
     expect(result).toMatchObject({
-      _tag: 'Left',
-      left: { _tag: 'ImageRotationError' },
+      _tag: 'Failure',
+      failure: { _tag: 'ImageRotationError' },
     });
   });
 
@@ -149,11 +149,11 @@ describe('source photo rotation', () => {
       rotateImage(
         { bytes: new Uint8Array([1]), mime: 'image/png' },
         halfTurn,
-      ).pipe(Effect.either),
+      ).pipe(Effect.result),
     );
     expect(result).toMatchObject({
-      _tag: 'Left',
-      left: { _tag: 'ImageRotationError' },
+      _tag: 'Failure',
+      failure: { _tag: 'ImageRotationError' },
     });
   });
 

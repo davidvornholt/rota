@@ -1,4 +1,4 @@
-import { Data, Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import { pool } from '#/shared/db/pool.ts';
 import { apiPrice } from './api-prices.ts';
@@ -10,9 +10,9 @@ import {
   type TokenUsage,
 } from './usage-cost.ts';
 
-class UsageError extends Data.TaggedError('UsageError')<{
-  readonly message: string;
-}> {}
+class UsageError extends Schema.TaggedError<UsageError>()('UsageError', {
+  message: Schema.String,
+}) {}
 const usageAmounts = (
   tokens: TokenUsage | null,
   price: TokenPrices | undefined,

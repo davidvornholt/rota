@@ -1,8 +1,9 @@
-import { Data, Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 
-class ServerRequestError extends Data.TaggedError('ServerRequestError')<{
-  readonly message: string;
-}> {}
+class ServerRequestError extends Schema.TaggedError<ServerRequestError>()(
+  'ServerRequestError',
+  { message: Schema.String },
+) {}
 
 /** Reject proxy failures before TanStack tries to decode them as RPC results. */
 export const serverFunctionFetch = (...args: Parameters<typeof fetch>) =>
