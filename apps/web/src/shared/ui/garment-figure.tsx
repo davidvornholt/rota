@@ -36,6 +36,9 @@ const revealOnLoad = (image: HTMLImageElement | null) => {
   };
 };
 
+/** One shared empty default, so a garment without colours keeps a stable prop. */
+const noColors: ReadonlyArray<GarmentColor> = [];
+
 /**
  * A garment's picture in the fixed 3:4 frame. A studio render sits on the
  * paper; a phone photo fills the frame. A garment still without a picture shows
@@ -44,7 +47,7 @@ const revealOnLoad = (image: HTMLImageElement | null) => {
 export const GarmentFigure = ({
   image,
   name,
-  colors = [],
+  colors = noColors,
   className = '',
   sizes,
   loading = 'lazy',
