@@ -6,8 +6,7 @@
   "exports": {
     "./schema": "./src/schema.ts",
     "./auth-schema": "./src/auth-schema.ts",
-    "./pool": "./src/pool.ts",
-    "./effect-client": "./src/effect-client.ts",
+    "./connections": "./src/connections.ts",
     "./migrate": "./src/migrate.ts"
   },
   "scripts": {
@@ -19,10 +18,9 @@
     "db:studio": "bun --env-file=.env.local run drizzle-kit studio"
   },
   "dependencies": {
-    "@effect/sql": "^0.52.1",
-    "@effect/sql-pg": "^0.53.0",
+    "@effect/sql-pg": "^4.0.1",
     "drizzle-orm": "^0.45.3",
-    "effect": "^3.22.2",
+    "effect": "^4.0.1",
     "pg": "^8.23.1"
   },
   "devDependencies": {

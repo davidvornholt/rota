@@ -1,21 +1,22 @@
-import { SqlClient } from '@effect/sql';
-import { Effect, Schema } from 'effect';
+import { Context, Effect, Layer, Schema } from 'effect';
+import { SqlClient } from 'effect/sql';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
+import { UuidSchema } from '#/shared/data/uuid-schema.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import { notFound, readError, writeError } from './errors/data-errors.ts';
 import { SlotSchema } from './garment.ts';
 
-export const ProposalStatusSchema = Schema.Literal(
+export const ProposalStatusSchema = Schema.Literals([
   'pending',
   'confirmed',
   'rejected',
   'superseded',
-);
+]);
 export type ProposalStatus = Schema.Schema.Type<typeof ProposalStatusSchema>;
 
 export const ProposalItemSchema = Schema.Struct({
-  garmentId: Schema.UUID,
+  garmentId: UuidSchema,
   slot: SlotSchema,
   /** True when the engine carried the garment over from yesterday. */
   continued: Schema.Boolean,
@@ -31,38 +32,40 @@ export const ProposalPayloadSchema = Schema.Struct({
   /** The one line the morning opens with, in the app's voice. */
   headline: Schema.String,
   /** Garments this proposal was told not to use (today's rejections). */
-  excludedGarmentIds: Schema.Array(Schema.UUID),
+  excludedGarmentIds: Schema.Array(UuidSchema),
   forecastStale: Schema.Boolean,
   occasion: Schema.NullOr(Schema.String),
 });
 export type ProposalPayload = Schema.Schema.Type<typeof ProposalPayloadSchema>;
 
 export const ProposalFromRow = Schema.Struct({
-  id: Schema.UUID,
-  forDate: Schema.propertySignature(LocalDateSchema).pipe(
-    Schema.fromKey('for_date'),
-  ),
+  id: UuidSchema,
+  forDate: LocalDateSchema,
   status: ProposalStatusSchema,
   payload: ProposalPayloadSchema,
   reason: Schema.String,
   model: Schema.String,
-  createdAt: Schema.propertySignature(Schema.ValidDateFromSelf).pipe(
-    Schema.fromKey('created_at'),
-  ),
-  decidedAt: Schema.propertySignature(
-    Schema.NullOr(Schema.ValidDateFromSelf),
-  ).pipe(Schema.fromKey('decided_at')),
-});
+  createdAt: Schema.Date,
+  decidedAt: Schema.NullOr(Schema.Date),
+}).pipe(
+  Schema.encodeKeys({
+    forDate: 'for_date',
+    createdAt: 'created_at',
+    decidedAt: 'decided_at',
+  }),
+);
 export type Proposal = Schema.Schema.Type<typeof ProposalFromRow>;
 
-const decodeProposals = Schema.decodeUnknown(Schema.Array(ProposalFromRow));
+const decodeProposals = Schema.decodeUnknownEffect(
+  Schema.Array(ProposalFromRow),
+);
 const readProposal = readError('The proposal');
 const writeProposal = writeError('The proposal');
 
-export class ProposalRepository extends Effect.Service<ProposalRepository>()(
+export class ProposalRepository extends Context.Service<ProposalRepository>()(
   'shared/ProposalRepository',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const owner = yield* WardrobeOwner;
 
@@ -148,4 +151,9 @@ export class ProposalRepository extends Effect.Service<ProposalRepository>()(
       return { listForDate, latestForDate, byId, insert, setStatus, history };
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    ProposalRepository,
+    ProposalRepository.make,
+  );
+}

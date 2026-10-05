@@ -1,7 +1,7 @@
 import { Effect, Layer } from 'effect';
 import { asIdentity, type Identity } from '#/shared/auth/identity.ts';
 import { ensureOwner } from '#/shared/auth/session.ts';
-import { pool } from '#/shared/db/pool.ts';
+import { pool } from '#/shared/db/database.ts';
 
 import { featureRuntime } from '#/shared/runtime/infrastructure.ts';
 import { readWardrobeClock } from '#/shared/time/wardrobe-clock.ts';
@@ -12,10 +12,10 @@ import { TodayService } from './today-service.ts';
 
 /** The rota feature's runtime, in its own server-only module. */
 export const rotaRuntime = featureRuntime('rota', () =>
-  TodayService.Default.pipe(
-    Layer.provideMerge(ProposalService.Default),
-    Layer.provideMerge(ForecastService.Default),
-    Layer.merge(SuggestionJobs.Default),
+  TodayService.layer.pipe(
+    Layer.provideMerge(ProposalService.layer),
+    Layer.provideMerge(ForecastService.layer),
+    Layer.merge(SuggestionJobs.layer),
   ),
 );
 

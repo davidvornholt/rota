@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createPool } from '@rota/db/connections';
 import { migrateDatabase, migrationFolder } from '@rota/db/migrate';
-import { createPool } from '@rota/db/pool';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Effect } from 'effect';
@@ -122,7 +122,7 @@ try {
     { preconnect: originalFetch.preconnect },
   );
   const { handleAuth } = await import('../src/shared/auth/auth.ts');
-  appPool = (await import('../src/shared/db/pool.ts')).pool;
+  appPool = (await import('../src/shared/db/database.ts')).pool;
   const cookie = (response: Response) =>
     response.headers
       .getSetCookie()

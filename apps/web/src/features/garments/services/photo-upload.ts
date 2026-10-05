@@ -57,7 +57,7 @@ export const validateUpload = (upload: Upload): UploadError | undefined => {
 };
 
 export const storeUpload = (
-  { media }: { readonly media: Pick<MediaStore, 'put'> },
+  { media }: { readonly media: Pick<MediaStore['Service'], 'put'> },
   upload: Upload,
 ) =>
   Effect.gen(function* () {
@@ -82,10 +82,10 @@ export const storeUpload = (
 
 type ReplacePhotoDependencies = {
   readonly garments: Pick<
-    GarmentRepository,
+    GarmentRepository['Service'],
     'byId' | 'attachImage' | 'setImageChoice'
   >;
-  readonly media: Pick<MediaStore, 'put'>;
+  readonly media: Pick<MediaStore['Service'], 'put'>;
 };
 
 /**

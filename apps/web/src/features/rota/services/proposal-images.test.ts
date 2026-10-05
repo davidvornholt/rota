@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { Effect, Fiber, TestClock, TestContext } from 'effect';
+import { Effect, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { MediaStoreError } from '#/shared/media/errors/media-errors.ts';
 import { proposalImages } from './proposal-images.ts';
 
@@ -47,11 +48,11 @@ describe('proposal image preparation', () => {
             ),
         },
         [candidate('shirt')],
-      ).pipe(Effect.either),
+      ).pipe(Effect.result),
     );
     expect(result).toMatchObject({
-      _tag: 'Left',
-      left: { _tag: 'ProposalGenerationError' },
+      _tag: 'Failure',
+      failure: { _tag: 'ProposalGenerationError' },
     });
   });
 
@@ -71,17 +72,17 @@ describe('proposal image preparation', () => {
               ),
           },
           [candidate('shirt')],
-        ).pipe(Effect.either, Effect.fork);
+        ).pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust('20 seconds');
         expect(yield* Fiber.join(task)).toMatchObject({
-          _tag: 'Left',
-          left: {
+          _tag: 'Failure',
+          failure: {
             _tag: 'ProposalGenerationError',
             cause: 'Image read deadline exceeded.',
           },
         });
         expect(interrupted).toBe(true);
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
   });
 
@@ -112,18 +113,18 @@ describe('proposal image preparation', () => {
               ),
           },
           candidates,
-        ).pipe(Effect.either, Effect.fork);
+        ).pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust('45 seconds');
         expect(yield* Fiber.join(task)).toMatchObject({
-          _tag: 'Left',
-          left: {
+          _tag: 'Failure',
+          failure: {
             _tag: 'ProposalGenerationError',
             cause: 'Image preparation deadline exceeded.',
           },
         });
         expect(peak).toBe(expectedConcurrency);
         expect(active).toBe(0);
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
   });
 });

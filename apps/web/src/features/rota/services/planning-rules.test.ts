@@ -28,8 +28,8 @@ it('restricts planning to the wardrobe’s today and tomorrow', async () => {
   );
   for (const date of ['2026-09-18', '2026-09-21']) {
     expect(
-      Effect.runSync(Effect.either(dateClock(clock, localDate(date))))._tag,
-    ).toBe('Left');
+      Effect.runSync(Effect.result(dateClock(clock, localDate(date))))._tag,
+    ).toBe('Failure');
   }
 });
 it('projects a saved plan only when actual wear is not known', () => {
@@ -57,8 +57,8 @@ it('applies alternate-day clean tops across month boundaries with per-day overri
 it('rejects incomplete outfits, repeated pieces and invalid slots before persistence', () => {
   for (const invalid of [[], entries, [...entries, ...entries]]) {
     expect(
-      Effect.runSync(Effect.either(validateEntries(invalid, [], true)))._tag,
-    ).toBe('Left');
+      Effect.runSync(Effect.result(validateEntries(invalid, [], true)))._tag,
+    ).toBe('Failure');
   }
 });
 it('warns on meaningful weather changes without replacing a plan', () => {

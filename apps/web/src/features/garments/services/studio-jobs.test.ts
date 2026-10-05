@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { Effect, TestClock, TestContext } from 'effect';
+import { Effect } from 'effect';
+import { TestClock } from 'effect/testing';
 import { makeStudioJobs } from './studio-jobs.ts';
 
 describe('studio jobs', () => {
@@ -22,7 +23,7 @@ describe('studio jobs', () => {
         yield* jobs.start('shirt', work);
         yield* TestClock.adjust('1 second');
         expect(starts).toBe(2);
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
   });
 
@@ -44,7 +45,7 @@ describe('studio jobs', () => {
         yield* TestClock.adjust('1 second');
         expect(jobs.progress().size).toBe(0);
         expect(snapshot.size).toBe(1);
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
   });
   it('cleans up an interrupted job so a later request can run', async () => {
@@ -58,7 +59,7 @@ describe('studio jobs', () => {
         expect(jobs.progress().has('shirt')).toBe(true);
         yield* TestClock.adjust('1 second');
         expect(jobs.progress().size).toBe(0);
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
   });
 });

@@ -7,7 +7,7 @@ import {
   privateResponseHeaders,
 } from '#/shared/auth/private-response.ts';
 import { guardedRoute } from '#/shared/auth/route-guard.ts';
-import { pool } from '#/shared/db/pool.ts';
+import { pool } from '#/shared/db/database.ts';
 import { isMediaKey, mimeOfKey } from '#/shared/media/media-keys.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import { requestedVariant } from '#/shared/media/media-variants.ts';

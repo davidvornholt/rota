@@ -1,5 +1,5 @@
 import { Effect, ManagedRuntime } from 'effect';
-import { pool } from '#/shared/db/pool.ts';
+import { pool } from '#/shared/db/database.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import { makeCopyWarmup } from './copy-warmup.ts';
 
@@ -12,7 +12,7 @@ let runtime: ManagedRuntime.ManagedRuntime<MediaStore, never> | undefined;
  * wardrobe, and feature runtimes are built per wardrobe.
  */
 export const warmMediaCopies = (): Promise<number> => {
-  runtime ??= ManagedRuntime.make(MediaStore.Default);
+  runtime ??= ManagedRuntime.make(MediaStore.layer);
   warmup ??= makeCopyWarmup({
     storedKeys: Effect.tryPromise(() =>
       pool.query<{ key: string }>(

@@ -8,5 +8,5 @@ import { IngestService } from './ingest.ts';
  */
 export const garmentsRuntime = featureRuntime(
   'garments',
-  () => IngestService.Default,
+  () => IngestService.layer,
 );

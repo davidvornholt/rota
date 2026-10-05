@@ -6,7 +6,7 @@ export const authResponse = (
 ): Promise<Response> =>
   Effect.runPromise(
     Effect.tryPromise(work).pipe(
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         Effect.logError(
           'Authentication request failed.',
           Cause.die(error),

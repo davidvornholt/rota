@@ -4,7 +4,7 @@
  * clock instead of by you.
  */
 
-import { Effect } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import type { Garment } from '#/shared/data/garment.ts';
@@ -49,7 +49,7 @@ const orProblem = <A, E, R>(
 > =>
   effect.pipe(
     Effect.map((value) => ({ value, problem: null }) as const),
-    Effect.catchAll((error) => {
+    Effect.catch((error) => {
       const problem = problemOf(error);
       return problem === undefined
         ? Effect.fail(error)
@@ -93,10 +93,10 @@ const assembleView = (parts: ViewParts): TodayView => {
   };
 };
 
-export class TodayService extends Effect.Service<TodayService>()(
+export class TodayService extends Context.Service<TodayService>()(
   'rota/TodayService',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const garments = yield* GarmentRepository;
       const wearLog = yield* WearLogRepository;
       const proposals = yield* ProposalRepository;
@@ -179,4 +179,6 @@ export class TodayService extends Effect.Service<TodayService>()(
       };
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(TodayService, TodayService.make);
+}

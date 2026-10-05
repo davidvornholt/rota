@@ -1,12 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, spyOn } from 'bun:test';
-import {
-  Deferred,
-  Effect,
-  Fiber,
-  type Layer,
-  TestClock,
-  TestContext,
-} from 'effect';
+import { Deferred, Effect, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { StudioRenderError } from './errors/ai-errors.ts';
 import { makeStudioRenderer } from './studio-service.ts';
 
@@ -44,13 +38,8 @@ afterAll(() => {
   fetchSpy.mockRestore();
 });
 
-const run = <A, E>(
-  effect: Effect.Effect<
-    A,
-    E,
-    Layer.Layer.Success<typeof TestContext.TestContext>
-  >,
-) => Effect.runPromise(effect.pipe(Effect.provide(TestContext.TestContext)));
+const run = <A, E>(effect: Effect.Effect<A, E, never>) =>
+  Effect.runPromise(effect.pipe(Effect.provide(TestClock.layer())));
 
 describe('studio image requests', () => {
   it('retries 429 and retains the opaque fallback after transparency is refused', async () => {
@@ -80,7 +69,7 @@ describe('studio image requests', () => {
                 ? Deferred.succeed(waiting, undefined).pipe(Effect.asVoid)
                 : Effect.void,
           )
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         yield* Deferred.await(waiting);
         expect(fetchSpy).toHaveBeenCalledTimes(2);
         yield* TestClock.adjust('2 seconds');
@@ -108,14 +97,14 @@ describe('studio image requests', () => {
       const result = await run(
         Effect.gen(function* () {
           const studio = yield* makeStudioRenderer(connection);
-          return yield* Effect.either(
+          return yield* Effect.result(
             studio.render(Effect.succeed(input), () => Effect.void),
           );
         }),
       );
       expect(result).toMatchObject({
-        _tag: 'Left',
-        left: { _tag: 'StudioRenderError' },
+        _tag: 'Failure',
+        failure: { _tag: 'StudioRenderError' },
       });
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     },
@@ -137,15 +126,17 @@ describe('studio deadlines', () => {
               ? Deferred.succeed(waiting, undefined).pipe(Effect.asVoid)
               : Effect.void,
           )
-          .pipe(Effect.either, Effect.fork);
+          .pipe(Effect.result, Effect.forkChild);
         yield* Deferred.await(waiting);
         yield* TestClock.adjust('10 minutes');
         return yield* Fiber.join(job);
       }),
     );
     expect(result).toMatchObject({
-      _tag: 'Left',
-      left: { message: 'The studio picture took too long. Try again later.' },
+      _tag: 'Failure',
+      failure: {
+        message: 'The studio picture took too long. Try again later.',
+      },
     });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -171,11 +162,11 @@ describe('studio deadlines', () => {
         const studio = yield* makeStudioRenderer(connection);
         const job = yield* studio
           .render(Effect.succeed(input), () => Effect.void)
-          .pipe(Effect.either, Effect.fork);
+          .pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust('4 minutes');
         expect(yield* Fiber.join(job)).toMatchObject({
-          _tag: 'Left',
-          left: { message: 'The studio render timed out.' },
+          _tag: 'Failure',
+          failure: { message: 'The studio render timed out.' },
         });
         expect(signal?.aborted).toBe(true);
         expect(
@@ -208,7 +199,7 @@ describe('concurrent studio fallbacks', () => {
         const studio = yield* makeStudioRenderer(connection);
         const first = yield* studio
           .render(Effect.succeed(input), () => Effect.void)
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         yield* TestClock.adjust('1 millis');
         const second = yield* studio
           .render(Effect.succeed(input), (state) =>
@@ -216,7 +207,7 @@ describe('concurrent studio fallbacks', () => {
               ? Deferred.succeed(busy, undefined).pipe(Effect.asVoid)
               : Effect.void,
           )
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         yield* Deferred.await(busy);
         yield* Deferred.succeed(
           refusal,
@@ -262,7 +253,7 @@ describe('studio source preparation', () => {
                 }),
                 () => Effect.void,
               )
-              .pipe(Effect.fork),
+              .pipe(Effect.forkChild),
         );
         yield* TestClock.adjust('1 second');
         expect(preparations).toBe(2);
@@ -282,13 +273,13 @@ describe('studio source preparation', () => {
         const blockers = yield* Effect.forEach([0, 1], () =>
           studio
             .render(Effect.never, () => Effect.void)
-            .pipe(Effect.either, Effect.fork),
+            .pipe(Effect.result, Effect.forkChild),
         );
         yield* TestClock.adjust('1 second');
         const next = yield* Effect.forEach([0, 1], () =>
           studio
             .render(Effect.never, () => Effect.void)
-            .pipe(Effect.either, Effect.fork),
+            .pipe(Effect.result, Effect.forkChild),
         );
         yield* TestClock.adjust('1 second');
         let prepared = false;
@@ -300,7 +291,7 @@ describe('studio source preparation', () => {
             }),
             () => Effect.void,
           )
-          .pipe(Effect.either, Effect.fork);
+          .pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust('10 minutes');
         yield* Fiber.interrupt(queued);
         expect(prepared).toBe(false);
@@ -331,14 +322,14 @@ describe('studio preparation recovery', () => {
             Deferred.await(prepared).pipe(Effect.as(input)),
             () => Effect.void,
           )
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         const second = yield* studio
           .render(Effect.succeed(input), (state) =>
             state.status === 'waiting'
               ? Deferred.succeed(waiting, undefined).pipe(Effect.asVoid)
               : Effect.void,
           )
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         yield* Deferred.await(waiting);
         yield* Deferred.succeed(prepared, undefined);
         yield* TestClock.adjust('1 second');
@@ -364,8 +355,8 @@ describe('studio preparation recovery', () => {
           expect(
             yield* studio
               .render(Effect.fail(failure), () => Effect.void)
-              .pipe(Effect.either),
-          ).toMatchObject({ _tag: 'Left', left: failure });
+              .pipe(Effect.result),
+          ).toMatchObject({ _tag: 'Failure', failure });
         }
         expect(fetchSpy).not.toHaveBeenCalled();
         expect(

@@ -78,12 +78,12 @@ describe('image resizing', () => {
   it('returns a typed failure for unreadable bytes', async () => {
     const result = await Effect.runPromise(
       resizeImage(new TextEncoder().encode('not an image'), smallWidth).pipe(
-        Effect.either,
+        Effect.result,
       ),
     );
     expect(result).toMatchObject({
-      _tag: 'Left',
-      left: { _tag: 'ImageResizeError' },
+      _tag: 'Failure',
+      failure: { _tag: 'ImageResizeError' },
     });
   });
 });

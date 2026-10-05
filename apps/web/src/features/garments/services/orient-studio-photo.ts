@@ -8,7 +8,7 @@ import {
 
 /** Retries need only orientation, leaving the owner's edited attributes alone. */
 export const orientStudioPhoto = (
-  bedrock: Pick<Bedrock, 'generateJson'>,
+  bedrock: Pick<Bedrock['Service'], 'generateJson'>,
   photo: SourcePhoto,
 ) =>
   Effect.gen(function* () {

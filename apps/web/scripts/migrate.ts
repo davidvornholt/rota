@@ -1,5 +1,5 @@
+import { createPool } from '@rota/db/connections';
 import { migrateDatabase } from '@rota/db/migrate';
-import { createPool } from '@rota/db/pool';
 import { Effect } from 'effect';
 
 const databaseUrl = Bun.env.DATABASE_URL;

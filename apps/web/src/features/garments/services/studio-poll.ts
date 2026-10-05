@@ -1,11 +1,12 @@
-import { Data, Duration, Effect } from 'effect';
+import { Duration, Effect, Schema } from 'effect';
 import { studioPollRequestTimeout } from '#/shared/ai/studio-budgets.ts';
 import type { StudioState } from '#/shared/ai/studio-progress.ts';
 import { isRendering } from '#/shared/data/garment-view.ts';
 
-export class StudioRequestError extends Data.TaggedError('StudioRequestError')<{
-  readonly message: string;
-}> {}
+export class StudioRequestError extends Schema.TaggedError<StudioRequestError>()(
+  'StudioRequestError',
+  { message: Schema.String },
+) {}
 
 export const studioRequest = <A>(run: () => Promise<A>) =>
   Effect.tryPromise({
@@ -18,13 +19,15 @@ export const studioRequest = <A>(run: () => Promise<A>) =>
             : 'The studio request failed. Try again.',
       }),
   }).pipe(
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: studioPollRequestTimeout,
-      onTimeout: () =>
-        new StudioRequestError({
-          message:
-            'The studio status could not be checked. Refresh to check its progress.',
-        }),
+      orElse: () =>
+        Effect.fail(
+          new StudioRequestError({
+            message:
+              'The studio status could not be checked. Refresh to check its progress.',
+          }),
+        ),
     }),
   );
 

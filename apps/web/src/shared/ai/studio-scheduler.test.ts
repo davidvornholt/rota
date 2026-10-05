@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import {
-  Clock,
-  Duration,
-  Effect,
-  Fiber,
-  type Layer,
-  TestClock,
-  TestContext,
-} from 'effect';
+import { Clock, Duration, Effect, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { StudioRateLimit, StudioRenderError } from './errors/ai-errors.ts';
 import type { StudioProgress } from './studio-progress.ts';
 import { makeStudioScheduler, retryDelay } from './studio-scheduler.ts';
@@ -19,13 +12,8 @@ const limited = (milliseconds: string | null, seconds: string | null = null) =>
     retryAfterSeconds: seconds,
     cause: undefined,
   });
-const run = <A, E>(
-  effect: Effect.Effect<
-    A,
-    E,
-    Layer.Layer.Success<typeof TestContext.TestContext>
-  >,
-) => Effect.runPromise(effect.pipe(Effect.provide(TestContext.TestContext)));
+const run = <A, E>(effect: Effect.Effect<A, E, never>) =>
+  Effect.runPromise(effect.pipe(Effect.provide(TestClock.layer())));
 
 const expectedAttempts = 4;
 const firstBackoffMinimum = 2000;
@@ -88,7 +76,7 @@ describe('studio rate limits', () => {
               progress.push(state);
             }),
           )
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         yield* TestClock.adjust('1999 millis');
         expect(calls).toBe(1);
         expect(progress.at(-1)).toEqual({ status: 'waiting', retryAt: 2000 });
@@ -112,14 +100,14 @@ describe('studio rate limits', () => {
         });
         const first = yield* scheduler
           .schedule(request, () => Effect.void)
-          .pipe(Effect.either, Effect.fork);
+          .pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust('3 seconds');
         const result = yield* Fiber.join(first);
-        expect(result._tag).toBe('Left');
+        expect(result._tag).toBe('Failure');
         expect(calls).toBe(expectedAttempts);
         const second = yield* scheduler
           .schedule(Clock.currentTimeMillis, () => Effect.void)
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         yield* TestClock.adjust('1 second');
         expect(yield* Fiber.join(second)).toBe(nextJobTime);
       }),
@@ -139,11 +127,11 @@ describe('studio rate limits', () => {
         });
         const first = yield* scheduler
           .schedule(request, () => Effect.void)
-          .pipe(Effect.either, Effect.fork);
+          .pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust(Duration.millis(maximumCooldown));
         expect(yield* Fiber.join(first)).toMatchObject({
-          _tag: 'Left',
-          left: {
+          _tag: 'Failure',
+          failure: {
             message: 'The studio picture took too long. Try again later.',
           },
         });
@@ -175,14 +163,14 @@ describe('studio scheduling', () => {
         );
         const blocked = yield* scheduler
           .schedule(Effect.never, () => Effect.void)
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         yield* TestClock.adjust('1 millis');
         const jobs = yield* Effect.all(
           [request, request, request].map((work) =>
             scheduler.schedule(work, () => Effect.void),
           ),
           { concurrency: 'unbounded' },
-        ).pipe(Effect.fork);
+        ).pipe(Effect.forkChild);
         yield* Fiber.interrupt(blocked);
         yield* TestClock.adjust('2 seconds');
         yield* Fiber.join(jobs);
@@ -203,7 +191,7 @@ describe('studio scheduling', () => {
         });
         const job = yield* scheduler
           .schedule(request, () => Effect.void)
-          .pipe(Effect.either, Effect.fork);
+          .pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust('60 seconds');
         yield* Fiber.join(job);
         expect(times).toHaveLength(expectedAttempts);
@@ -215,11 +203,11 @@ describe('studio scheduling', () => {
         });
         const permanent = yield* scheduler
           .schedule(Effect.fail(failed), () => Effect.void)
-          .pipe(Effect.either, Effect.fork);
+          .pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust('60 seconds');
         expect(yield* Fiber.join(permanent)).toMatchObject({
-          _tag: 'Left',
-          left: failed,
+          _tag: 'Failure',
+          failure: failed,
         });
       }),
     );

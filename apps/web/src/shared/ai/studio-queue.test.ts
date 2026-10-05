@@ -1,23 +1,12 @@
 import { describe, expect, it } from 'bun:test';
-import {
-  Clock,
-  Effect,
-  Fiber,
-  type Layer,
-  TestClock,
-  TestContext,
-} from 'effect';
+import { Clock, Effect, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { StudioRateLimit } from './errors/ai-errors.ts';
 import { makeStudioScheduler } from './studio-scheduler.ts';
 
 const twoSlots = [0, 1];
-const run = <A, E>(
-  effect: Effect.Effect<
-    A,
-    E,
-    Layer.Layer.Success<typeof TestContext.TestContext>
-  >,
-) => Effect.runPromise(effect.pipe(Effect.provide(TestContext.TestContext)));
+const run = <A, E>(effect: Effect.Effect<A, E, never>) =>
+  Effect.runPromise(effect.pipe(Effect.provide(TestClock.layer())));
 
 describe('studio queue budgets', () => {
   it('expires stalled active renders and lets the queued job use a released slot', async () => {
@@ -27,18 +16,18 @@ describe('studio queue budgets', () => {
         const blockers = yield* Effect.forEach(twoSlots, () =>
           scheduler
             .schedule(Effect.never, () => Effect.void)
-            .pipe(Effect.either, Effect.fork),
+            .pipe(Effect.result, Effect.forkChild),
         );
         yield* TestClock.adjust('1 second');
         const queued = yield* scheduler
           .schedule(Effect.succeed('picture'), () => Effect.void)
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         yield* TestClock.adjust('10 minutes');
         expect(yield* Fiber.join(queued)).toBe('picture');
         for (const blocker of blockers) {
           expect(yield* Fiber.join(blocker)).toMatchObject({
-            _tag: 'Left',
-            left: {
+            _tag: 'Failure',
+            failure: {
               message: 'The studio picture took too long. Try again later.',
             },
           });
@@ -67,11 +56,11 @@ describe('studio queue budgets', () => {
                 ),
                 () => Effect.void,
               )
-              .pipe(Effect.either, Effect.fork),
+              .pipe(Effect.result, Effect.forkChild),
         );
         yield* TestClock.adjust('24 minutes');
         const results = yield* Effect.forEach(jobs, Fiber.join);
-        expect(results.every((result) => result._tag === 'Right')).toBe(true);
+        expect(results.every((result) => result._tag === 'Success')).toBe(true);
       }),
     );
     expect(completed).toBe(batchSize);
@@ -86,7 +75,7 @@ describe('studio queue cancellation and budgets', () => {
         const blockers = yield* Effect.forEach(twoSlots, () =>
           scheduler
             .schedule(Effect.sleep('9 minutes'), () => Effect.void)
-            .pipe(Effect.fork),
+            .pipe(Effect.forkChild),
         );
         yield* TestClock.adjust('1 second');
         let started = false;
@@ -100,7 +89,7 @@ describe('studio queue cancellation and budgets', () => {
             ),
             () => Effect.void,
           )
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         yield* TestClock.adjust('8 minutes');
         expect(started).toBe(false);
         yield* TestClock.adjust('10 minutes');
@@ -117,13 +106,13 @@ describe('studio queue cancellation and budgets', () => {
         const blockers = yield* Effect.forEach(twoSlots, () =>
           scheduler
             .schedule(Effect.sleep('9 minutes'), () => Effect.void)
-            .pipe(Effect.fork),
+            .pipe(Effect.forkChild),
         );
         yield* TestClock.adjust('1 second');
         const next = yield* Effect.forEach(twoSlots, () =>
           scheduler
             .schedule(Effect.sleep('9 minutes'), () => Effect.void)
-            .pipe(Effect.fork),
+            .pipe(Effect.forkChild),
         );
         yield* TestClock.adjust('1 second');
         let started = false;
@@ -134,7 +123,7 @@ describe('studio queue cancellation and budgets', () => {
             }),
             () => Effect.void,
           )
-          .pipe(Effect.either, Effect.fork);
+          .pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust('10 minutes');
         yield* Fiber.interrupt(queued);
         expect(started).toBe(false);
@@ -146,7 +135,7 @@ describe('studio queue cancellation and budgets', () => {
               Effect.sleep('1 second').pipe(Effect.as('picture')),
               () => Effect.void,
             )
-            .pipe(Effect.fork),
+            .pipe(Effect.forkChild),
         );
         yield* TestClock.adjust('1 second');
         expect(yield* Effect.forEach(jobs, Fiber.join)).toEqual([
@@ -184,7 +173,7 @@ describe('concurrent studio cooldowns', () => {
             }),
             () => Effect.void,
           )
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         const second = yield* scheduler
           .schedule(
             Effect.suspend(() => {
@@ -197,7 +186,7 @@ describe('concurrent studio cooldowns', () => {
             }),
             () => Effect.void,
           )
-          .pipe(Effect.fork);
+          .pipe(Effect.forkChild);
         yield* TestClock.adjust('3 seconds');
         expect(firstCalls).toBe(1);
         expect(secondCalls).toBe(1);

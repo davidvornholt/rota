@@ -1,4 +1,4 @@
-import { Clock, Duration, Effect, Random } from 'effect';
+import { Clock, Duration, Effect, Random, Semaphore } from 'effect';
 import { StudioRateLimit, StudioRenderError } from './errors/ai-errors.ts';
 import { studioRenderTimeout } from './studio-budgets.ts';
 import type { StudioProgress } from './studio-progress.ts';
@@ -66,7 +66,7 @@ export type ReportStudioProgress = (
 
 /** Both process-local slots share provider cooldowns, including exhausted retries. */
 export const makeStudioScheduler = Effect.gen(function* () {
-  const permit = yield* Effect.makeSemaphore(2);
+  const permit = yield* Semaphore.make(2);
   let cooldownUntil = 0;
   const waitForCooldown = (report: ReportStudioProgress) =>
     Effect.gen(function* () {
@@ -125,11 +125,11 @@ export const makeStudioScheduler = Effect.gen(function* () {
       let retries = 0;
       while (true) {
         yield* beforeRequest(report);
-        const result = yield* Effect.either(request);
-        if (result._tag === 'Right') {
-          return result.right;
+        const result = yield* Effect.result(request);
+        if (result._tag === 'Success') {
+          return result.success;
         }
-        const error = result.left;
+        const error = result.failure;
         if (error instanceof StudioRateLimit) {
           retries = yield* handleRateLimit(error, retries, report);
         } else {
@@ -137,13 +137,15 @@ export const makeStudioScheduler = Effect.gen(function* () {
         }
       }
     }).pipe(
-      Effect.timeoutFail({
+      Effect.timeoutOrElse({
         duration: studioRenderTimeout,
-        onTimeout: () =>
-          new StudioRenderError({
-            message: cooldownTimeoutMessage,
-            cause: undefined,
-          }),
+        orElse: () =>
+          Effect.fail(
+            new StudioRenderError({
+              message: cooldownTimeoutMessage,
+              cause: undefined,
+            }),
+          ),
       }),
       (render) =>
         report({ status: 'queued' }).pipe(

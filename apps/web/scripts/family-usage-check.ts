@@ -4,7 +4,7 @@ import { apiPrice } from '../src/shared/ai/api-prices.ts';
 import { estimateUsd } from '../src/shared/ai/usage-cost.ts';
 import { makeUsageLedger } from '../src/shared/ai/usage-ledger.ts';
 import { WardrobeOwner } from '../src/shared/auth/identity.ts';
-import { pool } from '../src/shared/db/pool.ts';
+import { pool } from '../src/shared/db/database.ts';
 
 const databaseCostDecimals = 8;
 export const checkUsage = async (member: { id: string; userId: string }) => {

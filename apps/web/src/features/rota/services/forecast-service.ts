@@ -4,7 +4,7 @@
  * and marked stale, so a network blip never blanks the morning.
  */
 
-import { Effect } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 
 import type { Settings } from '#/shared/data/settings.ts';
 import {
@@ -29,10 +29,10 @@ export type ForecastWindow = {
 
 const upcomingDays = 3;
 
-export class ForecastService extends Effect.Service<ForecastService>()(
+export class ForecastService extends Context.Service<ForecastService>()(
   'rota/ForecastService',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const weatherApi = yield* WeatherApi;
       const weather = yield* WeatherRepository;
 
@@ -105,4 +105,6 @@ export class ForecastService extends Effect.Service<ForecastService>()(
       return { ensure, refresh };
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(ForecastService, ForecastService.make);
+}

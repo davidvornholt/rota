@@ -42,14 +42,14 @@ export const verifyDailyDrafts = (
         'Tomorrow’s dated draft becomes today’s plan without recording wear.',
       );
       assert.equal(
-        (yield* Effect.either(
+        (yield* Effect.result(
           changePlanning(rolledOver, {
             action: 'wear',
             entries: draft,
             basedOn: null,
           }),
         ))._tag,
-        'Left',
+        'Failure',
         'An incomplete draft cannot be recorded as worn.',
       );
     }
@@ -64,14 +64,14 @@ export const verifyDailyDrafts = (
       ],
     ]) {
       assert.equal(
-        (yield* Effect.either(
+        (yield* Effect.result(
           changePlanning(nextClock, {
             action: 'plan',
             entries: invalid,
             basedOn: null,
           }),
         ))._tag,
-        'Left',
+        'Failure',
         'Drafts still validate ownership, uniqueness and slots.',
       );
     }
@@ -98,14 +98,14 @@ export const verifyCare = (
     });
     yield* changePlanning(clock, { action: 'wear', entries, basedOn: null });
     assert.equal(
-      (yield* Effect.either(
+      (yield* Effect.result(
         changePlanning(clock, {
           action: 'plan',
           entries: [],
           basedOn: null,
         }),
       ))._tag,
-      'Left',
+      'Failure',
       'A stale autosave cannot replace a worn day.',
     );
     assert.equal(
@@ -135,24 +135,24 @@ export const verifyCare = (
       ids: [otherTopId],
     });
     assert.equal(
-      (yield* Effect.either(
+      (yield* Effect.result(
         changePlanning(nextClock, {
           action: 'plan',
           entries: swapped,
           basedOn: null,
         }),
       ))._tag,
-      'Right',
+      'Success',
       'Unavailable pieces may remain in a draft.',
     );
     assert.equal(
-      (yield* Effect.either(
+      (yield* Effect.result(
         changePlanning(
           { ...nextClock, actualToday: nextClock.today },
           { action: 'wear', entries: swapped, basedOn: null },
         ),
       ))._tag,
-      'Left',
+      'Failure',
       'Wearing still rejects pieces in laundry.',
     );
   });

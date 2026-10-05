@@ -1,4 +1,4 @@
-import { Cause, Duration, Effect, Exit, Option } from 'effect';
+import { Cause, Context, Duration, Effect, Exit, Layer, Option } from 'effect';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import {
   ProposalGenerationError,
@@ -9,7 +9,7 @@ import type { SuggestionJob } from '../schemas/suggestion-job.ts';
 const retentionMs = Duration.toMillis('1 hour');
 const retainedJobs = 16;
 const failureMessage = (cause: Cause.Cause<unknown>) => {
-  const failure = Cause.failureOption(cause);
+  const failure = Cause.findErrorOption(cause);
   if (Option.isSome(failure)) {
     const error = failure.value;
     if (
@@ -105,14 +105,15 @@ export const makeSuggestionJobs = () => {
         jobs.set(id, job);
         prune(now);
         yield* work.pipe(
-          Effect.timeoutFail({
+          Effect.timeoutOrElse({
             duration: '360 seconds',
-            onTimeout: () => new ProposalGenerationError(true, undefined),
+            orElse: () =>
+              Effect.fail(new ProposalGenerationError(true, undefined)),
           }),
           restore,
           Effect.onExit((exit) => finish(job, exit)),
-          Effect.catchAllCause(() => Effect.void),
-          Effect.forkDaemon,
+          Effect.catchCause(() => Effect.void),
+          Effect.forkDetach,
         );
         return job;
       }),
@@ -143,7 +144,11 @@ export const makeSuggestionJobs = () => {
   return { start, status };
 };
 
-export class SuggestionJobs extends Effect.Service<SuggestionJobs>()(
+export class SuggestionJobs extends Context.Service<SuggestionJobs>()(
   'SuggestionJobs',
-  { sync: makeSuggestionJobs },
-) {}
+  {
+    make: Effect.sync(makeSuggestionJobs),
+  },
+) {
+  static readonly layer = Layer.effect(SuggestionJobs, SuggestionJobs.make);
+}

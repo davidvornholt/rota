@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { Effect, Fiber, TestClock, TestContext } from 'effect';
+import { Effect, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { localDate } from '#/shared/time/local-date.ts';
 import type { SuggestionJob } from '../schemas/suggestion-job.ts';
 import { suggestionRequest, waitForSuggestion } from './suggestion-request.ts';
@@ -22,11 +23,11 @@ describe('suggestion transport', () => {
           return calls === 1
             ? Promise.reject(new Error('disconnected'))
             : Promise.resolve({ ...running, status: 'succeeded' });
-        }).pipe(Effect.fork);
+        }).pipe(Effect.forkChild);
         yield* TestClock.adjust('4 seconds');
         expect((yield* Fiber.join(fiber)).status).toBe('succeeded');
         expect(calls).toBe(2);
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
   });
   it('bounds and aborts unresponsive HTTP requests', async () => {
@@ -36,16 +37,16 @@ describe('suggestion transport', () => {
         const fiber = yield* suggestionRequest((signal) => {
           signals.push(signal);
           return new Promise<never>(() => undefined);
-        }).pipe(Effect.either, Effect.fork);
+        }).pipe(Effect.result, Effect.forkChild);
         yield* TestClock.adjust('50 seconds');
         expect(yield* Fiber.join(fiber)).toMatchObject({
-          _tag: 'Left',
-          left: { _tag: 'SuggestionRequestError' },
+          _tag: 'Failure',
+          failure: { _tag: 'SuggestionRequestError' },
         });
         const maximumAttempts = 3;
         expect(signals).toHaveLength(maximumAttempts);
         expect(signals.every((signal) => signal.aborted)).toBe(true);
-      }).pipe(Effect.provide(TestContext.TestContext)),
+      }).pipe(Effect.provide(TestClock.layer())),
     );
   });
   it('reports terminal generation failure without more polls', async () => {
@@ -57,11 +58,11 @@ describe('suggestion transport', () => {
           message: 'Choosing an outfit timed out.',
         },
         () => Promise.reject(new Error('must not poll')),
-      ).pipe(Effect.either),
+      ).pipe(Effect.result),
     );
     expect(result).toMatchObject({
-      _tag: 'Left',
-      left: { message: 'Choosing an outfit timed out.' },
+      _tag: 'Failure',
+      failure: { message: 'Choosing an outfit timed out.' },
     });
   });
 });

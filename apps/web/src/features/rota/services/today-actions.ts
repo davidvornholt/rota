@@ -9,8 +9,8 @@ import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import type { ProposalService } from './proposal-service.ts';
 
 export type TickDeps = {
-  readonly wearLog: WearLogRepository;
-  readonly proposalService: ProposalService;
+  readonly wearLog: WearLogRepository['Service'];
+  readonly proposalService: ProposalService['Service'];
 };
 
 /**
@@ -36,7 +36,7 @@ export const tick = (
     yield* proposalService.ensure(clock);
     return 'proposed' as const;
   }).pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       Effect.logWarning(
         'The scheduled proposal did not go through.',
         error,

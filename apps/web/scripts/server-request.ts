@@ -19,16 +19,18 @@ export const runServerFunction = (handler: Handler, request: Request) =>
       ),
     catch: privateFailureResponse,
   }).pipe(
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: '420 seconds',
-      onTimeout: () =>
-        new Response(
-          'The request timed out. Refresh to check whether your change completed.',
-          {
-            status: 504,
-            headers: privateResponseHeaders,
-          },
+      orElse: () =>
+        Effect.fail(
+          new Response(
+            'The request timed out. Refresh to check whether your change completed.',
+            {
+              status: 504,
+              headers: privateResponseHeaders,
+            },
+          ),
         ),
     }),
-    Effect.catchAll(Effect.succeed),
+    Effect.catch(Effect.succeed),
   );

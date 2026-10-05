@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Effect, Either } from 'effect';
+import { Effect, Result } from 'effect';
 import { localDate } from '#/shared/time/local-date.ts';
 import { decodeForecast } from './hourly-forecast.ts';
 
@@ -97,10 +97,10 @@ describe('hourly forecast summary', () => {
     (field) => {
       const input = hourlyInput();
       input[field][6] = null;
-      const result = Effect.runSync(Effect.either(decode(input)));
+      const result = Effect.runSync(Effect.result(decode(input)));
       expect(result).toMatchObject({
-        _tag: 'Left',
-        left: { _tag: 'WeatherError' },
+        _tag: 'Failure',
+        failure: { _tag: 'WeatherError' },
       });
     },
   );
@@ -110,7 +110,7 @@ describe('hourly forecast summary', () => {
     const missingEndpoint = 20;
     input.time = input.time.slice(0, missingEndpoint);
     expect(
-      Either.isLeft(Effect.runSync(Effect.either(decode(input)))),
+      Result.isFailure(Effect.runSync(Effect.result(decode(input)))),
     ).toBeTrue();
   });
 

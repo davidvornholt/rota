@@ -1,5 +1,5 @@
-import { SqlClient } from '@effect/sql';
-import { Effect, Schema } from 'effect';
+import { Context, Effect, Layer, Schema } from 'effect';
+import { SqlClient } from 'effect/sql';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
@@ -7,40 +7,36 @@ import type { DailyForecast } from '#/shared/weather/hourly-forecast.ts';
 import { readError, writeError } from './errors/data-errors.ts';
 
 export const WeatherDayFromRow = Schema.Struct({
-  date: Schema.propertySignature(LocalDateSchema).pipe(
-    Schema.fromKey('for_date'),
-  ),
-  issuedOn: Schema.propertySignature(LocalDateSchema).pipe(
-    Schema.fromKey('issued_on'),
-  ),
-  locationLabel: Schema.propertySignature(Schema.String).pipe(
-    Schema.fromKey('location_label'),
-  ),
+  date: LocalDateSchema,
+  issuedOn: LocalDateSchema,
+  locationLabel: Schema.String,
   high: Schema.Number,
   low: Schema.Number,
-  precipitationProbability: Schema.propertySignature(Schema.Number).pipe(
-    Schema.fromKey('precipitation_probability'),
-  ),
-  precipitationMm: Schema.propertySignature(Schema.Number).pipe(
-    Schema.fromKey('precipitation_mm'),
-  ),
-  windKmh: Schema.propertySignature(Schema.Number).pipe(
-    Schema.fromKey('wind_kmh'),
-  ),
-  weatherCode: Schema.propertySignature(Schema.Number).pipe(
-    Schema.fromKey('weather_code'),
-  ),
-});
+  precipitationProbability: Schema.Number,
+  precipitationMm: Schema.Number,
+  windKmh: Schema.Number,
+  weatherCode: Schema.Number,
+}).pipe(
+  Schema.encodeKeys({
+    date: 'for_date',
+    issuedOn: 'issued_on',
+    locationLabel: 'location_label',
+    precipitationProbability: 'precipitation_probability',
+    precipitationMm: 'precipitation_mm',
+    windKmh: 'wind_kmh',
+    weatherCode: 'weather_code',
+  }),
+);
 export type WeatherDay = Schema.Schema.Type<typeof WeatherDayFromRow>;
 
-const decodeDays = Schema.decodeUnknown(Schema.Array(WeatherDayFromRow));
+const decodeDays = Schema.decodeUnknownEffect(Schema.Array(WeatherDayFromRow));
 const readWeather = readError('The forecast');
 const writeWeather = writeError('The forecast');
 
-export class WeatherRepository extends Effect.Service<WeatherRepository>()(
+export class WeatherRepository extends Context.Service<WeatherRepository>()(
   'shared/WeatherRepository',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const owner = yield* WardrobeOwner;
 
@@ -94,4 +90,9 @@ export class WeatherRepository extends Effect.Service<WeatherRepository>()(
       return { readRange, history, store };
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    WeatherRepository,
+    WeatherRepository.make,
+  );
+}

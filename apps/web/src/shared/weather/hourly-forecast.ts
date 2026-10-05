@@ -16,24 +16,29 @@ export const DailyForecastSchema = Schema.Struct({
 
 export type DailyForecast = Schema.Schema.Type<typeof DailyForecastSchema>;
 
-const hourlyField = (wireKey: string) =>
-  Schema.propertySignature(Schema.Array(Schema.NullOr(Schema.Finite))).pipe(
-    Schema.fromKey(wireKey),
-  );
+const hourlyValues = Schema.Array(Schema.NullOr(Schema.Finite));
 
-const localHour = Schema.String.pipe(
-  Schema.pattern(/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):00$/u),
+const localHour = Schema.String.check(
+  Schema.isPattern(/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):00$/u),
 );
 
 const ForecastResponse = Schema.Struct({
   hourly: Schema.Struct({
     time: Schema.Array(localHour),
-    temperatures: hourlyField('temperature_2m'),
-    rainChances: hourlyField('precipitation_probability'),
-    rainAmounts: hourlyField('precipitation'),
-    winds: hourlyField('wind_speed_10m'),
-    weatherCodes: hourlyField('weather_code'),
-  }),
+    temperatures: hourlyValues,
+    rainChances: hourlyValues,
+    rainAmounts: hourlyValues,
+    winds: hourlyValues,
+    weatherCodes: hourlyValues,
+  }).pipe(
+    Schema.encodeKeys({
+      temperatures: 'temperature_2m',
+      rainChances: 'precipitation_probability',
+      rainAmounts: 'precipitation',
+      winds: 'wind_speed_10m',
+      weatherCodes: 'weather_code',
+    }),
+  ),
 });
 
 type Hourly = Schema.Schema.Type<typeof ForecastResponse>['hourly'];
@@ -102,7 +107,7 @@ const summarizeDay = (
 export const decodeForecast = (
   input: unknown,
 ): Effect.Effect<ReadonlyArray<DailyForecast>, WeatherError> =>
-  Schema.decodeUnknown(ForecastResponse)(input).pipe(
+  Schema.decodeUnknownEffect(ForecastResponse)(input).pipe(
     Effect.mapError(
       (cause) =>
         new WeatherError({

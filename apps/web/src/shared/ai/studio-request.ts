@@ -62,8 +62,8 @@ const EditResponse = Schema.Struct({
   data: Schema.optional(
     Schema.Array(
       Schema.Struct({
-        image: Schema.optional(Schema.String).pipe(Schema.fromKey('b64_json')),
-      }),
+        image: Schema.optional(Schema.String),
+      }).pipe(Schema.encodeKeys({ image: 'b64_json' })),
     ),
   ),
 });
@@ -158,12 +158,14 @@ export const requestEdit = (
         ? Effect.fail(result)
         : Effect.succeed(result),
     ),
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: requestTimeout,
-      onTimeout: () =>
-        new StudioRenderError({
-          message: 'The studio render timed out.',
-          cause: undefined,
-        }),
+      orElse: () =>
+        Effect.fail(
+          new StudioRenderError({
+            message: 'The studio render timed out.',
+            cause: undefined,
+          }),
+        ),
     }),
   );

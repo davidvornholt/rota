@@ -14,9 +14,9 @@ const lastHour = 23;
 const longestLaundry = 30;
 
 export const LocationQuerySchema = Schema.Struct({
-  query: Schema.String.pipe(
-    Schema.minLength(shortestQuery),
-    Schema.maxLength(longestQuery),
+  query: Schema.String.check(
+    Schema.isMinLength(shortestQuery),
+    Schema.isMaxLength(longestQuery),
   ),
 });
 
@@ -24,17 +24,22 @@ export const SaveLocationInputSchema = Schema.Struct({
   location: LocationSchema,
 });
 
-const budgetDay = Schema.Int.pipe(Schema.between(1, longestWearBudget));
+const budgetDay = Schema.Int.check(
+  Schema.isBetween({ minimum: 1, maximum: longestWearBudget }),
+);
 
 export const RotationSettingsInputSchema = Schema.Struct({
   cleanTopAnchor: Schema.NullOr(LocalDateSchema),
-  laundryDays: Schema.Int.pipe(Schema.between(1, longestLaundry)),
-  cooldownDays: Schema.Int.pipe(Schema.between(0, longestCooldown)),
-  proposalHour: Schema.Int.pipe(Schema.between(0, lastHour)),
-  categoryBudgets: Schema.Record({
-    key: Schema.Literal(...garmentCategories),
-    value: budgetDay,
-  }),
+  laundryDays: Schema.Int.check(
+    Schema.isBetween({ minimum: 1, maximum: longestLaundry }),
+  ),
+  cooldownDays: Schema.Int.check(
+    Schema.isBetween({ minimum: 0, maximum: longestCooldown }),
+  ),
+  proposalHour: Schema.Int.check(
+    Schema.isBetween({ minimum: 0, maximum: lastHour }),
+  ),
+  categoryBudgets: Schema.Record(Schema.Literals(garmentCategories), budgetDay),
 });
 
 export type RotationSettingsInput = Schema.Schema.Type<

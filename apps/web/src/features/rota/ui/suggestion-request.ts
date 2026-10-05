@@ -1,11 +1,10 @@
-import { Data, Effect, Schedule } from 'effect';
+import { Effect, Schedule, Schema } from 'effect';
 import type { SuggestionJob } from '../schemas/suggestion-job.ts';
 
-export class SuggestionRequestError extends Data.TaggedError(
+export class SuggestionRequestError extends Schema.TaggedError<SuggestionRequestError>()(
   'SuggestionRequestError',
-)<{
-  readonly message: string;
-}> {}
+  { message: Schema.String },
+) {}
 
 const interrupted = () =>
   new SuggestionRequestError({
@@ -18,9 +17,12 @@ export const suggestionRequest = <A>(
   run: (signal: AbortSignal) => Promise<A>,
 ) =>
   Effect.tryPromise({ try: run, catch: interrupted }).pipe(
-    Effect.timeoutFail({ duration: '15 seconds', onTimeout: interrupted }),
+    Effect.timeoutOrElse({
+      duration: '15 seconds',
+      orElse: () => Effect.fail(interrupted()),
+    }),
     Effect.retry(
-      Schedule.spaced('2 seconds').pipe(Schedule.intersect(Schedule.recurs(2))),
+      Schedule.max([Schedule.spaced('2 seconds'), Schedule.recurs(2)]),
     ),
   );
 
@@ -47,5 +49,8 @@ export const waitForSuggestion = (
     }
     return job;
   }).pipe(
-    Effect.timeoutFail({ duration: '8 minutes', onTimeout: interrupted }),
+    Effect.timeoutOrElse({
+      duration: '8 minutes',
+      orElse: () => Effect.fail(interrupted()),
+    }),
   );

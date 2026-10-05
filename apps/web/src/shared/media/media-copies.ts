@@ -4,7 +4,7 @@
  * be exercised with any storage.
  */
 
-import { Effect, Either } from 'effect';
+import { Effect, Result, Semaphore } from 'effect';
 import type { MediaStoreError } from './errors/media-errors.ts';
 import { mimeOfKey } from './media-keys.ts';
 import {
@@ -44,12 +44,12 @@ const concurrentResizes = 2;
 
 export const makeMediaCopies = ({ get, has, keep }: CopyStorage) =>
   Effect.gen(function* () {
-    const resizes = yield* Effect.makeSemaphore(concurrentResizes);
+    const resizes = yield* Semaphore.make(concurrentResizes);
 
     /** A copy that cannot be kept is still served; the next request makes it again. */
     const keepCopy = (key: string, data: Uint8Array) =>
       keep(key, data).pipe(
-        Effect.catchAll((error) =>
+        Effect.catch((error) =>
           Effect.logWarning(
             'Serving a resized image without keeping it.',
             error,
@@ -67,11 +67,11 @@ export const makeMediaCopies = ({ get, has, keep }: CopyStorage) =>
         if (source === undefined) {
           return;
         }
-        const resized = yield* Effect.either(resizeImage(source, width));
-        if (Either.isLeft(resized)) {
+        const resized = yield* Effect.result(resizeImage(source, width));
+        if (Result.isFailure(resized)) {
           yield* Effect.logWarning(
             'Serving the original because it could not be resized.',
-            resized.left,
+            resized.failure,
           );
           return {
             bytes: source,
@@ -79,8 +79,8 @@ export const makeMediaCopies = ({ get, has, keep }: CopyStorage) =>
             lasting: false,
           };
         }
-        yield* keepCopy(variantKey(key, width), resized.right);
-        return { bytes: resized.right, mime: variantMime, lasting: true };
+        yield* keepCopy(variantKey(key, width), resized.success);
+        return { bytes: resized.success, mime: variantMime, lasting: true };
       });
 
     /** The original at `width`, made and kept on first request. */
@@ -107,9 +107,9 @@ export const makeMediaCopies = ({ get, has, keep }: CopyStorage) =>
           return;
         }
         for (const width of widths) {
-          const resized = yield* Effect.either(resizeImage(source, width));
-          if (Either.isRight(resized)) {
-            yield* keepCopy(variantKey(key, width), resized.right);
+          const resized = yield* Effect.result(resizeImage(source, width));
+          if (Result.isSuccess(resized)) {
+            yield* keepCopy(variantKey(key, width), resized.success);
           }
         }
       });

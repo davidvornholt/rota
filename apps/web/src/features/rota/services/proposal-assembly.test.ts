@@ -141,7 +141,7 @@ describe('slotChoicesFor', () => {
     expect(items.map((item) => item.garmentId)).toEqual(['chinos', 'shirt']);
     expect(items.every((item) => !item.continued)).toBeTrue();
     const invalid = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         answerToItems(
           {
             outfit: {
@@ -160,7 +160,7 @@ describe('slotChoicesFor', () => {
         ),
       ),
     );
-    expect(invalid._tag).toBe('Left');
+    expect(invalid._tag).toBe('Failure');
   });
 
   it('keeps the continuing choice usable when no replacement exists', () => {

@@ -1,5 +1,5 @@
-import { SqlClient } from '@effect/sql';
-import { Effect, Schema } from 'effect';
+import { Context, Effect, Layer, Schema } from 'effect';
+import { SqlClient } from 'effect/sql';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 
 import type { LocalDate } from '#/shared/time/local-date.ts';
@@ -7,22 +7,24 @@ import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import { readError, writeError } from './errors/data-errors.ts';
 
 const NoteRow = Schema.Struct({ occasion: Schema.String });
-const decodeNotes = Schema.decodeUnknown(Schema.Array(NoteRow));
+const decodeNotes = Schema.decodeUnknownEffect(Schema.Array(NoteRow));
 const DatedNoteRow = Schema.Struct({
-  date: Schema.propertySignature(LocalDateSchema).pipe(
-    Schema.fromKey('for_date'),
-  ),
+  date: LocalDateSchema,
   occasion: Schema.String,
-});
+}).pipe(
+  Schema.encodeKeys({
+    date: 'for_date',
+  }),
+);
 export type DayNote = Schema.Schema.Type<typeof DatedNoteRow>;
-const decodeDatedNotes = Schema.decodeUnknown(Schema.Array(DatedNoteRow));
+const decodeDatedNotes = Schema.decodeUnknownEffect(Schema.Array(DatedNoteRow));
 const readNote = readError('The day note');
 const writeNote = writeError('The day note');
 
-export class DayNoteRepository extends Effect.Service<DayNoteRepository>()(
+export class DayNoteRepository extends Context.Service<DayNoteRepository>()(
   'shared/DayNoteRepository',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const owner = yield* WardrobeOwner;
 
@@ -58,4 +60,9 @@ export class DayNoteRepository extends Effect.Service<DayNoteRepository>()(
       return { read, readRange, save };
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    DayNoteRepository,
+    DayNoteRepository.make,
+  );
+}

@@ -22,7 +22,7 @@ export const readWardrobeClock = (
   now: Date = new Date(),
 ): Effect.Effect<
   WardrobeClock,
-  Effect.Effect.Error<ReturnType<SettingsRepository['read']>>,
+  Effect.Error<ReturnType<SettingsRepository['Service']['read']>>,
   SettingsRepository
 > =>
   Effect.map(

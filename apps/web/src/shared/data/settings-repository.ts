@@ -1,17 +1,19 @@
-import { SqlClient } from '@effect/sql';
-import { Effect, Schema } from 'effect';
+import { Context, Effect, Layer, Schema } from 'effect';
+import { SqlClient } from 'effect/sql';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import { readError, writeError } from './errors/data-errors.ts';
 import { defaultSettings, type Settings, SettingsFromRow } from './settings.ts';
 
-const decodeSettings = Schema.decodeUnknown(Schema.Array(SettingsFromRow));
+const decodeSettings = Schema.decodeUnknownEffect(
+  Schema.Array(SettingsFromRow),
+);
 const readSettings = readError('The settings');
 const writeSettings = writeError('The settings');
 
-export class SettingsRepository extends Effect.Service<SettingsRepository>()(
+export class SettingsRepository extends Context.Service<SettingsRepository>()(
   'shared/SettingsRepository',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const owner = yield* WardrobeOwner;
 
@@ -49,4 +51,9 @@ export class SettingsRepository extends Effect.Service<SettingsRepository>()(
       return { read, save };
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    SettingsRepository,
+    SettingsRepository.make,
+  );
+}

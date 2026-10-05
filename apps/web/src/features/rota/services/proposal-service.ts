@@ -6,8 +6,8 @@
  * it — everything else here is bookkeeping around that fact.
  */
 
-import { SqlClient } from '@effect/sql';
-import { Effect } from 'effect';
+import { Context, Effect, Layer } from 'effect';
+import { SqlClient } from 'effect/sql';
 
 import { Bedrock } from '#/shared/ai/bedrock.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
@@ -90,7 +90,7 @@ const withOutfitContext = (
   };
 };
 
-const ask = (bedrock: Bedrock, prompt: BuiltPrompt) =>
+const ask = (bedrock: Bedrock['Service'], prompt: BuiltPrompt) =>
   bedrock
     .generateJson({
       purpose: 'outfit',
@@ -108,13 +108,13 @@ const ask = (bedrock: Bedrock, prompt: BuiltPrompt) =>
 
 type GenerateDeps = {
   readonly sql: SqlClient.SqlClient;
-  readonly outfits: OutfitRepository;
-  readonly garments: GarmentRepository;
-  readonly wearLog: WearLogRepository;
-  readonly proposals: ProposalRepository;
-  readonly notes: DayNoteRepository;
-  readonly media: MediaStore;
-  readonly bedrock: Bedrock;
+  readonly outfits: OutfitRepository['Service'];
+  readonly garments: GarmentRepository['Service'];
+  readonly wearLog: WearLogRepository['Service'];
+  readonly proposals: ProposalRepository['Service'];
+  readonly notes: DayNoteRepository['Service'];
+  readonly media: MediaStore['Service'];
+  readonly bedrock: Bedrock['Service'];
 };
 
 // Keep the proposal and saved selection atomic after the model has finished.
@@ -294,10 +294,10 @@ const generateProposal = (
     );
   });
 
-export class ProposalService extends Effect.Service<ProposalService>()(
+export class ProposalService extends Context.Service<ProposalService>()(
   'rota/ProposalService',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const outfits = yield* OutfitRepository;
       const garments = yield* GarmentRepository;
@@ -330,4 +330,6 @@ export class ProposalService extends Effect.Service<ProposalService>()(
       return yield* makeProposalOperations(settlement);
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(ProposalService, ProposalService.make);
+}

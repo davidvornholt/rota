@@ -1,5 +1,5 @@
-import { SqlClient } from '@effect/sql';
-import { Effect, Schema } from 'effect';
+import { Context, Effect, Layer, Schema } from 'effect';
+import { SqlClient } from 'effect/sql';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { readError, writeError } from './errors/data-errors.ts';
@@ -14,15 +14,17 @@ import {
 const read = readError('The outfits');
 const write = writeError('The outfit');
 
-export class OutfitRepository extends Effect.Service<OutfitRepository>()(
+export class OutfitRepository extends Context.Service<OutfitRepository>()(
   'shared/OutfitRepository',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const owner = yield* WardrobeOwner;
       const list = () =>
         sql`select id, name, entries from saved_outfit where owner_id = ${owner.id} order by updated_at desc`.pipe(
-          Effect.flatMap(Schema.decodeUnknown(Schema.Array(SavedOutfitSchema))),
+          Effect.flatMap(
+            Schema.decodeUnknownEffect(Schema.Array(SavedOutfitSchema)),
+          ),
           Effect.mapError(read),
         );
       const save = (outfit: SavedOutfit) =>
@@ -37,7 +39,7 @@ export class OutfitRepository extends Effect.Service<OutfitRepository>()(
         );
       const plan = (date: LocalDate) =>
         sql`select entries, clean_top, based_on, forecast from day_plan where owner_id = ${owner.id} and for_date = ${date}`.pipe(
-          Effect.flatMap(Schema.decodeUnknown(Schema.Array(PlanSchema))),
+          Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PlanSchema))),
           Effect.map((rows) => rows[0] ?? emptyPlan),
           Effect.mapError(read),
         );
@@ -58,4 +60,6 @@ export class OutfitRepository extends Effect.Service<OutfitRepository>()(
       return { list, save, remove, plan, savePlan, setCleanTop };
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(OutfitRepository, OutfitRepository.make);
+}

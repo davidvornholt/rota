@@ -1,12 +1,13 @@
 import { expect, it } from 'bun:test';
-import { Deferred, Effect, Fiber, TestClock, TestContext } from 'effect';
+import { Deferred, Effect, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { runServerFunction } from './server-request.ts';
 
 it("keeps a long RPC alive beyond Bun's idle limit but aborts a stuck handler at its finite deadline", async () => {
   let aborted = false;
   const result = Effect.gen(function* () {
     const started = yield* Deferred.make<void>();
-    const fiber = yield* Effect.fork(
+    const fiber = yield* Effect.forkChild(
       runServerFunction((request) => {
         request.signal.addEventListener('abort', () => {
           aborted = true;
@@ -17,10 +18,10 @@ it("keeps a long RPC alive beyond Bun's idle limit but aborts a stuck handler at
     );
     yield* Deferred.await(started);
     yield* TestClock.adjust('360 seconds');
-    expect((yield* Fiber.poll(fiber))._tag).toBe('None');
+    expect(fiber.pollUnsafe()).toBeUndefined();
     yield* TestClock.adjust('61 seconds');
     return yield* Fiber.join(fiber);
-  }).pipe(Effect.provide(TestContext.TestContext));
+  }).pipe(Effect.provide(TestClock.layer()));
   const response = await Effect.runPromise(result);
   expect(aborted).toBeTrue();
   const gatewayTimeout = 504;

@@ -9,7 +9,7 @@
  * you photographed is ever lost to a model that was down.
  */
 
-import { Effect } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 import { Bedrock } from '#/shared/ai/bedrock.ts';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
 import { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
@@ -98,10 +98,10 @@ const describeFailure = (error: unknown): string => {
 };
 
 type IngestDependencies = {
-  readonly garments: GarmentRepository;
-  readonly media: MediaStore;
-  readonly bedrock: Bedrock;
-  readonly studio: StudioRenderer;
+  readonly garments: GarmentRepository['Service'];
+  readonly media: MediaStore['Service'];
+  readonly bedrock: Bedrock['Service'];
+  readonly studio: StudioRenderer['Service'];
 };
 
 const originalPhoto = ({ media }: IngestDependencies, garment: Garment) =>
@@ -156,10 +156,10 @@ const renderInProgress = new StudioRenderError({
   cause: undefined,
 });
 
-export class IngestService extends Effect.Service<IngestService>()(
+export class IngestService extends Context.Service<IngestService>()(
   'garments/IngestService',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const deps: IngestDependencies = {
         garments: yield* GarmentRepository,
         media: yield* MediaStore,
@@ -181,7 +181,7 @@ export class IngestService extends Effect.Service<IngestService>()(
               `${step}: ${describeFailure(error)}`,
             ),
           ),
-          Effect.catchAll(() => Effect.void),
+          Effect.catch(() => Effect.void),
         );
 
       const studioWork = makeStudioWork(garments);
@@ -209,8 +209,8 @@ export class IngestService extends Effect.Service<IngestService>()(
                 }),
               );
             }).pipe(
-              Effect.catchAll(recordFailure(id, 'Reading the photo')),
-              Effect.catchAllDefect(recordFailure(id, 'Processing')),
+              Effect.catch(recordFailure(id, 'Reading the photo')),
+              Effect.catchDefect(recordFailure(id, 'Processing')),
             ),
           )
           .pipe(Effect.asVoid);
@@ -262,4 +262,6 @@ export class IngestService extends Effect.Service<IngestService>()(
       };
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(IngestService, IngestService.make);
+}

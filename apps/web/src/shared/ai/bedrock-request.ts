@@ -21,7 +21,7 @@ export type GenerateJsonInput<A, I> = {
   readonly purpose: 'outfit' | 'garment';
   readonly system: string;
   readonly parts: ReadonlyArray<PromptPart>;
-  readonly schema: Schema.Schema<A, I>;
+  readonly schema: Schema.Codec<A, I>;
   readonly jsonSchema: Record<string, unknown>;
 };
 
@@ -112,22 +112,24 @@ export const makeGenerateJson =
             cause,
           }),
       }).pipe(
-        Effect.timeoutFail({
+        Effect.timeoutOrElse({
           duration: Duration.seconds(
             purpose === 'outfit' ? outfitRequestSeconds : garmentRequestSeconds,
           ),
-          onTimeout: () =>
-            new BedrockError({
-              reason: 'timeout',
-              message: 'The Bedrock request timed out. Try again.',
-              cause: undefined,
-            }),
+          orElse: () =>
+            Effect.fail(
+              new BedrockError({
+                reason: 'timeout',
+                message: 'The Bedrock request timed out. Try again.',
+                cause: undefined,
+              }),
+            ),
         }),
         Effect.retry({
-          schedule: Schedule.intersect(
+          schedule: Schedule.max([
             Schedule.exponential(Duration.seconds(2)),
             Schedule.recurs(2),
-          ),
+          ]),
           while: isTransient,
         }),
         Effect.flatMap((response) => {
@@ -146,7 +148,9 @@ export const makeGenerateJson =
                 block.text === undefined ? [] : [block.text],
               )
               .join('') ?? '';
-          return Schema.decodeUnknown(Schema.parseJson(schema))(text).pipe(
+          return Schema.decodeUnknownEffect(Schema.fromJsonString(schema))(
+            text,
+          ).pipe(
             Effect.mapError(
               (cause) =>
                 new BedrockError({

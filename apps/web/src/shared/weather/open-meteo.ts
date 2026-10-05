@@ -4,13 +4,13 @@
  * hourly forecasts are summarized over the hours the outfit is worn.
  */
 
-import { Duration, Effect, Schedule, Schema } from 'effect';
+import { Context, Duration, Effect, Layer, Schedule, Schema } from 'effect';
 
 import { WeatherError } from './errors/weather-errors.ts';
 import { type DailyForecast, decodeForecast } from './hourly-forecast.ts';
 import type { Location } from './location.ts';
 
-export const LocationSchema: Schema.Schema<Location> = Schema.Struct({
+export const LocationSchema: Schema.Codec<Location> = Schema.Struct({
   name: Schema.String,
   region: Schema.String,
   country: Schema.String,
@@ -37,10 +37,10 @@ const GeocodingResponse = Schema.Struct({
 const requestTimeoutSeconds = 20;
 const retryAttempts = 3;
 const requestTimeout = Duration.seconds(requestTimeoutSeconds);
-const retrySchedule = Schedule.intersect(
+const retrySchedule = Schedule.max([
   Schedule.exponential(Duration.seconds(1)),
   Schedule.recurs(retryAttempts),
-);
+]);
 
 const fetchJson = (url: URL): Effect.Effect<unknown, WeatherError> =>
   Effect.tryPromise({
@@ -54,21 +54,23 @@ const fetchJson = (url: URL): Effect.Effect<unknown, WeatherError> =>
     catch: (cause) =>
       new WeatherError({ message: 'Open-Meteo could not be reached.', cause }),
   }).pipe(
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: requestTimeout,
-      onTimeout: () =>
-        new WeatherError({
-          message: 'Open-Meteo did not answer in time.',
-          cause: undefined,
-        }),
+      orElse: () =>
+        Effect.fail(
+          new WeatherError({
+            message: 'Open-Meteo did not answer in time.',
+            cause: undefined,
+          }),
+        ),
     }),
     Effect.retry(retrySchedule),
   );
 
 const decodeWith =
-  <A, I>(schema: Schema.Schema<A, I>) =>
+  <A, I>(schema: Schema.Codec<A, I>) =>
   (json: unknown): Effect.Effect<A, WeatherError> =>
-    Schema.decodeUnknown(schema)(json).pipe(
+    Schema.decodeUnknownEffect(schema)(json).pipe(
       Effect.mapError(
         (cause) =>
           new WeatherError({
@@ -83,10 +85,10 @@ const forecastEndpoint = 'https://api.open-meteo.com/v1/forecast';
 const geocodingLimit = 8;
 const forecastDays = 7;
 
-export class WeatherApi extends Effect.Service<WeatherApi>()(
+export class WeatherApi extends Context.Service<WeatherApi>()(
   'shared/WeatherApi',
   {
-    sync: () => {
+    make: Effect.sync(() => {
       const searchLocations = (
         query: string,
       ): Effect.Effect<ReadonlyArray<Location>, WeatherError> => {
@@ -132,6 +134,8 @@ export class WeatherApi extends Effect.Service<WeatherApi>()(
       };
 
       return { searchLocations, forecast };
-    },
+    }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(WeatherApi, WeatherApi.make);
+}

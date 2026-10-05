@@ -1,4 +1,4 @@
-import { Cause, Option, ParseResult, Runtime } from 'effect';
+import { Schema } from 'effect';
 
 export const privateResponseHeaders = {
   'cache-control': 'private, no-store, max-age=0',
@@ -28,14 +28,6 @@ export const applyPrivateResponseHeaders = (
   );
 };
 
-const failureOf = (error: unknown): unknown => {
-  if (!Runtime.isFiberFailure(error)) {
-    return error;
-  }
-  const failure = Cause.failureOption(error[Runtime.FiberFailureCauseId]);
-  return Option.isSome(failure) ? failure.value : error;
-};
-
 type SafeFailure = {
   readonly message: string;
   readonly status: number;
@@ -49,8 +41,7 @@ const maximumClientError = 499;
  * for the browser: those are the expected, user-correctable failures. Anything
  * else is an operational detail and stays on the server.
  */
-const taggedSafeFailure = (error: unknown): SafeFailure | undefined => {
-  const failure = failureOf(error);
+const taggedSafeFailure = (failure: unknown): SafeFailure | undefined => {
   if (
     typeof failure !== 'object' ||
     failure === null ||
@@ -70,7 +61,7 @@ const taggedSafeFailure = (error: unknown): SafeFailure | undefined => {
 };
 
 export const privateFailureResponse = (error: unknown): Response => {
-  if (ParseResult.isParseError(failureOf(error))) {
+  if (Schema.isSchemaError(error)) {
     return new Response('Invalid request.', {
       status: 400,
       headers: privateResponseHeaders,

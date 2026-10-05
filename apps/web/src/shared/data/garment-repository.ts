@@ -1,5 +1,5 @@
-import { SqlClient, type Statement } from '@effect/sql';
-import { Effect, Schema } from 'effect';
+import { Context, Effect, Layer, Schema } from 'effect';
+import { SqlClient, type Statement } from 'effect/sql';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 
 import { addDays, type LocalDate } from '#/shared/time/local-date.ts';
@@ -12,7 +12,7 @@ import type {
   Slot,
 } from './garment-types.ts';
 
-const decodeGarments = Schema.decodeUnknown(Schema.Array(GarmentFromRow));
+const decodeGarments = Schema.decodeUnknownEffect(Schema.Array(GarmentFromRow));
 
 export type GarmentAttributes = {
   readonly name: string;
@@ -39,10 +39,10 @@ export type StoredImage = GarmentImage & { readonly bytes: number };
 const readGarments = readError('The wardrobe');
 const writeGarment = writeError('The garment');
 
-export class GarmentRepository extends Effect.Service<GarmentRepository>()(
+export class GarmentRepository extends Context.Service<GarmentRepository>()(
   'shared/GarmentRepository',
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const owner = yield* WardrobeOwner;
 
@@ -228,4 +228,9 @@ export class GarmentRepository extends Effect.Service<GarmentRepository>()(
       };
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    GarmentRepository,
+    GarmentRepository.make,
+  );
+}

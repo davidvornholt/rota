@@ -3,7 +3,7 @@
  * the prompt, and turning the model's aliased answer back into garment ids.
  */
 
-import { Effect, Either } from 'effect';
+import { Effect, Result } from 'effect';
 import type { Garment } from '#/shared/data/garment.ts';
 import { garmentCare } from '#/shared/data/garment-care.ts';
 import {
@@ -134,12 +134,12 @@ export const answerToItems = (
   );
   const used = new Set<string>();
   const resolved = slotOrder.map(
-    (slot): Either.Either<ProposalItem | undefined, string> => {
+    (slot): Result.Result<ProposalItem | undefined, string> => {
       const alias = answer.outfit[slot];
       if (alias === null) {
         return requiredSlots.has(slot)
-          ? Either.left(`No garment for ${slot}.`)
-          : Either.right(undefined);
+          ? Result.fail(`No garment for ${slot}.`)
+          : Result.succeed(undefined);
       }
       const aliased = aliases.get(alias);
       if (
@@ -147,10 +147,10 @@ export const answerToItems = (
         aliased.slot !== slot ||
         used.has(aliased.garment.id)
       ) {
-        return Either.left(`Unknown, wrong-slot or repeated alias ${alias}.`);
+        return Result.fail(`Unknown, wrong-slot or repeated alias ${alias}.`);
       }
       used.add(aliased.garment.id);
-      return Either.right(
+      return Result.succeed(
         itemFor(
           { slot, alias, aliased, reason: reasons.get(alias) ?? '' },
           input,
@@ -158,12 +158,12 @@ export const answerToItems = (
       );
     },
   );
-  return Either.all(resolved).pipe(
-    Either.mapLeft((problem) => new ProposalAnswerError(problem)),
-    Either.map((items) =>
+  return Result.all(resolved).pipe(
+    Result.mapError((problem) => new ProposalAnswerError(problem)),
+    Result.map((items) =>
       items.filter((item): item is ProposalItem => item !== undefined),
     ),
-    Either.match({ onLeft: Effect.fail, onRight: Effect.succeed }),
+    Result.match({ onFailure: Effect.fail, onSuccess: Effect.succeed }),
   );
 };
 

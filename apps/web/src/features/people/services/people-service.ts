@@ -1,12 +1,12 @@
-import { Data, Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import { codeDigest, newAccessCode } from '#/shared/auth/access-codes.ts';
 import { withAccessTransaction } from '#/shared/auth/access-transaction.ts';
 import { currentIdentity } from '#/shared/auth/identity.ts';
 
-export class PeopleError extends Data.TaggedError('PeopleError')<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class PeopleError extends Schema.TaggedError<PeopleError>()(
+  'PeopleError',
+  { message: Schema.String, cause: Schema.optional(Schema.Defect()) },
+) {}
 export const requireAdmin = () => {
   const identity = currentIdentity();
   if (!identity.admin) {

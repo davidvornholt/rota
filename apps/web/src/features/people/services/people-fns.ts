@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { sessionRequired } from '#/shared/auth/auth-middleware.ts';
-import { pool } from '#/shared/db/pool.ts';
+import { pool } from '#/shared/db/database.ts';
 import {
   issueCode,
   peopleOperation,

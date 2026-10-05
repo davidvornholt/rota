@@ -105,7 +105,9 @@ describe('server-function authorization', () => {
     const { result } = protectedCall(
       () => Promise.resolve(true),
       () =>
-        Effect.runPromise(Schema.decodeUnknown(Schema.Number)('not a number')),
+        Effect.runPromise(
+          Schema.decodeUnknownEffect(Schema.Number)('not a number'),
+        ),
     );
     const response = await responseFrom(result);
 

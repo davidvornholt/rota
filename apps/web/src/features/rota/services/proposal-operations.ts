@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Semaphore } from 'effect';
 import type { DayPlan } from '#/shared/data/outfit.ts';
 import type {
   OutfitEntry,
@@ -44,14 +44,15 @@ const wearSelected = (
 /** State checks and writes share one gate with the scheduled morning decision. */
 export const makeProposalOperations = (deps: SettlementDeps) =>
   Effect.gen(function* () {
-    const gate = yield* Effect.makeSemaphore(1);
+    const gate = yield* Semaphore.make(1);
     const exclusive = <A, E, R>(work: Effect.Effect<A, E, R>) =>
       gate
         .withPermits(1)(work)
         .pipe(
-          Effect.timeoutFail({
+          Effect.timeoutOrElse({
             duration: '360 seconds',
-            onTimeout: () => new ProposalGenerationError(true, undefined),
+            orElse: () =>
+              Effect.fail(new ProposalGenerationError(true, undefined)),
           }),
         );
 
