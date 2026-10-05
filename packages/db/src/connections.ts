@@ -10,7 +10,8 @@
  * Their sizes split the ten connections the single `pg` pool was allowed
  * before (pg's default), so a process still never holds more than ten against
  * a production Postgres whose 100 connections every app on the host shares.
- * Both pools open connections on demand and close idle ones after ten seconds.
+ * Both pools open connections on demand and close idle ones after ten seconds;
+ * the Effect client checks every ten seconds, so it can take up to twenty.
  *
  * Whoever creates a pool closes it: `pool.end()` for the `pg` pool, and the
  * scope the layer was built in for the Effect client.
@@ -26,6 +27,8 @@ import { preservePostgresDates } from './postgres-date.ts';
 
 const pgPoolSize = 4;
 const sqlClientPoolSize = 6;
+// pg's default; the Effect client's own default keeps idle connections a minute.
+const idleTimeout = '10 seconds';
 
 /**
  * The `pg` pool.
@@ -61,4 +64,5 @@ export const pgClientLayer = (
   PgClient.layer({
     url: Redacted.make(connectionString),
     maxConnections: sqlClientPoolSize,
+    idleTimeout,
   });
