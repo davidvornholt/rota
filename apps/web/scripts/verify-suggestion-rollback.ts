@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
-import { changePlanning } from '#/features/rota/services/planning-service.ts';
+import { suggestPlanning } from '#/features/rota/services/planning-service.ts';
 import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
 import { ProposalRepository } from '#/shared/data/proposal-repository.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
@@ -40,13 +40,7 @@ export const verifySuggestionRollback = (
         target === 'plan'
           ? sql`drop trigger fail_test_write on day_plan`
           : sql`drop trigger fail_test_write on proposal`;
-      const result = yield* Effect.either(
-        changePlanning(clock, {
-          action: 'suggest',
-          entries: pinned,
-          basedOn: null,
-        }),
-      ).pipe(
+      const result = yield* Effect.either(suggestPlanning(clock, pinned)).pipe(
         Effect.ensuring(
           dropTrigger.pipe(
             Effect.zipRight(sql`drop function fail_test_write()`),
@@ -66,11 +60,7 @@ export const verifySuggestionRollback = (
         `A failed ${target} write rolls back the new proposal too.`,
       );
     }
-    yield* changePlanning(clock, {
-      action: 'suggest',
-      entries: pinned,
-      basedOn: null,
-    });
+    yield* suggestPlanning(clock, pinned);
     assert.equal(
       (yield* proposals.byId(previousProposal.id)).status,
       'rejected',

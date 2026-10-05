@@ -9,6 +9,7 @@ import { ForecastService } from '#/features/rota/services/forecast-service.ts';
 import {
   changePlanning,
   planningView,
+  suggestPlanning,
 } from '#/features/rota/services/planning-service.ts';
 import { ProposalService } from '#/features/rota/services/proposal-service.ts';
 import { TodayService } from '#/features/rota/services/today-service.ts';
@@ -231,11 +232,7 @@ const verify = Effect.gen(function* () {
     action: 'note',
     text: 'Meeting tomorrow',
   });
-  yield* changePlanning(nextClock, {
-    action: 'suggest',
-    entries: [entries[0]],
-    basedOn: null,
-  });
+  yield* suggestPlanning(nextClock, [entries[0]]);
   assert(sawSavedOutfit, 'The model receives saved combinations.');
   const generated = yield* planningView(nextClock);
   assert(
@@ -253,13 +250,7 @@ const verify = Effect.gen(function* () {
   );
   assert.equal(generated.plan.basedOn, null);
   failGeneration = true;
-  const failed = yield* Effect.either(
-    changePlanning(nextClock, {
-      action: 'suggest',
-      entries: [entries[0]],
-      basedOn: null,
-    }),
-  );
+  const failed = yield* Effect.either(suggestPlanning(nextClock, [entries[0]]));
   assert.equal(failed._tag, 'Left');
   assert.equal(
     (yield* planningView(nextClock)).day.proposal?.id,
