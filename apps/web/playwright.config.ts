@@ -22,4 +22,7 @@ export default {
       timeout: 300_000,
     },
   ],
+  // Match the two workers CI gets. With 12 local workers, UI assertions timed
+  // out in a full local gate on a busy machine.
+  workers: 2,
 };
