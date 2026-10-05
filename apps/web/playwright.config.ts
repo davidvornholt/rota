@@ -2,7 +2,7 @@ import { createA11yPlaywrightConfig } from '@davidvornholt/a11y-testing/playwrig
 
 export default {
   ...createA11yPlaywrightConfig({
-    baseUrl: 'http://127.0.0.1:3100',
+    baseUrl: 'http://127.0.0.1:3110',
     webServerCommand: 'bun --env-file=.env.a11y run start',
   }),
   // Each fixture worker starts a Vite optimizer; bound concurrency without changing coverage or timeouts.
