@@ -25,7 +25,7 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1145.0",
     "@better-auth/passkey": "1.7.6",
-    "@effect/sql-pg": "^4.0.0",
+    "@effect/sql-pg": "^4.0.1",
     "@fontsource-variable/instrument-sans": "^5.3.0",
     "@fontsource/instrument-serif": "^5.3.0",
     "@rota/db": "workspace:*",
@@ -37,7 +37,7 @@
     "@tanstack/react-start": "^1.168.60",
     "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.3",
-    "effect": "^4.0.0",
+    "effect": "^4.0.1",
     "lucide-react": "^1.48.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

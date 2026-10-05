@@ -18,9 +18,9 @@
     "db:studio": "bun --env-file=.env.local run drizzle-kit studio"
   },
   "dependencies": {
-    "@effect/sql-pg": "^4.0.0",
+    "@effect/sql-pg": "^4.0.1",
     "drizzle-orm": "^0.45.3",
-    "effect": "^4.0.0",
+    "effect": "^4.0.1",
     "pg": "^8.23.1"
   },
   "devDependencies": {
