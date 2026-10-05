@@ -1,19 +1,6 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
-import { Effect } from 'effect';
-import type { ViteDevServer } from 'vite';
-import { startGarmentFixtureServer } from './garment-fixture-server.ts';
-
-let server: ViteDevServer;
-const fixtureUrl = () => server.resolvedUrls?.local[0];
-test.beforeAll(async ({ browserName }, testInfo) => {
-  server = await Effect.runPromise(
-    startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
-  );
-});
-test.afterAll(async () => {
-  await Effect.runPromise(Effect.promise(() => server.close()));
-});
+import { fixtureOrigin } from './fixture-origin.ts';
 
 const whiteShirt = /^White cotton shirt/u;
 const badGateway = 502;
@@ -22,7 +9,7 @@ const success = 200;
 test('manual tomorrow choices save independently of reusable outfits and never record wear', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?tomorrow`);
   await expect(
     page.getByRole('link', { name: 'Today', exact: true }),
   ).toContainText('7 Sept');
@@ -62,7 +49,7 @@ test('manual tomorrow choices save independently of reusable outfits and never r
 test('incomplete and empty daily plans survive reload without resurrecting the previous suggestion', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
   await page.getByRole('button', { name: 'Remove top', exact: true }).click();
   await expect(page.getByLabel('Plan saving status')).toContainText(
     'Saved for',
@@ -95,7 +82,7 @@ test('incomplete and empty daily plans survive reload without resurrecting the p
 test('kept pieces constrain the next suggestion but keeping resets after reopening', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
   await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
   await page
     .getByRole('dialog')
@@ -158,7 +145,7 @@ test('slow autosaves keep selection responsive and persist the latest edit in or
       body: '{}',
     });
   });
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?failure`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?failure`);
   await page.getByRole('button', { name: 'Remove top', exact: true }).click();
   await expect(page.getByLabel('Plan saving status')).toContainText('Saving');
   await expect(
@@ -198,7 +185,7 @@ test('failed autosaves preserve edits, explain the failure, and persist after re
       body: fail ? '' : '{}',
     }),
   );
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow&failure`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?tomorrow&failure`);
   await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
   await page
     .getByRole('dialog')

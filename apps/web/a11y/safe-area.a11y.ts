@@ -1,19 +1,6 @@
 import type * as playwright from '@playwright/test';
 import { expect, test } from '@playwright/test';
-import { Effect } from 'effect';
-import type { ViteDevServer } from 'vite';
-import { startGarmentFixtureServer } from './garment-fixture-server.ts';
-
-let server: ViteDevServer;
-const fixtureUrl = () => server.resolvedUrls?.local[0];
-test.beforeAll(async ({ browserName }, testInfo) => {
-  server = await Effect.runPromise(
-    startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
-  );
-});
-test.afterAll(async () => {
-  await Effect.runPromise(Effect.promise(() => server.close()));
-});
+import { fixtureOrigin } from './fixture-origin.ts';
 
 // A recent iPhone: in portrait the rounded corners and home indicator take the
 // bottom 34 px; in landscape the notch takes 59 px on one side.
@@ -56,7 +43,7 @@ test('bottom navigation stays clear of rounded corners and the home indicator', 
   page,
 }) => {
   await emulateRoundedPhone(page, portrait, { bottom: bottomInset });
-  await page.goto(`${fixtureUrl()}a11y/fixtures/people.html?shell`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/people.html?shell`);
   const navigation = page.getByRole('navigation', { name: 'Main' });
   const tabBottoms = await Promise.all(
     tabNames.map((name) => bottomOf(navigation.getByRole('link', { name }))),
@@ -79,7 +66,7 @@ test('a dialog sheet keeps its actions above the home indicator', async ({
   page,
 }) => {
   await emulateRoundedPhone(page, portrait, { bottom: bottomInset });
-  await page.goto(`${fixtureUrl()}a11y/fixtures/icon-actions.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/icon-actions.html`);
   await page.getByRole('button', { name: 'Edit occasion note' }).click();
   const save = page.getByRole('dialog').getByRole('button', {
     name: 'Save note',
@@ -93,7 +80,7 @@ test('an enlarged picture keeps its close button clear of the notch', async ({
 }) => {
   await emulateRoundedPhone(page, landscape, { right: notchInset });
   await page.goto(
-    `${fixtureUrl()}a11y/fixtures/review-card.html?detail&completed`,
+    `${fixtureOrigin}a11y/fixtures/review-card.html?detail&completed`,
   );
   await page
     .getByRole('button', { name: 'Show Blue Oxford shirt large' })

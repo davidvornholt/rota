@@ -1,11 +1,6 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
-import { Effect } from 'effect';
-import type { ViteDevServer } from 'vite';
-import { startGarmentFixtureServer } from './garment-fixture-server.ts';
-
-let server: ViteDevServer;
-const fixtureUrl = () => server.resolvedUrls?.local[0];
+import { fixtureOrigin } from './fixture-origin.ts';
 
 // Chromium's en-GB long date carries a comma after the weekday; Node's does not.
 const fridayName = /^Friday,? 4 September 2026$/u;
@@ -18,20 +13,10 @@ const topWhiteTee = /^Top White tee/u;
 const oxfordShirtTile = /^Blue Oxford shirt/u;
 const whiteTeeTile = /^White tee/u;
 
-test.beforeAll(async ({ browserName }, testInfo) => {
-  server = await Effect.runPromise(
-    startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
-  );
-});
-
-test.afterAll(async () => {
-  await Effect.runPromise(Effect.promise(() => server.close()));
-});
-
 test('blank days copy from the day before and save together, leaving cleared days blank', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/catch-up.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/catch-up.html`);
   await expect(
     page.getByRole('heading', { level: 1, name: '3 days without a log' }),
   ).toBeVisible();
@@ -94,7 +79,7 @@ for (const mode of ['empty', 'fresh'] as const) {
   test(`a wardrobe with nothing to catch up on (${mode}) says so`, async ({
     page,
   }) => {
-    await page.goto(`${fixtureUrl()}a11y/fixtures/catch-up.html?${mode}`);
+    await page.goto(`${fixtureOrigin}a11y/fixtures/catch-up.html?${mode}`);
     await expect(
       page.getByRole('heading', { level: 1, name: 'Nothing to catch up on' }),
     ).toBeVisible();

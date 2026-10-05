@@ -1,11 +1,8 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import type { ViteDevServer } from 'vite';
-import { startGarmentFixtureServer } from './garment-fixture-server.ts';
+import { fixtureOrigin } from './fixture-origin.ts';
 
-let server: ViteDevServer;
-const fixtureUrl = () => server.resolvedUrls?.local[0];
 const warmthLabels = ['Light', 'Medium', 'Heavy'];
 const formalityLabels = ['Casual', 'Smart', 'Formal'];
 const lightHelp = /Little insulation/u;
@@ -15,23 +12,11 @@ const tooLarge = 413;
 /** A one-pixel PNG: the smallest picture the browser can decode and downscale before sending. */
 const onePixelPng = new URL('./fixtures/pixel.png', import.meta.url).pathname;
 
-test.beforeAll(async ({ browserName }, testInfo) => {
-  server = await Effect.runPromise(
-    startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
-  );
-});
-
-test.afterAll(async () => {
-  await Effect.runPromise(Effect.promise(() => server.close()));
-});
-
 for (const mode of ['compact', 'full']) {
   test(`${mode} garment ratings support touch, keyboard, and accessible help`, async ({
     page,
   }, testInfo) => {
-    const base = fixtureUrl();
-    expect(base).toBeDefined();
-    await page.goto(`${base}a11y/fixtures/garment-form.html?${mode}`);
+    await page.goto(`${fixtureOrigin}a11y/fixtures/garment-form.html?${mode}`);
     const budget = page.getByRole('spinbutton', {
       name: 'Wears between washes',
     });
@@ -110,7 +95,7 @@ for (const mode of ['compact', 'full']) {
 test('colour groups wrap and keep the remaining values when one is removed', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/garment-form.html?full`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/garment-form.html?full`);
   const colours = page.getByRole('group', { name: 'Colours', exact: true });
   await Effect.runPromise(
     Effect.forEach(['#ff0000', '#112233', '#f5f0e6', '#808000'], (hex) =>
@@ -155,7 +140,7 @@ for (const imageChoice of ['automatic', 'original']) {
   test(`render completion preserves edits and ${imageChoice} picture selection`, async ({
     page,
   }) => {
-    await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html`);
+    await page.goto(`${fixtureOrigin}a11y/fixtures/review-card.html`);
     const name = page.getByRole('textbox', { name: 'Name', exact: true });
     await name.fill('My corrected shirt');
     const warmth = page.getByRole('group', { name: 'Warmth', exact: true });
@@ -193,7 +178,7 @@ for (const mode of ['review', 'detail']) {
   test(`${mode} rerender uses current colours and instructions and recovers from failure`, async ({
     page,
   }) => {
-    await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?${mode}`);
+    await page.goto(`${fixtureOrigin}a11y/fixtures/review-card.html?${mode}`);
     const name = page.getByRole('textbox', { name: 'Name', exact: true });
     await name.fill('My corrected shirt');
     await page.getByRole('button', { name: 'Rate limit', exact: true }).click();
@@ -264,7 +249,7 @@ for (const mode of ['review', 'detail']) {
 test('detail page replaces the photo, keeps edits, and recovers from a refusal', async ({
   page,
 }, testInfo) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?detail`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/review-card.html?detail`);
   const retake = page.getByRole('button', {
     name: 'Retake the photo',
     exact: true,
@@ -318,7 +303,7 @@ test('detail page replaces the photo, keeps edits, and recovers from a refusal',
 test('colour icon tooltips support hover, focus, Escape, and disabled explanations', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/garment-form.html?compact`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/garment-form.html?compact`);
   const remove = page.getByRole('button', {
     name: 'Remove colour 1',
     exact: true,
@@ -349,7 +334,7 @@ test('colour icon tooltips support hover, focus, Escape, and disabled explanatio
 test('optional outfit removal keeps the add action available', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?outfit`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/review-card.html?outfit`);
   const remove = page.getByRole('button', { name: 'Remove over layer' });
   await remove.focus();
   await expect(remove).toHaveAccessibleName('Remove over layer');
@@ -365,7 +350,7 @@ for (const status of ['preparing', 'queued']) {
   test(`${status} studio jobs announce progress and prevent duplicate renders`, async ({
     page,
   }, testInfo) => {
-    await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?${status}`);
+    await page.goto(`${fixtureOrigin}a11y/fixtures/review-card.html?${status}`);
     const message =
       status === 'preparing'
         ? 'Preparing studio picture.'

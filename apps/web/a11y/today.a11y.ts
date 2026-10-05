@@ -1,8 +1,6 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
-import { Effect } from 'effect';
-import type { ViteDevServer } from 'vite';
-import { startGarmentFixtureServer } from './garment-fixture-server.ts';
+import { fixtureOrigin } from './fixture-origin.ts';
 
 const chinos = /^Navy chinos/u;
 const whiteShirt = /^White cotton shirt/u;
@@ -12,21 +10,10 @@ const badGateway = 502;
 const failedDependency = 424;
 const failedStatuses = [badGateway, failedDependency];
 
-let server: ViteDevServer;
-const fixtureUrl = () => server.resolvedUrls?.local[0];
-test.beforeAll(async ({ browserName }, testInfo) => {
-  server = await Effect.runPromise(
-    startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
-  );
-});
-test.afterAll(async () => {
-  await Effect.runPromise(Effect.promise(() => server.close()));
-});
-
 test('saving a history outfit leaves the recorded day unchanged', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/history.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/history.html`);
   await page.getByRole('button', { name: 'Save as a reusable outfit' }).click();
   await page.getByLabel('Outfit name').fill('A favourite day');
   expect(await scanWcag22AaViolations(page)).toEqual([]);
@@ -43,7 +30,7 @@ test('saving a history outfit leaves the recorded day unchanged', async ({
 test('a garment starting point replaces a cached plan and stays on today after wearing', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
   await page.getByRole('button', { name: 'Start with white shirt' }).click();
   await expect(
     page.getByRole('button', {
@@ -84,7 +71,7 @@ test('a garment starting point replaces a cached plan and stays on today after w
 test('tomorrow saves a plan, keeps it across day navigation and never logs it early', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?tomorrow`);
   await expect(page.getByRole('button', { name: 'Wear this' })).toHaveCount(0);
   await page
     .getByRole('button', { name: 'Suggest another', exact: true })
@@ -104,7 +91,7 @@ test('tomorrow saves a plan, keeps it across day navigation and never logs it ea
 test('a chosen top stays while Rota completes the outfit, with optional shoes and bag', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
   await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
   const dialog = page.getByRole('dialog');
   await expect(
@@ -146,7 +133,7 @@ test('a chosen top stays while Rota completes the outfit, with optional shoes an
 test('saved outfits can be created, chosen, edited independently and deleted explicitly', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?tomorrow`);
   await page.getByRole('button', { name: 'Save as a reusable outfit' }).click();
   let dialog = page.getByRole('dialog');
   await dialog
@@ -198,7 +185,9 @@ test('saved outfits can be created, chosen, edited independently and deleted exp
 test('tomorrow explains projected laundry without offering an unusable override', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow&projected`);
+  await page.goto(
+    `${fixtureOrigin}a11y/fixtures/today.html?tomorrow&projected`,
+  );
   await expect(
     page.getByText(
       'A piece will need washing after today’s planned wear. Choose another for tomorrow.',
@@ -220,7 +209,7 @@ test('tomorrow explains projected laundry without offering an unusable override'
 test('laundry shows return dates and handles early washing and late returns', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?returned`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?returned`);
   await page.getByRole('button', { name: 'Laundry', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Laundry', exact: true });
   await dialog
@@ -278,7 +267,7 @@ for (const status of failedStatuses) {
         body: JSON.stringify({ status: 'succeeded' }),
       }),
     );
-    await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?job-network`);
+    await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?job-network`);
     await page.getByRole('button', { name: 'Suggest another' }).click();
     await expect(page.getByRole('alert')).toBeVisible();
     await expect(
@@ -301,7 +290,7 @@ for (const status of failedStatuses) {
 test('a saved outfit chosen after logging today opens tomorrow without changing today', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
   await page.getByRole('button', { name: 'Wear this' }).click();
   await expect(
     page.getByRole('heading', { name: 'Today, dressed.' }),
@@ -323,7 +312,7 @@ test('a saved outfit chosen after logging today opens tomorrow without changing 
 test('clean-top cadence can be set and cleared without accessory wash budgets', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/settings.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/settings.html`);
   const duration = page.getByRole('spinbutton', {
     name: 'Laundry usually takes (days)',
   });

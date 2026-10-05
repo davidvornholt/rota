@@ -1,28 +1,15 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
-import { Effect } from 'effect';
-import type { ViteDevServer } from 'vite';
-import { startGarmentFixtureServer } from './garment-fixture-server.ts';
+import { fixtureOrigin } from './fixture-origin.ts';
 
 const blueShirt = /^Blue Oxford shirt/u;
 const accessories = /White trainers|Tan leather bag/u;
 const whiteShirt = /^White cotton shirt/u;
 
-let server: ViteDevServer;
-const fixtureUrl = () => server.resolvedUrls?.local[0];
-test.beforeAll(async ({ browserName }, testInfo) => {
-  server = await Effect.runPromise(
-    startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
-  );
-});
-test.afterAll(async () => {
-  await Effect.runPromise(Effect.promise(() => server.close()));
-});
-
 test('early laundry offers photos before selection, restores focus, and resets after sending', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
   await page.getByRole('button', { name: 'Laundry', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Laundry', exact: true });
   await dialog
@@ -97,7 +84,7 @@ test('early laundry offers photos before selection, restores focus, and resets a
 test('the laundry picker explains when no washable pieces remain', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
   await page.getByRole('button', { name: 'Laundry', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Laundry', exact: true });
   await dialog
@@ -138,7 +125,7 @@ test('the laundry picker explains when no washable pieces remain', async ({
 test('laundry shows photos in both lists and a fallback for garments without photos', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?returned`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?returned`);
   await page
     .getByRole('button', { name: 'Send Navy chinos to laundry', exact: true })
     .click();
@@ -188,7 +175,7 @@ test('laundry shows photos in both lists and a fallback for garments without pho
 test('sending a proposed garment keeps other draft choices and leaves replacement manual after reload', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
   await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
   await page
     .getByRole('dialog')
@@ -219,7 +206,7 @@ test('sending a proposed garment keeps other draft choices and leaves replacemen
 test('sending a worn garment retains the logged outfit through reload', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
   await page.getByRole('button', { name: 'Wear this', exact: true }).click();
   await page
     .getByRole('button', {
@@ -263,7 +250,7 @@ test('a failed laundry request preserves the draft, prevents duplicate actions w
     await gate;
     await route.fulfill({ status: 502, body: '' });
   });
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?failure`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?failure`);
   const send = page.getByRole('button', {
     name: 'Send Blue Oxford shirt to laundry',
     exact: true,
@@ -293,7 +280,7 @@ test('garment care stays on details, preserves edits, and switches to one back-c
   page,
 }) => {
   await page.goto(
-    `${fixtureUrl()}a11y/fixtures/review-card.html?detail&completed&worn`,
+    `${fixtureOrigin}a11y/fixtures/review-card.html?detail&completed&worn`,
   );
   await page
     .getByRole('textbox', { name: 'Name', exact: true })
@@ -333,7 +320,7 @@ test('marking a worn garment clean resets its counter, keeps history and edits, 
   page,
 }) => {
   await page.goto(
-    `${fixtureUrl()}a11y/fixtures/review-card.html?detail&completed&worn`,
+    `${fixtureOrigin}a11y/fixtures/review-card.html?detail&completed&worn`,
   );
   const markClean = page.getByRole('button', {
     name: 'Mark clean',
@@ -374,7 +361,7 @@ test('mark clean blocks duplicate care actions while saving and allows retry aft
     await route.abort('failed');
   });
   await page.goto(
-    `${fixtureUrl()}a11y/fixtures/review-card.html?detail&completed&worn&care-failure`,
+    `${fixtureOrigin}a11y/fixtures/review-card.html?detail&completed&worn&care-failure`,
   );
   const markClean = page.getByRole('button', {
     name: 'Mark clean',

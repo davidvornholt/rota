@@ -1,19 +1,6 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
-import { Effect } from 'effect';
-import type { ViteDevServer } from 'vite';
-import { startGarmentFixtureServer } from './garment-fixture-server.ts';
-
-let server: ViteDevServer;
-const fixtureUrl = () => server.resolvedUrls?.local[0];
-test.beforeAll(async ({ browserName }, testInfo) => {
-  server = await Effect.runPromise(
-    startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
-  );
-});
-test.afterAll(async () => {
-  await Effect.runPromise(Effect.promise(() => server.close()));
-});
+import { fixtureOrigin } from './fixture-origin.ts';
 
 test('clean-top toggles immediately and persists the latest choice after a slow save', async ({
   page,
@@ -30,7 +17,7 @@ test('clean-top toggles immediately and persists the latest choice after a slow 
       body: '{}',
     });
   });
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow&failure`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?tomorrow&failure`);
   const toggle = page.getByRole('checkbox', {
     name: 'Freshly washed top tomorrow',
   });
@@ -61,7 +48,7 @@ test('failed clean-top saves restore the previous choice and expose the error', 
   await page.route('**/fixture-planning-action', (route) =>
     route.fulfill({ status: 502, body: '' }),
   );
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow&failure`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?tomorrow&failure`);
   const toggle = page.getByRole('checkbox', {
     name: 'Freshly washed top tomorrow',
   });
@@ -74,7 +61,7 @@ test('failed clean-top saves restore the previous choice and expose the error', 
 test('notes are visible without a disclosure and keeping a piece does not move its control', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html?tomorrow`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?tomorrow`);
   const note = page.getByRole('textbox', {
     name: 'Plans for the day (optional)',
   });
@@ -106,7 +93,7 @@ test('notes are visible without a disclosure and keeping a piece does not move i
 test('compact dialogs have no nested scroll area and tooltips do not create overflow', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/icon-actions.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/icon-actions.html`);
   await page.getByRole('button', { name: 'Edit occasion note' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
@@ -130,7 +117,7 @@ test('compact dialogs have no nested scroll area and tooltips do not create over
 
 test('reduced motion disables modal animation', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto(`${fixtureUrl()}a11y/fixtures/icon-actions.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/icon-actions.html`);
   await page.getByRole('button', { name: 'Edit occasion note' }).click();
   await expect(
     page.getByRole('dialog').locator(':scope > div').first(),
@@ -140,7 +127,7 @@ test('reduced motion disables modal animation', async ({ page }) => {
 test('tooltip remains readable when the pointer moves onto it', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/icon-actions.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/icon-actions.html`);
   await page.getByRole('button', { name: 'Edit occasion note' }).hover();
   const tooltip = page.getByRole('tooltip');
   await expect(tooltip).toBeVisible();
@@ -153,7 +140,7 @@ test('tooltip remains readable when the pointer moves onto it', async ({
 test('wearing is primary and reusable outfit saving is separate from automatic daily planning', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/today.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
   const wear = page.getByRole('button', { name: 'Wear this', exact: true });
   await expect(wear.locator('..').getByRole('button').first()).toHaveText(
     'Wear this',
