@@ -39,7 +39,7 @@ When multiple images must be released together, use the [coordinated release ext
 
 The trusted build job publishes an image under its source-owned tag, obtains the registry digest, and emits exactly one single-line JSON record to its immutable job log. The marker is assembled from fragments so the full marker cannot appear in the runner's echoed shell source. A separate announcement job runs only after build success. Its fallback token is read-only; its one-infra-repository App token has only Contents write.
 
-The App credentials live at `ci.broker_app.app_id` and `ci.broker_app.private_key` in `secrets/ci.yaml`. Resolve both with the canonical action, which transports nested multiline values through `GITHUB_ENV`, never outputs.
+The App credentials live at `ci.broker_app.app_id` and `ci.broker_app.private_key` in `secrets/ci.yaml`. Resolve both with the canonical action and pass its `value` step outputs only to the token-minting step, so no other step in the job can read them.
 
 <!-- contract:source-workflow -->
 ```yaml
@@ -71,13 +71,15 @@ jobs:
     permissions: { contents: read }
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/sops-secret
-        with: { age-key: "${{ secrets.SOPS_AGE_KEY }}", secret-file: secrets/ci.yaml, secret-key: broker_app.app_id, env-name: BROKER_APP_ID }
-      - uses: ./.github/actions/sops-secret
-        with: { age-key: "${{ secrets.SOPS_AGE_KEY }}", secret-file: secrets/ci.yaml, secret-key: broker_app.private_key, env-name: BROKER_APP_PRIVATE_KEY }
+      - id: broker-app-id
+        uses: ./.github/actions/sops-secret
+        with: { age-key: "${{ secrets.SOPS_AGE_KEY }}", secret-file: secrets/ci.yaml, secret-key: broker_app.app_id }
+      - id: broker-app-private-key
+        uses: ./.github/actions/sops-secret
+        with: { age-key: "${{ secrets.SOPS_AGE_KEY }}", secret-file: secrets/ci.yaml, secret-key: broker_app.private_key }
       - id: broker
         uses: actions/create-github-app-token@v3
-        with: { app-id: "${{ env.BROKER_APP_ID }}", private-key: "${{ env.BROKER_APP_PRIVATE_KEY }}", owner: example, repositories: infra, permission-contents: write }
+        with: { app-id: "${{ steps.broker-app-id.outputs.value }}", private-key: "${{ steps.broker-app-private-key.outputs.value }}", owner: example, repositories: infra, permission-contents: write }
       - name: Announce image digest
         env:
           BUILD_DIGEST: "${{ needs.build.outputs.digest }}"
@@ -106,9 +108,9 @@ Canonical promotion identity is source repository + source SHA + digest. Valid r
 
 Opening or reusing a promotion PR retires every other trusted open promotion for the same app when the new candidate is provably a descendant of the other candidate. The writer uses the same source-repository compare proof as the provenance gate and fails closed: an ancestor, equal, diverged, or unprovable candidate closes nothing. Create the successor as a draft and keep it unready until every same-app open candidate has a conclusive comparison and every required predecessor closure succeeds. A comparison or close failure fails the writer and leaves the successor draft; it must never be continue-on-error housekeeping. Retrying the announcement reuses that branch and PR, reconciles only remaining open predecessors, and marks it ready only after convergence. Provenance and merge validation reject a successor whose retirement reconciliation is incomplete, even if someone manually marks the PR ready. A retired operation enters the terminal `superseded` phase and cannot merge or deploy; later announcements of its canonical identity attach as evidence instead of opening another PR or advancing the operation.
 
-Supersession deliberately gives up the older candidate as an immediate availability fallback. If B supersedes A and then fails to merge or deploy, operators repair or retry B or announce a newer source build; they never reopen A or move A out of `superseded`, even if A's branch and PR still exist. Restoring a previously deployed A digest requires the distinct approved rollback operation below, so it does not reactivate A's promotion identity.
+Supersession deliberately gives up the older candidate as an immediate availability fallback. If B supersedes A and then fails to merge or deploy, operators repair or retry B or announce a newer source build; they never reopen A or move A out of `superseded`, even if A's branch and PR still exist.
 
-An approved rollback has a distinct operation identity, protected-environment approval, non-empty reason, operator, and exact ancestor/digest proof. Its first attempt opens a distinct audited PR and deploys again, including when its target was promoted previously. Retrying the identical approved request reuses that operation at announced, branch, or open, preserves its original approval, reason, operator, PR number, and run evidence, and adds only new run evidence. A changed audit request or a terminal rollback identity is rejected; a retry never opens a duplicate PR.
+There is no rollback operation, because the trusted writer only moves a pin forward and nothing else may write one. To recover from a bad release, roll forward: revert the bad change in the source repository, let it build, and promote the new image like any other promotion.
 
 Before branch creation, the writer runs the shared registry-access proof against the exact `imageRepository@digest`. Public proof resolves that digest anonymously. Private proof queries the exact GHCR package path and requires provider visibility `private`, denies anonymous resolution, and resolves the same digest with the job token. Missing package grants, inaccessible provider visibility, `internal` visibility, and any path or digest mismatch fail before a branch exists.
 
