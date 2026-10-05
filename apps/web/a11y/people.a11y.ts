@@ -1,26 +1,11 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
-import { Effect } from 'effect';
-import type { ViteDevServer } from 'vite';
-import { startGarmentFixtureServer } from './garment-fixture-server.ts';
-
-let server: ViteDevServer;
-const fixtureUrl = () => server.resolvedUrls?.local[0];
-
-test.beforeAll(async ({ browserName }, testInfo) => {
-  server = await Effect.runPromise(
-    startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
-  );
-});
-
-test.afterAll(async () => {
-  await Effect.runPromise(Effect.promise(() => server.close()));
-});
+import { fixtureOrigin } from './fixture-origin.ts';
 
 test('your People shortcut opens your editable wardrobe and other administrators stay read-only', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/people.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/people.html`);
   const own = page.getByRole('link', { name: 'Open my wardrobe' });
   await expect(own).toHaveAttribute('href', '/wardrobe');
   await expect(
@@ -38,7 +23,7 @@ test('your People shortcut opens your editable wardrobe and other administrators
 test('access controls stay in a disclosure and keep explicit actions', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/people.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/people.html`);
   const recover = page.getByRole('button', { name: 'Issue recovery code' });
   await expect(recover).not.toBeVisible();
   await page.getByText('Manage access', { exact: true }).click();
@@ -52,7 +37,7 @@ test('access controls stay in a disclosure and keep explicit actions', async ({
 test('footer shortcuts expose names and tooltips to keyboard users', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/people.html?shell`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/people.html?shell`);
   const footer = page.getByRole('contentinfo');
   const passkeys = footer.getByRole('link', { name: 'Passkeys' });
   await passkeys.focus();

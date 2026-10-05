@@ -1,28 +1,14 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
-import { Effect } from 'effect';
-import type { ViteDevServer } from 'vite';
-import { startGarmentFixtureServer } from './garment-fixture-server.ts';
+import { fixtureOrigin } from './fixture-origin.ts';
 
-let server: ViteDevServer;
-const fixtureUrl = () => server.resolvedUrls?.local[0];
 const waxJacketTile = /^Wax jacket/u;
 const greyCardiganTile = /^Grey cardigan/u;
-
-test.beforeAll(async ({ browserName }, testInfo) => {
-  server = await Effect.runPromise(
-    startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
-  );
-});
-
-test.afterAll(async () => {
-  await Effect.runPromise(Effect.promise(() => server.close()));
-});
 
 test('edit and delete icons preserve dialog dismissal and explicit confirmation', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/icon-actions.html`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/icon-actions.html`);
   const edit = page.getByRole('button', { name: 'Edit occasion note' });
   await edit.focus();
   await expect(page.getByRole('tooltip')).toHaveText('Edit occasion note');
@@ -70,7 +56,7 @@ test('edit and delete icons preserve dialog dismissal and explicit confirmation'
 test('swapping a slot shows the alternatives as pictures and closes on a pick', async ({
   page,
 }) => {
-  await page.goto(`${fixtureUrl()}a11y/fixtures/review-card.html?outfit`);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/review-card.html?outfit`);
   const swap = page.getByRole('button', { name: 'Change Blue Oxford shirt' });
   await swap.click();
   const dialog = page.getByRole('dialog');
@@ -95,7 +81,7 @@ test('image close icon dismisses the enlarged picture and restores focus', async
   page,
 }) => {
   await page.goto(
-    `${fixtureUrl()}a11y/fixtures/review-card.html?detail&completed`,
+    `${fixtureOrigin}a11y/fixtures/review-card.html?detail&completed`,
   );
   const show = page
     .getByRole('button', { name: 'Show Blue Oxford shirt large' })

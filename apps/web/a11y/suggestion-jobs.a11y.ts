@@ -1,21 +1,8 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
-import { Effect } from 'effect';
-import type { ViteDevServer } from 'vite';
-import { startGarmentFixtureServer } from './garment-fixture-server.ts';
+import { fixtureOrigin } from './fixture-origin.ts';
 
-let server: ViteDevServer;
-const fixtureUrl = () =>
-  `${server.resolvedUrls?.local[0]}a11y/fixtures/today.html?job-network`;
-test.beforeAll(async ({ browserName }, testInfo) => {
-  server = await Effect.runPromise(
-    startGarmentFixtureServer(testInfo.outputPath('vite-cache', browserName)),
-  );
-});
-test.afterAll(async () => {
-  await Effect.runPromise(Effect.promise(() => server.close()));
-});
-
+const fixtureUrl = `${fixtureOrigin}a11y/fixtures/today.html?job-network`;
 const choosing = /Choosing an outfit/u;
 const complete = /Outfit suggested/u;
 const whiteShirt = /^White cotton shirt/u;
@@ -32,7 +19,7 @@ test('a slow suggestion announces progress and resumes after reload without star
   await page.route('**/fixture-suggestion-status', (route) =>
     route.fulfill({ json: { status: ready ? 'succeeded' : 'running' } }),
   );
-  await page.goto(fixtureUrl());
+  await page.goto(fixtureUrl);
   await page.getByRole('button', { name: 'Suggest another' }).click();
   await expect(
     page.getByRole('status').filter({ hasText: choosing }),
@@ -72,7 +59,7 @@ test('a lost start response retries the same request id and completes once', asy
   await page.route('**/fixture-suggestion-status', (route) =>
     route.fulfill({ json: { status: 'succeeded' } }),
   );
-  await page.goto(fixtureUrl());
+  await page.goto(fixtureUrl);
   await page.getByRole('button', { name: 'Suggest another' }).click();
   await expect(
     page.getByRole('status').filter({ hasText: complete }),
@@ -102,7 +89,7 @@ test('a temporary status connection failure retries without another generation',
       await route.fulfill({ json: { status: 'succeeded' } });
     }
   });
-  await page.goto(fixtureUrl());
+  await page.goto(fixtureUrl);
   await page.getByRole('button', { name: 'Suggest another' }).click();
   await expect(
     page.getByRole('status').filter({ hasText: complete }),
@@ -122,7 +109,7 @@ test('a failed suggestion preserves manually chosen pieces and permits an explic
   await page.route('**/fixture-suggestion-status', (route) =>
     route.fulfill({ json: { status: failed ? 'failed' : 'succeeded' } }),
   );
-  await page.goto(fixtureUrl());
+  await page.goto(fixtureUrl);
   await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
   await page
     .getByRole('dialog')
@@ -173,7 +160,7 @@ test('recovering a completed job keeps a newer manually saved outfit', async ({
   await page.route('**/fixture-suggestion-status', (route) =>
     route.fulfill({ json: { status: 'succeeded' } }),
   );
-  await page.goto(fixtureUrl());
+  await page.goto(fixtureUrl);
   await page.getByRole('button', { name: 'Suggest another' }).click();
   await expect(
     page.getByRole('status').filter({ hasText: complete }),
