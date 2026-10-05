@@ -12,7 +12,7 @@ import {
   withAccessTransaction,
 } from '../src/shared/auth/access-transaction.ts';
 import { auth } from '../src/shared/auth/auth.ts';
-import { pool } from '../src/shared/db/pool.ts';
+import { pool } from '../src/shared/db/database.ts';
 
 export const expectRevoked = async (userId: string) => {
   expect(

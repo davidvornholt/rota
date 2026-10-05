@@ -1,5 +1,5 @@
 import { auth } from '#/shared/auth/auth.ts';
-import { pool } from '#/shared/db/pool.ts';
+import { pool } from '#/shared/db/database.ts';
 import { env } from '#/shared/env.ts';
 import type { Identity } from './identity.ts';
 

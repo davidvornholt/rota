@@ -1,7 +1,7 @@
 import { Effect, Layer } from 'effect';
 import { asIdentity, type Identity } from '#/shared/auth/identity.ts';
 import { ensureOwner } from '#/shared/auth/session.ts';
-import { pool } from '#/shared/db/pool.ts';
+import { pool } from '#/shared/db/database.ts';
 
 import { featureRuntime } from '#/shared/runtime/infrastructure.ts';
 import { readWardrobeClock } from '#/shared/time/wardrobe-clock.ts';

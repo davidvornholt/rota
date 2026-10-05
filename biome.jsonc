@@ -30,11 +30,13 @@
   "overrides": [
     {
       // These framework boundaries require default exports as part of their
-      // file-based configuration contracts (Vite, Playwright, Drizzle Kit).
+      // file-based contracts (Vite, Playwright, Drizzle Kit, and TanStack
+      // Start's server entry).
       "includes": [
         "apps/web/vite.config.ts",
         "apps/web/playwright.config.ts",
-        "packages/db/drizzle.config.ts"
+        "packages/db/drizzle.config.ts",
+        "apps/web/src/server.ts"
       ],
       "linter": {
         "rules": {

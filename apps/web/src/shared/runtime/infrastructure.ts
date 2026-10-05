@@ -15,8 +15,6 @@ import {
  * that import features; a pool opened there would be a pool opened in a browser.
  */
 
-import type { PgClient } from '@effect/sql-pg';
-import { pgClientLayer } from '@rota/db/effect-client';
 import { Cause, Effect, type Fiber, Layer, ManagedRuntime } from 'effect';
 import type { SqlClient } from 'effect/sql/SqlClient';
 import type { SqlError } from 'effect/sql/SqlError';
@@ -30,7 +28,7 @@ import { ProposalRepository } from '#/shared/data/proposal-repository.ts';
 import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { WeatherRepository } from '#/shared/data/weather-repository.ts';
-import { env } from '#/shared/env.ts';
+import { sqlClientLayer } from '#/shared/db/database.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import { WeatherApi } from '#/shared/weather/open-meteo.ts';
 
@@ -48,21 +46,6 @@ export type Infrastructure =
   | StudioRenderer
   | WeatherApi;
 
-/**
- * The SQL client owns a connection pool, so it is built once per process and
- * shared by every wardrobe's runtime. The repositories above it are built per
- * runtime, because each one is bound to its owner.
- */
-let sqlRuntime:
-  | ManagedRuntime.ManagedRuntime<PgClient.PgClient | SqlClient, SqlError>
-  | undefined;
-const sharedSqlLayer = Layer.effectContext(
-  Effect.suspend(() => {
-    sqlRuntime ??= ManagedRuntime.make(pgClientLayer(env.DATABASE_URL));
-    return sqlRuntime.contextEffect;
-  }),
-);
-
 export const infrastructureLayer: Layer.Layer<
   Infrastructure,
   SqlError,
@@ -79,7 +62,7 @@ export const infrastructureLayer: Layer.Layer<
   Bedrock.layer,
   StudioRenderer.layer,
   WeatherApi.layer,
-).pipe(Layer.provideMerge(sharedSqlLayer));
+).pipe(Layer.provideMerge(sqlClientLayer));
 
 const logged = <A, E, R>(
   label: string,

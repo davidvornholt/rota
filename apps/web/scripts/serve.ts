@@ -15,10 +15,13 @@ import { runServerFunction } from './server-request.ts';
 
 type FetchHandler = (request: Request) => Promise<Response> | Response;
 
+type SsrBundle = {
+  readonly fetch: FetchHandler;
+  readonly closeDatabase: () => Promise<void>;
+};
+
 type StartServerEntry = {
-  readonly default: {
-    readonly fetch: FetchHandler;
-  };
+  readonly default: SsrBundle;
 };
 
 const immutableCache = 'public, max-age=31536000, immutable';
@@ -31,6 +34,8 @@ const serverFunctionHeader = 'x-tsr-serverFn';
 const tickPath = '/api/internal/tick';
 const tickTokenHeader = 'x-rota-tick-token';
 const tickInterval = 60_000;
+// Podman kills a container ten seconds after asking it to stop.
+const drainTimeout = 5000;
 // Once the RPC has answered, restore an idle limit for response streaming.
 const serverFunctionIdleSeconds = 240;
 
@@ -160,12 +165,12 @@ const parseBootPort = async (value: string | undefined): Promise<number> => {
   }
 };
 
-const loadSsrFetch = async (entryUrl: URL): Promise<FetchHandler> => {
+const loadSsrBundle = async (entryUrl: URL): Promise<SsrBundle> => {
   try {
-    const { default: startServer } = (await import(
+    const { default: bundle } = (await import(
       entryUrl.href
     )) as StartServerEntry;
-    return (request) => startServer.fetch(request);
+    return bundle;
   } catch (error) {
     return abortBoot(
       `loading the SSR bundle ${entryUrl.pathname} failed: ${describeError(error)}. Either it has not been built (\`bun run build\`) or an environment value it validates as it loads is missing or malformed (see apps/web/README.md).`,
@@ -258,6 +263,26 @@ export const startScheduler = (
       });
   }, intervalMs);
 
+/**
+ * Shutdown: stop accepting connections, give the requests in flight a few
+ * seconds to answer, then close the database pools. A request still running
+ * after that is cut off, as it would be when the process is killed.
+ */
+export const shutdown = async (
+  server: Pick<Bun.Server<undefined>, 'stop'>,
+  closeDatabase: () => Promise<void>,
+  drainMs: number,
+): Promise<void> => {
+  const drained = await Promise.race([
+    server.stop().then(() => true),
+    Bun.sleep(drainMs).then(() => false),
+  ]);
+  if (!drained) {
+    await server.stop(true);
+  }
+  await closeDatabase();
+};
+
 // Only the script entry point boots a server; tests import the exports above.
 if (import.meta.main) {
   // Cheapest precondition first: an unusable PORT must not cost an SSR bundle
@@ -268,10 +293,10 @@ if (import.meta.main) {
   const clientDir = Bun.fileURLToPath(
     new URL('../dist/client/', import.meta.url),
   );
-  const ssrFetch = await loadSsrFetch(
+  const ssr = await loadSsrBundle(
     new URL('../dist/server/server.js', import.meta.url),
   );
-  const handler = await createFetchHandler(clientDir, ssrFetch).catch(
+  const handler = await createFetchHandler(clientDir, ssr.fetch).catch(
     (error: unknown) =>
       abortBoot(
         `the client asset directory ${clientDir} is unreadable. Run \`bun run build\` first. ${describeError(error)}`,
@@ -294,7 +319,23 @@ if (import.meta.main) {
     fetch: (request, instance) => serveRequest(handler, request, instance),
   });
 
-  startScheduler(handler, port, tickToken, tickInterval);
+  const scheduler = startScheduler(handler, port, tickToken, tickInterval);
+
+  const stop = async () => {
+    clearInterval(scheduler);
+    try {
+      await shutdown(server, ssr.closeDatabase, drainTimeout);
+    } catch (error) {
+      await Bun.write(
+        Bun.stderr,
+        `Rota did not shut down cleanly: ${describeError(error)}\n`,
+      );
+      process.exit(1);
+    }
+    process.exit(0);
+  };
+  process.once('SIGTERM', stop);
+  process.once('SIGINT', stop);
 
   await Bun.write(Bun.stdout, `Rota is running at ${server.url}\n`);
 }

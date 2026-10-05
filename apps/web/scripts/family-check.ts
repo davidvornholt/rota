@@ -1,7 +1,7 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 // biome-ignore lint/correctness/noUnresolvedImports: Biome cannot resolve Playwright's re-exports; TypeScript and the browser run verify these exports.
 import { chromium, expect, type Page } from '@playwright/test';
-import { pgClientLayer } from '@rota/db/effect-client';
+import { pgClientLayer } from '@rota/db/connections';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import sharp from 'sharp';
 import {
@@ -17,7 +17,7 @@ import { DayNoteRepository } from '../src/shared/data/day-note-repository.ts';
 import { GarmentRepository } from '../src/shared/data/garment-repository.ts';
 import { defaultSettings } from '../src/shared/data/settings.ts';
 import { SettingsRepository } from '../src/shared/data/settings-repository.ts';
-import { pool } from '../src/shared/db/pool.ts';
+import { pool } from '../src/shared/db/database.ts';
 import {
   checkCodeActions,
   checkPeopleActions,

@@ -6,8 +6,7 @@
   "exports": {
     "./schema": "./src/schema.ts",
     "./auth-schema": "./src/auth-schema.ts",
-    "./pool": "./src/pool.ts",
-    "./effect-client": "./src/effect-client.ts",
+    "./connections": "./src/connections.ts",
     "./migrate": "./src/migrate.ts"
   },
   "scripts": {

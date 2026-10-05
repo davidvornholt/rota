@@ -1,8 +1,7 @@
 // biome-ignore-all lint/suspicious/noMisplacedAssertion: This executable database smoke check runs directly with Bun and uses node:assert, not a test-runner callback.
 import assert from 'node:assert/strict';
-import { pgClientLayer } from '@rota/db/effect-client';
+import { createPool, pgClientLayer } from '@rota/db/connections';
 import { migrateDatabase } from '@rota/db/migrate';
-import { createPool } from '@rota/db/pool';
 import { Effect, Layer, Schema } from 'effect';
 import { SqlClient } from 'effect/sql';
 import { ForecastService } from '#/features/rota/services/forecast-service.ts';

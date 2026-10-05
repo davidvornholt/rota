@@ -1,6 +1,6 @@
 // biome-ignore lint/correctness/noNodejsModules: Auth transactions run only on the Bun/Node server.
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { pool } from '#/shared/db/pool.ts';
+import { pool } from '#/shared/db/database.ts';
 
 const connect = () => pool.connect();
 type Client = Awaited<ReturnType<typeof connect>>;

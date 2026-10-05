@@ -1,6 +1,6 @@
 import { Effect, Schema } from 'effect';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
-import { pool } from '#/shared/db/pool.ts';
+import { pool } from '#/shared/db/database.ts';
 import { apiPrice } from './api-prices.ts';
 import {
   bedrockTokens,

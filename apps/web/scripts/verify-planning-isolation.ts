@@ -1,7 +1,6 @@
 // biome-ignore-all lint/suspicious/noMisplacedAssertion: This executable database smoke check uses node:assert outside a test-runner callback.
 import assert from 'node:assert/strict';
-import { pgClientLayer } from '@rota/db/effect-client';
-import type { createPool } from '@rota/db/pool';
+import { type createPool, pgClientLayer } from '@rota/db/connections';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';

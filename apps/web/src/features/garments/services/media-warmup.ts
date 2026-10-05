@@ -1,5 +1,5 @@
 import { Effect, ManagedRuntime } from 'effect';
-import { pool } from '#/shared/db/pool.ts';
+import { pool } from '#/shared/db/database.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import { makeCopyWarmup } from './copy-warmup.ts';
 
