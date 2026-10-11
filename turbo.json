@@ -15,10 +15,10 @@
       "cache": false,
       "persistent": true
     },
-    "lint": {
+    "//#lint": {
       "outputs": []
     },
-    "lint:fix": {
+    "//#lint:fix": {
       "cache": false,
       "outputs": []
     },
