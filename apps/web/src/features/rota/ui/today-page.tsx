@@ -10,35 +10,31 @@ import type { PlanningView } from '../schemas/planning-view.ts';
 import { backfillFn } from '../services/today-fns.ts';
 import { BackfillPrompt } from './backfill-prompt.tsx';
 import { completeOutfit } from './draft-status.ts';
-import { LaundryPanel } from './laundry-panel.tsx';
 import { OutfitEditor } from './outfit-editor.tsx';
-import { OutfitsPanel } from './outfits-panel.tsx';
+import { OutfitFormDialog } from './outfit-form-dialog.tsx';
 import { PlanningActions } from './planning-actions.tsx';
 import { PlanningHeading, PlanningNavigation } from './planning-header.tsx';
 import { UnsavedPlanDialog } from './unsaved-plan-dialog.tsx';
 import { usePlanning } from './use-planning.ts';
 import { WeatherStrip } from './weather-strip.tsx';
 
-type Panel = 'outfits' | 'save' | 'laundry' | null;
 const failureMessage = (failure: unknown) =>
   failure instanceof Error ? failure.message : 'Could not save. Try again.';
 export const TodayPage = ({
   initial,
   seed,
   savedOutfitId,
-  panel,
 }: {
   readonly initial: PlanningView;
   readonly seed?: string;
   readonly savedOutfitId?: string;
-  readonly panel?: 'outfits' | 'laundry';
 }) => {
   const controller = usePlanning(initial, {
     garment: seed,
     outfit: savedOutfitId,
   });
   const { view, entries, busy } = controller;
-  const [open, setOpen] = useState<Panel>(panel ?? null);
+  const [saving, setSaving] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [backfillError, setBackfillError] = useState('');
   const [backfilling, setBackfilling] = useState(false);
@@ -47,7 +43,7 @@ export const TodayPage = ({
   const complete = completeOutfit(entries);
   return (
     <div className={frameClass}>
-      <PlanningNavigation controller={controller} onPanel={setOpen} />
+      <PlanningNavigation controller={controller} />
       <UnsavedPlanDialog controller={controller} />
       <WeatherStrip
         locationLabel={view.day.locationLabel}
@@ -106,7 +102,7 @@ export const TodayPage = ({
               <PlanningActions
                 key={entries.map((entry) => entry.garmentId).join(',')}
                 controller={controller}
-                onSaveOutfit={() => setOpen('save')}
+                onSaveOutfit={() => setSaving(true)}
               />
             )}
             {complete && worn ? (
@@ -114,7 +110,7 @@ export const TodayPage = ({
                 icon="bookmark"
                 label="Save as a reusable outfit"
                 disabled={busy}
-                onClick={() => setOpen('save')}
+                onClick={() => setSaving(true)}
               />
             ) : null}
             <ShareOutfitButton
@@ -144,15 +140,17 @@ export const TodayPage = ({
           />
         </div>
       </div>
-      {open === 'outfits' || open === 'save' ? (
-        <OutfitsPanel
-          controller={controller}
-          saveCurrent={open === 'save'}
-          onClose={() => setOpen(null)}
+      {saving ? (
+        <OutfitFormDialog
+          title="Save a reusable outfit"
+          outfit={{ id: crypto.randomUUID(), name: '', entries }}
+          wardrobe={view.wardrobe}
+          busy={busy}
+          onSave={(outfit) =>
+            controller.change({ action: 'save-outfit', ...outfit })
+          }
+          onClose={() => setSaving(false)}
         />
-      ) : null}
-      {open === 'laundry' ? (
-        <LaundryPanel controller={controller} onClose={() => setOpen(null)} />
       ) : null}
     </div>
   );

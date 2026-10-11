@@ -143,41 +143,32 @@ test('saved outfits can be created, chosen, edited independently and deleted exp
     .getByRole('button', { name: 'Save outfit', exact: true })
     .click();
   await expect(dialog).toHaveCount(0);
-  await page
-    .getByRole('button', { name: 'Saved outfits', exact: true })
-    .click();
-  dialog = page.getByRole('dialog');
-  const outfit = dialog
+  await page.getByRole('link', { name: 'Outfits', exact: true }).click();
+  const outfit = page
     .getByRole('listitem')
     .filter({ has: page.getByRole('heading', { name: 'Office favourite' }) });
-  const share = outfit.getByRole('button', {
-    name: 'Share Office favourite as picture',
-  });
-  await share.click();
-  await expect(page.locator('dialog[open]')).toHaveCount(2);
-  await page.keyboard.press('Escape');
-  await expect(page.locator('dialog[open]')).toHaveCount(1);
-  await expect(
-    page.getByRole('dialog', { name: 'Saved outfits', exact: true }),
-  ).toBeVisible();
-  await expect(share).toBeFocused();
-  await outfit.getByRole('button', { name: 'Choose for tomorrow' }).click();
+  await outfit.getByRole('link', { name: 'Choose for tomorrow' }).click();
+  await expect(page.getByText('Based on Office favourite')).toBeVisible();
   await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: whiteShirt })
     .click();
-  await page
-    .getByRole('button', { name: 'Saved outfits', exact: true })
-    .click();
+  await page.getByRole('link', { name: 'Outfits', exact: true }).click();
   await page.getByRole('button', { name: 'Edit Office favourite' }).click();
+  dialog = page.getByRole('dialog', { name: 'Edit Office favourite' });
   await expect(
-    page
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Change Blue Oxford shirt' }),
+    dialog.getByRole('button', { name: 'Change Blue Oxford shirt' }),
   ).toBeVisible();
-  await page.getByRole('textbox', { name: 'Outfit name' }).fill('Office blue');
-  await page.getByRole('button', { name: 'Save outfit', exact: true }).click();
+  await dialog
+    .getByRole('textbox', { name: 'Outfit name' })
+    .fill('Office blue');
+  await dialog
+    .getByRole('button', { name: 'Save outfit', exact: true })
+    .click();
+  await expect(
+    page.getByText('Saved Office blue.', { exact: true }),
+  ).toBeVisible();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await page
     .getByRole('button', { name: 'Delete Office blue', exact: true })
@@ -191,6 +182,9 @@ test('saved outfits can be created, chosen, edited independently and deleted exp
   await expect(page.getByRole('heading', { name: 'Office blue' })).toHaveCount(
     0,
   );
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Outfits' }),
+  ).toBeFocused();
 });
 
 test('tomorrow explains projected laundry without offering an unusable override', async ({
@@ -210,7 +204,10 @@ test('tomorrow explains projected laundry without offering an unusable override'
   await expect(
     page.getByRole('button', { name: 'Suggest another', exact: true }),
   ).toBeEnabled();
-  await page.getByRole('button', { name: 'Laundry', exact: true }).click();
+  await page.getByRole('link', { name: 'Laundry', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Laundry' }),
+  ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Back clean: Blue Oxford shirt' }),
   ).toHaveCount(0);
@@ -221,42 +218,45 @@ test('laundry shows return dates and handles early washing and late returns', as
   page,
 }) => {
   await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?returned`);
-  await page.getByRole('button', { name: 'Laundry', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Laundry', exact: true });
-  await dialog
+  await page.getByRole('link', { name: 'Laundry', exact: true }).click();
+  const laundry = page.getByRole('main');
+  await laundry
     .getByRole('button', {
       name: 'Still in laundry: Blue Oxford shirt',
       exact: true,
     })
     .click();
   await expect(
-    dialog.getByText('Expected 8 Sept', { exact: true }),
+    laundry.getByText('Expected 8 Sept', { exact: true }),
   ).toBeVisible();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
-  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('link', { name: 'Planning', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Wear this' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Laundry', exact: true }).click();
-  await dialog
+  await page.getByRole('link', { name: 'Laundry', exact: true }).click();
+  await laundry
     .getByRole('button', { name: 'Back clean: Blue Oxford shirt', exact: true })
     .click();
-  await dialog
+  await laundry
     .getByText('Send a piece to laundry early', { exact: true })
     .click();
-  await dialog
+  await laundry
     .getByRole('button', { name: 'Choose a piece', exact: true })
     .click();
   await page
     .getByRole('dialog', { name: 'Choose a piece', exact: true })
     .getByRole('button', { name: 'Navy chinos', exact: false })
     .click();
-  await dialog.getByRole('button', { name: 'Put in basket' }).click();
+  await laundry.getByRole('button', { name: 'Put in basket' }).click();
   await expect(
-    dialog.getByText('Expected 11 Sept', { exact: true }),
+    laundry.getByText('Expected 11 Sept', { exact: true }),
   ).toBeVisible();
-  await dialog
+  await laundry
     .getByRole('button', { name: 'Back clean: Navy chinos', exact: true })
     .click();
-  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(laundry.getByRole('region', { name: 'In laundry' })).toHaveCount(
+    0,
+  );
+  await page.getByRole('link', { name: 'Planning', exact: true }).click();
   await page
     .getByRole('button', { name: 'Choose bottom', exact: true })
     .click();
@@ -306,10 +306,14 @@ test('a saved outfit chosen after logging today opens tomorrow without changing 
   await expect(
     page.getByRole('heading', { name: 'Today, dressed.' }),
   ).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Saved outfits', exact: true })
-    .click();
-  await page.getByRole('button', { name: 'Choose for tomorrow' }).click();
+  await page.getByRole('link', { name: 'Outfits', exact: true }).click();
+  await expect(
+    page.getByRole('link', { name: 'Choose for tomorrow' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Choose for today' }),
+  ).toHaveCount(0);
+  await page.getByRole('link', { name: 'Choose for tomorrow' }).click();
   await expect(
     page.getByRole('heading', { name: 'Tomorrow starts here.' }),
   ).toBeVisible();

@@ -14,6 +14,7 @@ import type { PlanningChange } from '../schemas/planning-input.ts';
 import type { PlanningView } from '../schemas/planning-view.ts';
 import type { SuggestionJob } from '../schemas/suggestion-job.ts';
 import { changePlanningFn } from '../services/planning-fns.ts';
+import { dayEntries } from './day-entries.ts';
 import { recoverSuggestion, runSuggestion } from './suggestion-client.ts';
 
 type PlanningOperation =
@@ -97,18 +98,7 @@ export const usePlanningMutation = ({
         change.action === 'resume-suggestion'
       ) {
         setBasedOn(next.plan.basedOn);
-        setEntries(
-          next.day.worn?.map((item) => ({
-            slot: item.slot,
-            garmentId: item.garment.id,
-          })) ??
-            next.plan.entries ??
-            next.day.proposal?.items.map((item) => ({
-              slot: item.slot,
-              garmentId: item.garment.id,
-            })) ??
-            [],
-        );
+        setEntries(dayEntries(next));
       }
       if (
         change.action === 'care' &&

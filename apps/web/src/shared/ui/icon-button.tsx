@@ -1,7 +1,6 @@
 import { Link, type LinkProps } from '@tanstack/react-router';
 import {
   ArrowLeft,
-  BookMarked,
   Bookmark,
   Check,
   Clock,
@@ -27,7 +26,6 @@ const icons = {
   edit: Pencil,
   trash: Trash2,
   bookmark: Bookmark,
-  bookmarks: BookMarked,
   laundry: WashingMachine,
   refresh: RotateCw,
   logout: LogOut,
