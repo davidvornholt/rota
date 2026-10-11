@@ -3,16 +3,19 @@ import { type ReactNode, useState } from 'react';
 import { hasWearBudget } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import { addDays, formatDayMonth } from '#/shared/time/local-date.ts';
-import { linkButtonClass } from '#/shared/ui/classes.ts';
-import { Dialog } from '#/shared/ui/dialog.tsx';
+import { frameClass, linkButtonClass } from '#/shared/ui/classes.ts';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { GarmentPicker } from '#/shared/ui/garment-picker.tsx';
 import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
+import type { PlanningView } from '../schemas/planning-view.ts';
+import { dayEntries } from './day-entries.ts';
 import { EarlyLaundry } from './early-laundry.tsx';
-import type { PlanningController } from './use-planning.ts';
+import { usePlanningChange } from './use-planning-change.ts';
 
 const recentReturnDays = 7;
+
+type Care = 'laundry' | 'washed' | 'postpone';
 
 const LaundryItem = ({
   garment,
@@ -40,20 +43,30 @@ const LaundryItem = ({
   </li>
 );
 
-export const LaundryPanel = ({
-  controller,
-  onClose,
+/**
+ * A piece sent to laundry early leaves today's outfit too, so the outfit is
+ * saved without it, unless the day is already recorded as worn.
+ */
+const draftFor = (view: PlanningView, id: string, care: Care) => {
+  const entries = dayEntries(view);
+  return care === 'laundry' &&
+    view.day.worn === null &&
+    entries.some((entry) => entry.garmentId === id)
+    ? { entries, basedOn: view.plan.basedOn }
+    : null;
+};
+
+/** What is in the laundry, what came back, and sending a piece early. */
+export const LaundryPage = ({
+  initial,
 }: {
-  readonly controller: PlanningController;
-  readonly onClose: () => void;
+  readonly initial: PlanningView;
 }) => {
+  const { view, busy, change } = usePlanningChange(initial);
   const [error, setError] = useState('');
   const [early, setEarly] = useState('');
   const [picking, setPicking] = useState(false);
   const [message, setMessage] = useState('');
-  const { view, busy } = controller;
-  const careDisabled =
-    busy || controller.planSave.saving || controller.planSave.failed;
   const garments = view.laundry.filter((garment) => hasWearBudget(garment));
   const selected = garments.find((garment) => garment.id === early);
   const waiting = garments.filter((garment) => garment.inLaundry);
@@ -64,16 +77,18 @@ export const LaundryPanel = ({
       garment.assumedCleanOn !== null &&
       garment.assumedCleanOn >= addDays(view.actualToday, -recentReturnDays),
   );
-  const change = async (
-    id: string,
-    care: 'laundry' | 'washed' | 'postpone',
-  ) => {
+  const care = async (id: string, next: Care) => {
     setError('');
     try {
-      await controller.care(id, care);
+      await change({
+        action: 'care',
+        ids: [id],
+        care: next,
+        draft: draftFor(view, id, next),
+      });
       setEarly('');
       setMessage(
-        care === 'postpone'
+        next === 'postpone'
           ? 'Kept in laundry until tomorrow.'
           : 'Laundry updated.',
       );
@@ -86,25 +101,31 @@ export const LaundryPanel = ({
     }
   };
   return (
-    <>
-      <Dialog
-        title="Laundry"
-        open={true}
-        onClose={busy ? () => undefined : onClose}
-      >
-        <p className="text-ink-muted text-sm">
+    <div className={frameClass}>
+      <div className="border-rule border-b pb-4">
+        <h1 className="type-display text-4xl text-ink sm:text-5xl">Laundry</h1>
+        <p className="type-data mt-1 text-ink-muted text-sm">
+          {waiting.length} piece{waiting.length === 1 ? '' : 's'} in laundry
+        </p>
+      </div>
+      <div className="max-w-2xl">
+        <p className="mt-5 text-ink-muted text-sm">
           After its final wear before washing, each piece is expected back clean
           in {view.laundryDays} days.{' '}
           <Link to="/settings" className={linkButtonClass}>
             Change
           </Link>
         </p>
-        {error === '' ? null : <Notice live={true}>{error}</Notice>}
+        {error === '' ? null : (
+          <Notice className="mt-5" live={true}>
+            {error}
+          </Notice>
+        )}
         {waiting.length === 0 ? (
           <p className="mt-6 text-ink-muted">Nothing waiting on laundry.</p>
         ) : (
           <section className="mt-6" aria-label="In laundry">
-            <h3 className="type-eyebrow">In laundry</h3>
+            <h2 className="type-eyebrow">In laundry</h2>
             <ul className="mt-2 divide-y divide-rule">
               {waiting.map((garment) => (
                 <LaundryItem
@@ -115,9 +136,9 @@ export const LaundryPanel = ({
                   <IconButton
                     icon="check"
                     label={`Back clean: ${garment.name}`}
-                    disabled={careDisabled}
+                    disabled={busy}
                     onClick={() => {
-                      change(garment.id, 'washed').catch(() => undefined);
+                      care(garment.id, 'washed').catch(() => undefined);
                     }}
                   />
                 </LaundryItem>
@@ -127,7 +148,7 @@ export const LaundryPanel = ({
         )}
         {returned.length === 0 ? null : (
           <section className="mt-6" aria-label="Expected back">
-            <h3 className="type-eyebrow">Expected back</h3>
+            <h2 className="type-eyebrow">Expected back</h2>
             <ul className="mt-2 divide-y divide-rule">
               {returned.map((garment) => (
                 <LaundryItem
@@ -138,9 +159,9 @@ export const LaundryPanel = ({
                   <IconButton
                     icon="clock"
                     label={`Still in laundry: ${garment.name}`}
-                    disabled={careDisabled}
+                    disabled={busy}
                     onClick={() => {
-                      change(garment.id, 'postpone').catch(() => undefined);
+                      care(garment.id, 'postpone').catch(() => undefined);
                     }}
                   />
                 </LaundryItem>
@@ -150,16 +171,16 @@ export const LaundryPanel = ({
         )}
         <EarlyLaundry
           selected={selected}
-          disabled={careDisabled}
+          disabled={busy}
           onChoose={() => setPicking(true)}
           onSend={() => {
-            change(early, 'laundry').catch(() => undefined);
+            care(early, 'laundry').catch(() => undefined);
           }}
         />
         <p role="status" className="mt-3 text-ink-muted text-sm">
           {message}
         </p>
-      </Dialog>
+      </div>
       {picking ? (
         <GarmentPicker
           eyebrow="Laundry"
@@ -176,6 +197,6 @@ export const LaundryPanel = ({
           onClose={() => setPicking(false)}
         />
       ) : null}
-    </>
+    </div>
   );
 };

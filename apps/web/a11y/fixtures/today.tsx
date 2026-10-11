@@ -4,33 +4,56 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  Link,
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
 import { createRoot } from 'react-dom/client';
+import { LaundryPage } from '#/features/rota/ui/laundry-page.tsx';
+import { OutfitsPage } from '#/features/rota/ui/outfits-page.tsx';
 import { TodayPage } from '#/features/rota/ui/today-page.tsx';
+import { linkButtonClass } from '#/shared/ui/classes.ts';
 import { planningFixture, tomorrow } from './planning-fns.ts';
 import { demoProposal } from './today-proposal.ts';
 
 const params = new URLSearchParams(globalThis.location.search);
+// The app shell's navigation without its session: the planning pages only.
+const pages = [
+  { to: '/', label: 'Planning' },
+  { to: '/outfits', label: 'Outfits' },
+  { to: '/laundry', label: 'Laundry' },
+] as const;
 const rootRoute = createRootRoute({
   component: () => (
-    <main className="py-8">
-      <button
-        type="button"
-        onClick={() => {
-          router
-            .navigate({
-              to: '/',
-              search: { date: demoProposal.today, garment: 'demo-white' },
-            })
-            .catch(() => undefined);
-        }}
-      >
-        Start with white shirt
-      </button>
-      <Outlet />
-    </main>
+    <>
+      <nav aria-label="Main">
+        <ul className="flex gap-4 px-5">
+          {pages.map((item) => (
+            <li key={item.to}>
+              <Link className={linkButtonClass} to={item.to}>
+                {item.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <main className="py-8">
+        <button
+          type="button"
+          onClick={() => {
+            router
+              .navigate({
+                to: '/',
+                search: { date: demoProposal.today, garment: 'demo-white' },
+              })
+              .catch(() => undefined);
+          }}
+        >
+          Start with white shirt
+        </button>
+        <Outlet />
+      </main>
+    </>
   ),
 });
 const route = createRoute({
@@ -55,12 +78,32 @@ const route = createRoute({
     );
   },
 });
+// Saved outfits and laundry always show the actual today, as in the app.
+const outfitsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/outfits',
+  loader: () => structuredClone(planningFixture(demoProposal.today)),
+  component: () => (
+    <OutfitsPage initial={outfitsRoute.useLoaderData<typeof router>()} />
+  ),
+});
+const laundryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/laundry',
+  loader: () => structuredClone(planningFixture(demoProposal.today)),
+  component: () => (
+    <LaundryPage initial={laundryRoute.useLoaderData<typeof router>()} />
+  ),
+});
+const startPage = params.get('page');
 const router = createRouter({
-  routeTree: rootRoute.addChildren([route]),
+  routeTree: rootRoute.addChildren([route, outfitsRoute, laundryRoute]),
   history: createMemoryHistory({
     initialEntries: [
       sessionStorage.getItem('planning-location') ??
-        `/?date=${params.has('tomorrow') ? tomorrow : demoProposal.today}${params.has('garment') ? `&garment=${params.get('garment')}` : ''}`,
+        (startPage === null
+          ? `/?date=${params.has('tomorrow') ? tomorrow : demoProposal.today}${params.has('garment') ? `&garment=${params.get('garment')}` : ''}`
+          : `/${startPage}`),
     ],
   }),
 });

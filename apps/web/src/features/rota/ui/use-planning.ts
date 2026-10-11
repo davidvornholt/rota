@@ -1,23 +1,11 @@
 import { useRouter } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
-import type { SavedOutfit } from '#/shared/data/outfit.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
-import { addDays } from '#/shared/time/local-date.ts';
 import type { PlanningView } from '../schemas/planning-view.ts';
+import { dayEntries } from './day-entries.ts';
 import { usePlanSave } from './use-plan-save.ts';
 import { usePlanningMutation } from './use-planning-mutation.ts';
 
-const initialEntries = (view: PlanningView): ReadonlyArray<OutfitEntry> =>
-  view.day.worn?.map((item) => ({
-    slot: item.slot,
-    garmentId: item.garment.id,
-  })) ??
-  view.plan.entries ??
-  view.day.proposal?.items.map((item) => ({
-    slot: item.slot,
-    garmentId: item.garment.id,
-  })) ??
-  [];
 export const usePlanning = (
   initial: PlanningView,
   seed: {
@@ -32,11 +20,11 @@ export const usePlanning = (
   const slot = garment?.slots[0];
   const [entries, setEntries] = useState<ReadonlyArray<OutfitEntry>>(() => {
     if (initial.day.worn !== null) {
-      return initialEntries(initial);
+      return dayEntries(initial);
     }
     return garment !== undefined && slot !== undefined
       ? [{ slot, garmentId: garment.id }]
-      : (savedOutfit?.entries ?? initialEntries(initial));
+      : (savedOutfit?.entries ?? dayEntries(initial));
   });
   const [pinned, setPinned] = useState<ReadonlyArray<string>>(
     seed.garment === undefined ? [] : [seed.garment],
@@ -126,19 +114,6 @@ export const usePlanning = (
       setPinned((ids) =>
         ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id],
       ),
-    chooseOutfit: (outfit: SavedOutfit) => {
-      if (view.day.worn !== null) {
-        router
-          .navigate({
-            to: '/',
-            search: { date: addDays(view.actualToday, 1), outfit: outfit.id },
-          })
-          .catch(() => setMessage('Could not open tomorrow. Try again.'));
-        return;
-      }
-      select(outfit.entries, outfit.name);
-      setPinned([]);
-    },
   };
 };
 export type PlanningController = ReturnType<typeof usePlanning>;

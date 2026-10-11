@@ -14,6 +14,8 @@ import { Route as JoinRouteImport } from './routes/join'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppLaundryRouteImport } from './routes/_app/laundry'
+import { Route as AppOutfitsRouteImport } from './routes/_app/outfits'
 import { Route as AppPeopleRouteImport } from './routes/_app/people'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as ApiHealthzRouteImport } from './routes/api/healthz'
@@ -52,6 +54,16 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAccountRoute = AppAccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLaundryRoute = AppLaundryRouteImport.update({
+  id: '/laundry',
+  path: '/laundry',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOutfitsRoute = AppOutfitsRouteImport.update({
+  id: '/outfits',
+  path: '/outfits',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPeopleRoute = AppPeopleRouteImport.update({
@@ -136,6 +148,8 @@ export interface FileRoutesByFullPath {
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/account': typeof AppAccountRoute
+  '/laundry': typeof AppLaundryRoute
+  '/outfits': typeof AppOutfitsRoute
   '/people': typeof AppPeopleRouteWithChildren
   '/settings': typeof AppSettingsRoute
   '/api/healthz': typeof ApiHealthzRoute
@@ -156,6 +170,8 @@ export interface FileRoutesByTo {
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/account': typeof AppAccountRoute
+  '/laundry': typeof AppLaundryRoute
+  '/outfits': typeof AppOutfitsRoute
   '/settings': typeof AppSettingsRoute
   '/api/healthz': typeof ApiHealthzRoute
   '/': typeof AppIndexRoute
@@ -178,6 +194,8 @@ export interface FileRoutesById {
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/laundry': typeof AppLaundryRoute
+  '/_app/outfits': typeof AppOutfitsRoute
   '/_app/people': typeof AppPeopleRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
   '/api/healthz': typeof ApiHealthzRoute
@@ -202,6 +220,8 @@ export interface FileRouteTypes {
     | '/join'
     | '/login'
     | '/account'
+    | '/laundry'
+    | '/outfits'
     | '/people'
     | '/settings'
     | '/api/healthz'
@@ -222,6 +242,8 @@ export interface FileRouteTypes {
     | '/join'
     | '/login'
     | '/account'
+    | '/laundry'
+    | '/outfits'
     | '/settings'
     | '/api/healthz'
     | '/'
@@ -243,6 +265,8 @@ export interface FileRouteTypes {
     | '/join'
     | '/login'
     | '/_app/account'
+    | '/_app/laundry'
+    | '/_app/outfits'
     | '/_app/people'
     | '/_app/settings'
     | '/api/healthz'
@@ -308,6 +332,20 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AppAccountRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/laundry': {
+      id: '/_app/laundry'
+      path: '/laundry'
+      fullPath: '/laundry'
+      preLoaderRoute: typeof AppLaundryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/outfits': {
+      id: '/_app/outfits'
+      path: '/outfits'
+      fullPath: '/outfits'
+      preLoaderRoute: typeof AppOutfitsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/people': {
@@ -434,6 +472,8 @@ const AppPeopleRouteWithChildren = AppPeopleRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppLaundryRoute: typeof AppLaundryRoute
+  AppOutfitsRoute: typeof AppOutfitsRoute
   AppPeopleRoute: typeof AppPeopleRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -446,6 +486,8 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppLaundryRoute: AppLaundryRoute,
+  AppOutfitsRoute: AppOutfitsRoute,
   AppPeopleRoute: AppPeopleRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,

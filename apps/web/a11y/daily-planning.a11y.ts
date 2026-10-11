@@ -3,8 +3,76 @@ import { expect, test } from '@playwright/test';
 import { fixtureOrigin } from './fixture-origin.ts';
 
 const whiteShirt = /^White cotton shirt/u;
+const blueShirt = /^Blue Oxford shirt/u;
 const badGateway = 502;
 const success = 200;
+
+test('navigation waits for early laundry, retains failures, and cannot restore a sent piece through autosave', async ({
+  page,
+}) => {
+  let release: (() => void) | undefined;
+  let pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let fail = true;
+  await page.route('**/fixture-planning-action', async (route) => {
+    await pending;
+    await route.fulfill({
+      status: fail ? badGateway : success,
+      contentType: 'application/json',
+      body: fail ? '' : '{}',
+    });
+  });
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?failure`);
+  await page.getByRole('link', { name: 'Laundry', exact: true }).click();
+  await page
+    .getByText('Send a piece to laundry early', { exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Choose a piece', exact: true })
+    .click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: blueShirt })
+    .click();
+  const send = page.getByRole('button', { name: 'Put in basket' });
+  const planning = page.getByRole('link', { name: 'Planning', exact: true });
+  await send.click();
+  await expect(send).toBeDisabled();
+  await planning.click();
+  release?.();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Laundry', exact: true }),
+  ).toBeVisible();
+  await expect(send).toBeEnabled();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+
+  fail = false;
+  pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await send.click();
+  await expect(send).toBeDisabled();
+  await planning.click();
+  release?.();
+  const top = page.getByRole('button', { name: 'Choose top', exact: true });
+  await expect(top).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Change Navy chinos' }),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Remove bottom', exact: true })
+    .click();
+  await expect(page.getByLabel('Plan saving status')).toContainText(
+    'Saved for',
+  );
+  await page.reload();
+  await expect(top).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Choose bottom', exact: true }),
+  ).toBeVisible();
+});
 
 test('manual tomorrow choices save independently of reusable outfits and never record wear', async ({
   page,
@@ -36,10 +104,8 @@ test('manual tomorrow choices save independently of reusable outfits and never r
   await expect(
     page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Saved outfits', exact: true })
-    .click();
-  await expect(page.getByRole('dialog').getByRole('listitem')).toHaveCount(1);
+  await page.getByRole('link', { name: 'Outfits', exact: true }).click();
+  await expect(page.getByRole('main').getByRole('listitem')).toHaveCount(1);
   await expect(
     page.getByRole('heading', { name: 'Blue and navy' }),
   ).toBeVisible();

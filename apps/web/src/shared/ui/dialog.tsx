@@ -74,7 +74,11 @@ export const Dialog = ({
         widthClass[size],
         'backdrop:bg-ink/40',
       ].join(' ')}
-      onClose={() => {
+      onClose={(event) => {
+        // React bubbles close events from nested dialogs to their parents.
+        if (event.target !== event.currentTarget) {
+          return;
+        }
         openerRef.current = null;
         onClose();
       }}

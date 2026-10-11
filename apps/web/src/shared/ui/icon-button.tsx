@@ -1,7 +1,6 @@
 import { Link, type LinkProps } from '@tanstack/react-router';
 import {
   ArrowLeft,
-  BookMarked,
   Bookmark,
   Check,
   Clock,
@@ -13,6 +12,7 @@ import {
   Pencil,
   Plus,
   RotateCw,
+  Share,
   Trash2,
   Users,
   WashingMachine,
@@ -26,7 +26,6 @@ const icons = {
   edit: Pencil,
   trash: Trash2,
   bookmark: Bookmark,
-  bookmarks: BookMarked,
   laundry: WashingMachine,
   refresh: RotateCw,
   logout: LogOut,
@@ -39,6 +38,7 @@ const icons = {
   users: Users,
   eye: Eye,
   arrowLeft: ArrowLeft,
+  share: Share,
 };
 export type ActionIcon = keyof typeof icons;
 

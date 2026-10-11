@@ -49,6 +49,7 @@ const serverEnv = createEnv({
     FOUNDRY_OPENAI_ENDPOINT: z.url(),
     FOUNDRY_OPENAI_API_KEY: z.string().min(1),
     FOUNDRY_IMAGE_DEPLOYMENT: z.string().min(1),
+    FOUNDRY_COLLAGE_DEPLOYMENT: z.string().min(1),
     MEDIA_STORE: z.enum(['local', 's3']),
     MEDIA_LOCAL_DIR: z.string().optional(),
     ...s3Variables,

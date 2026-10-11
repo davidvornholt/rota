@@ -59,13 +59,21 @@ const outfitEntries = [
   { slot: 'top' as const, garmentId: shirt.id },
 ];
 const views = new Map<string, PlanningView>();
+// Saved outfits belong to no day, as on the server: every day sees the same list.
+const outfitsKey = 'planning-outfits';
+const savedOutfits = (): PlanningView['outfits'] => {
+  const stored = sessionStorage.getItem(outfitsKey);
+  return stored === null
+    ? [{ id: 'demo-saved', name: 'Blue and navy', entries: outfitEntries }]
+    : (JSON.parse(stored) as PlanningView['outfits']);
+};
 export const planningFixture = (date: string): PlanningView => {
   const stored = sessionStorage.getItem(`planning-view-${date}`);
   const existing =
     views.get(date) ??
     (stored === null ? undefined : (JSON.parse(stored) as PlanningView));
   if (existing !== undefined) {
-    return existing;
+    return { ...existing, outfits: savedOutfits() };
   }
   const view: PlanningView = {
     day: { ...demoProposal, today: localDate(date) },
@@ -92,9 +100,7 @@ export const planningFixture = (date: string): PlanningView => {
     laundryDays,
     cleanTop: false,
     plan: emptyPlan,
-    outfits: [
-      { id: 'demo-saved', name: 'Blue and navy', entries: outfitEntries },
-    ],
+    outfits: savedOutfits(),
     warnings: [],
   };
   views.set(date, view);
@@ -138,6 +144,11 @@ const updateCare = (
     wardrobe: view.wardrobe.map(updatePiece),
     laundry: view.laundry.map(updatePiece),
   };
+};
+const persist = (date: string, view: PlanningView) => {
+  views.set(date, view);
+  sessionStorage.setItem(`planning-view-${date}`, JSON.stringify(view));
+  sessionStorage.setItem(outfitsKey, JSON.stringify(view.outfits));
 };
 export const changePlanningFn = ({
   data,
@@ -257,11 +268,7 @@ export const changePlanningFn = ({
         default:
           break;
       }
-      views.set(data.date, next);
-      sessionStorage.setItem(
-        `planning-view-${data.date}`,
-        JSON.stringify(next),
-      );
+      persist(data.date, next);
       return structuredClone(next);
     }),
   );

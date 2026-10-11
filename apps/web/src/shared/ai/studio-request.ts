@@ -69,6 +69,14 @@ const EditResponse = Schema.Struct({
 });
 const decodeEditResponse = Schema.decodeUnknownSync(EditResponse);
 
+/** Where an edit goes: the resource root plus the v1 images path. */
+export const imageEditsUrl = (endpoint: string): string =>
+  `${endpoint.replace(trailingSlash, '')}/openai/v1/images/edits?api-version=preview`;
+
+/** The first picture of an edit answer, still base64; undefined when there is none. */
+export const editedImage = (body: string): string | undefined =>
+  decodeEditResponse(JSON.parse(body)).data?.[0]?.image;
+
 const isTransparencyRefusal = (status: number, body: string): boolean =>
   status === badRequest && transparencyTransparencyRefusal.test(body);
 
@@ -101,7 +109,7 @@ export const requestEdit = (
         form.append('background', 'transparent');
       }
       const response = await connection.request(
-        `${connection.endpoint.replace(trailingSlash, '')}/openai/v1/images/edits?api-version=preview`,
+        imageEditsUrl(connection.endpoint),
         {
           method: 'POST',
           signal,
@@ -131,8 +139,7 @@ export const requestEdit = (
           cause: `Foundry answered ${response.status}: ${body.slice(0, errorBodyLimit)}`,
         });
       }
-      const parsed = decodeEditResponse(JSON.parse(body));
-      const encoded = parsed.data?.[0]?.image;
+      const encoded = editedImage(body);
       if (encoded === undefined) {
         return new StudioRenderError({
           message: 'The image service returned no picture. Try again.',

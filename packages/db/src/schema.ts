@@ -318,6 +318,36 @@ export const savedOutfit = pgTable('saved_outfit', {
     .defaultNow(),
 });
 
+/**
+ * A flat-lay picture the image model made from an outfit's garment pictures.
+ * `pieces` names the combination it shows: each slot with the stored picture
+ * of its garment. The same outfit saved, planned or worn shares one picture,
+ * and a garment that gets a new picture gets a new collage. An error row
+ * claims the attempt before generation starts; success replaces it with the
+ * picture. An unfinished or failed attempt requires an explicit retry.
+ */
+export const outfitCollage = pgTable(
+  'outfit_collage',
+  {
+    ownerId: text('owner_id').notNull(),
+    pieces: text('pieces').notNull(),
+    storageKey: text('storage_key'),
+    width: integer('width'),
+    height: integer('height'),
+    error: text('error'),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.ownerId, table.pieces] }),
+    check(
+      'outfit_collage_outcome',
+      sql`(${table.storageKey} is not null and ${table.width} is not null and ${table.height} is not null and ${table.error} is null) or (${table.storageKey} is null and ${table.width} is null and ${table.height} is null and ${table.error} is not null)`,
+    ),
+  ],
+);
+
 /** A decision for a date is separate from actual wear and from generated suggestions. */
 export const dayPlan = pgTable(
   'day_plan',

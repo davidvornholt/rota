@@ -9,18 +9,16 @@ const searchSchema = z.object({
   date: z.iso.date().optional(),
   garment: z.string().optional(),
   outfit: z.string().optional(),
-  panel: z.enum(['outfits', 'laundry']).optional(),
 });
 const TodayRoute = () => {
   const initial = Route.useLoaderData();
   const search = Route.useSearch();
   return (
     <TodayPage
-      key={`${initial.day.today}-${search.panel ?? ''}`}
+      key={initial.day.today}
       initial={initial}
       seed={search.garment}
       savedOutfitId={search.outfit}
-      panel={search.panel}
     />
   );
 };
