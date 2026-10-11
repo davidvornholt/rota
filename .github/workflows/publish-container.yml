@@ -1,21 +1,16 @@
 name: Publish container
 
-# The infrastructure promotion proof binds push runs by workflow path and id.
-# A squash commit on main is new, so wait for Standards to pass on that exact
-# commit before building instead of relying on the pull request's checks.
-# Rota has no pull request previews (recorded in personal-infra), so this
-# workflow runs for main only.
+# Merging to main releases to production. The image builds while Standards
+# runs; the release starts only after Standards has passed on this exact
+# commit, because a squash commit on main is new and the pull request's checks
+# do not cover it. Rota has no pull request previews (recorded in
+# personal-infra), so this workflow runs for main only.
 on:
   push:
     branches:
       - main
 
 permissions: {}
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-  queue: max
 
 jobs:
   gate:
@@ -67,9 +62,9 @@ jobs:
 
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
+  # Runs in parallel with the gate. The pushed image is inert until the
+  # release job, which needs the gate, hands its digest to the host.
   build:
-    needs: gate
-    if: needs.gate.outputs.gated-sha == github.sha
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -77,10 +72,8 @@ jobs:
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
-      - name: Checkout the commit being published
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
+      # The GitHub Actions cache exporter needs a BuildKit container builder.
+      - uses: docker/setup-buildx-action@v4
 
       - name: Log in to the GitHub Container Registry
         uses: docker/login-action@v4
@@ -89,7 +82,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: Build and publish the tracked tag
+      # The default Git context builds exactly github.sha. Cached layers keep
+      # their digests while their inputs are unchanged, so prod-1 pulls only
+      # the layers a commit changed.
+      - name: Build and push the commit image
         id: build
         uses: docker/build-push-action@v7
         with:
@@ -99,43 +95,55 @@ jobs:
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=rota
+          cache-to: type=gha,scope=rota,mode=max
 
-      - name: Promote the image only while this commit is current main
+  release:
+    needs: [gate, build]
+    if: needs.gate.outputs.gated-sha == github.sha
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    concurrency:
+      group: app-release-rota
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Checkout the released commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Release the image to production
+        id: release
+        uses: ./.github/actions/app-release
+        with:
+          unit: rota
+          host: prod-1.vornholt.online
+          known-host: prod-1.vornholt.online ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFkom7Y24gnBa9X+gUDBZvlCnXiuKTo87ROOtlMpgNH5
+          images: rota@${{ needs.build.outputs.digest }}
+          age-key: ${{ secrets.SOPS_AGE_KEY }}
+
+      # A superseded release leaves the newer release's tag in place.
+      - name: Log in to the GitHub Container Registry
+        if: steps.release.outputs.result == 'released' || steps.release.outputs.result == 'unchanged'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Point the main tag at the released image
+        if: steps.release.outputs.result == 'released' || steps.release.outputs.result == 'unchanged'
         env:
-          BUILD_DIGEST: ${{ steps.build.outputs.digest }}
-          GATED_SHA: ${{ needs.gate.outputs.gated-sha }}
-          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ needs.build.outputs.digest }}
           IMAGE: ghcr.io/davidvornholt/rota
-          SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test "$GATED_SHA" = "$SHA"
-          test "$(git rev-parse HEAD)" = "$SHA"
-          current_main=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
-          if [ "$current_main" != "$SHA" ]; then
-            echo "::error::Refusing to publish stale main commit $SHA; current main is $current_main"
-            exit 1
-          fi
-          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:main" "$IMAGE@$BUILD_DIGEST"
+          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:main" "$IMAGE@$DIGEST"
           resolved=$(docker buildx imagetools inspect "$IMAGE:main" --format '{{json .Manifest}}' | jq -er .digest)
-          test "$resolved" = "$BUILD_DIGEST"
-          current_main=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
-          if [ "$current_main" != "$SHA" ]; then
-            echo "::error::Main advanced to $current_main while $SHA was being published"
-            exit 1
-          fi
-
-      - name: Emit immutable promotion record
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-          IMAGE: ghcr.io/davidvornholt/rota
-          REF: ${{ github.ref }}
-          REPOSITORY: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          record=$(jq -cn --arg repository "$REPOSITORY" --arg ref "$REF" --arg sha "$SHA" --arg runId "$RUN_ID" --arg image "$IMAGE" --arg digest "$DIGEST" '{repository:$repository,ref:$ref,sha:$sha,runId:$runId,image:$image,digest:$digest}')
-          marker_left=IMAGE_PROMOTION
-          marker_right=_RECORD
-          printf '%s %s\n' "${marker_left}${marker_right}" "$record"
+          test "$resolved" = "$DIGEST"
