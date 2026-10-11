@@ -5,6 +5,7 @@ import type { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
 import type { ReportStudioProgress } from '#/shared/ai/studio-scheduler.ts';
 import type { Garment } from '#/shared/data/garment.ts';
 import type { GarmentRepository } from '#/shared/data/garment-repository.ts';
+import { measureContentBox } from '#/shared/media/content-box.ts';
 import { imageDimensions } from '#/shared/media/image-dimensions.ts';
 import type { MediaStore } from '#/shared/media/media-store.ts';
 
@@ -78,6 +79,16 @@ export const renderStudio = <E>(
       })),
     );
     const render = yield* deps.studio.render(input, report);
+    // An unmeasured render still shows everywhere but the collage, which then
+    // places it with its margins; the tick backfill measures it again later.
+    const contentBox = yield* measureContentBox(render.bytes).pipe(
+      Effect.catch((error) =>
+        Effect.logWarning(
+          `Could not measure the studio picture for garment ${garment.id}.`,
+          error,
+        ).pipe(Effect.as(null)),
+      ),
+    );
     yield* Effect.gen(function* () {
       const stored = yield* deps.media.put(render.bytes, render.mime);
       const dimensions = imageDimensions(render.bytes);
@@ -87,6 +98,7 @@ export const renderStudio = <E>(
         width: dimensions?.width ?? 0,
         height: dimensions?.height ?? 0,
         bytes: stored.bytes,
+        contentBox,
       });
       // A garment that showed its photo only because no render existed now shows
       // the render; a photo the wearer chose over an earlier render stays.

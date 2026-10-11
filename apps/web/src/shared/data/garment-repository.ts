@@ -55,7 +55,8 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
         (select coalesce(json_object_agg(
            i.kind,
            json_build_object('key', i.storage_key, 'mime', i.mime,
-                             'width', i.width, 'height', i.height)), '{}'::json)
+                             'width', i.width, 'height', i.height,
+                             'contentBox', i.content_box)), '{}'::json)
          from garment_image i
          where i.garment_id = g.id)
       `;
@@ -97,13 +98,15 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
         image: StoredImage,
       ) =>
         sql`
-          insert into garment_image (garment_id, kind, storage_key, mime, width, height, bytes)
-          select ${garmentId}, ${kind}, ${image.key}, ${image.mime}, ${image.width}, ${image.height}, ${image.bytes}
+          insert into garment_image (garment_id, kind, storage_key, mime, width, height, bytes, content_box)
+          select ${garmentId}, ${kind}, ${image.key}, ${image.mime}, ${image.width}, ${image.height}, ${image.bytes},
+                 ${image.contentBox === null ? null : JSON.stringify(image.contentBox)}::jsonb
           where exists (select 1 from garment where id = ${garmentId} and owner_id = ${owner.id})
           on conflict (garment_id, kind) do update
             set storage_key = excluded.storage_key, mime = excluded.mime,
                 width = excluded.width, height = excluded.height,
-                bytes = excluded.bytes, created_at = now()
+                bytes = excluded.bytes, content_box = excluded.content_box,
+                created_at = now()
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
       /** A new garment enters as `processing`, with only its photo known. */

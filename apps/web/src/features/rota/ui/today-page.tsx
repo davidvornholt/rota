@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { collageEntries } from '#/shared/collage/collage-pieces.ts';
+import { formatLongDate } from '#/shared/time/local-date.ts';
 import { frameClass } from '#/shared/ui/classes.ts';
 import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { IconLink } from '#/shared/ui/icon-link.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
+import { ShareOutfitButton } from '#/shared/ui/share-outfit-dialog.tsx';
 import type { PlanningView } from '../schemas/planning-view.ts';
 import { backfillFn } from '../services/today-fns.ts';
 import { BackfillPrompt } from './backfill-prompt.tsx';
@@ -114,6 +117,10 @@ export const TodayPage = ({
                 onClick={() => setOpen('save')}
               />
             ) : null}
+            <ShareOutfitButton
+              entries={collageEntries(entries, view.wardrobe)}
+              title={formatLongDate(view.day.today)}
+            />
           </div>
           <p className="mt-3 text-ink-muted text-sm" role="status">
             {controller.message}

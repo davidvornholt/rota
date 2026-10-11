@@ -3,7 +3,11 @@ import {
   type StudioState,
   studioIsBusy,
 } from '#/shared/ai/studio-progress.ts';
-import { displayImage, type Garment } from '#/shared/data/garment.ts';
+import {
+  displayImage,
+  type Garment,
+  type GarmentImage,
+} from '#/shared/data/garment.ts';
 import {
   effectiveWearBudget,
   type GarmentColor,
@@ -28,6 +32,18 @@ export type GarmentImageView = {
   readonly height: number;
   /** Studio renders sit on the paper; originals fill their frame. */
   readonly fit: 'contain' | 'cover';
+  /**
+   * Where the garment sits in a studio render, as fractions of the picture, so
+   * a collage can crop the margins; null for photos and unmeasured renders.
+   */
+  readonly content: ContentFraction | null;
+};
+
+export type ContentFraction = {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
 };
 
 export const isRendering = (garment: {
@@ -108,8 +124,18 @@ export const wearFactsByGarment = (
 
 type MediaUrlFor = (key: string, width?: VariantWidth) => string;
 
+const contentFraction = (image: GarmentImage): ContentFraction | null =>
+  image.contentBox === null || image.width <= 0 || image.height <= 0
+    ? null
+    : {
+        left: image.contentBox.left / image.width,
+        top: image.contentBox.top / image.height,
+        width: image.contentBox.width / image.width,
+        height: image.contentBox.height / image.height,
+      };
+
 const imageView = (
-  image: Garment['images']['original'],
+  image: GarmentImage | undefined,
   fit: GarmentImageView['fit'],
   urlFor: MediaUrlFor,
 ): GarmentImageView | undefined =>
@@ -121,6 +147,7 @@ const imageView = (
         width: image.width,
         height: image.height,
         fit,
+        content: fit === 'contain' ? contentFraction(image) : null,
       };
 
 export type GarmentViewInput = {

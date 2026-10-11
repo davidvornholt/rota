@@ -20,6 +20,7 @@ const photo = {
   width: 300,
   height: 400,
   fit: 'contain',
+  content: null,
 } as const;
 const garment: GarmentView = {
   id: 'demo-shirt',

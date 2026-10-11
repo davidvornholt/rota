@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import type { GarmentView } from '#/shared/data/garment-view.ts';
+import {
+  collageEntries,
+  collageLabel,
+} from '#/shared/collage/collage-pieces.ts';
 import type { SavedOutfit } from '#/shared/data/outfit.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import {
@@ -9,37 +12,12 @@ import {
   signalButtonClass,
 } from '#/shared/ui/classes.ts';
 import { Dialog } from '#/shared/ui/dialog.tsx';
-import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
+import { OutfitCollage } from '#/shared/ui/outfit-collage.tsx';
+import { ShareOutfitButton } from '#/shared/ui/share-outfit-dialog.tsx';
 import { OutfitEditor } from './outfit-editor.tsx';
 import type { PlanningController } from './use-planning.ts';
-
-const Preview = ({
-  outfit,
-  wardrobe,
-}: {
-  readonly outfit: SavedOutfit;
-  readonly wardrobe: ReadonlyArray<GarmentView>;
-}) => (
-  <div className="grid grid-cols-2 gap-2">
-    {outfit.entries
-      .filter((entry) => entry.slot === 'top' || entry.slot === 'bottom')
-      .map((entry) => {
-        const garment = wardrobe.find((item) => item.id === entry.garmentId);
-        return (
-          <GarmentFigure
-            alt=""
-            colors={garment?.colors ?? []}
-            image={garment?.image}
-            key={entry.slot}
-            name={garment?.name ?? 'Unavailable piece'}
-            sizes="(min-width: 1024px) 10rem, (min-width: 640px) 25vw, 50vw"
-          />
-        );
-      })}
-  </div>
-);
 
 const SavedOutfitCard = ({
   outfit,
@@ -59,9 +37,14 @@ const SavedOutfitCard = ({
   readonly act: (work: Promise<unknown>, done: () => void) => Promise<void>;
 }) => {
   const { view, busy } = controller;
+  const entries = collageEntries(outfit.entries, view.wardrobe);
   return (
     <li key={outfit.id}>
-      <Preview outfit={outfit} wardrobe={view.wardrobe} />
+      <OutfitCollage
+        entries={entries}
+        label={collageLabel(outfit.name, entries)}
+        width="min(100vw - 2.5rem, 21rem)"
+      />
       <h3 className="type-display mt-2 text-2xl">{outfit.name}</h3>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
@@ -82,6 +65,11 @@ const SavedOutfitCard = ({
           label={`Edit ${outfit.name}`}
           disabled={busy}
           onClick={() => setEditing(outfit)}
+        />
+        <ShareOutfitButton
+          entries={entries}
+          label={`Share ${outfit.name} as picture`}
+          title={outfit.name}
         />
         <IconButton
           icon="trash"

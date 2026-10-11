@@ -53,6 +53,7 @@ describe('replaceOriginalPhoto', () => {
       width,
       height,
       bytes: 3,
+      contentBox: null,
     });
     expect(setImageChoice).toHaveBeenCalledWith('shirt', 'original');
   });

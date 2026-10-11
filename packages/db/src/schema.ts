@@ -148,6 +148,10 @@ export const garment = pgTable(
  * The stored files behind a garment: the phone photo as uploaded and the
  * studio render. `storage_key` is the content hash the media store keyed the
  * bytes under, so a key names exactly one immutable image forever.
+ * `content_box` is the pixel rectangle the garment fills inside a studio
+ * render, `{ left, top, width, height }`, so an outfit collage can place the
+ * garment itself rather than the render's empty margins. It stays null for
+ * phone photos and until a render has been measured.
  */
 export const garmentImage = pgTable(
   'garment_image',
@@ -162,6 +166,7 @@ export const garmentImage = pgTable(
     width: integer('width').notNull(),
     height: integer('height').notNull(),
     bytes: integer('bytes').notNull(),
+    contentBox: jsonb('content_box'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

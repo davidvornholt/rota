@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { Deferred, Duration, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
+import sharp from 'sharp';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
 import { studioPersistenceTimeout } from '#/shared/ai/studio-budgets.ts';
 import type { StudioRenderInput } from '#/shared/ai/studio-request.ts';
@@ -8,7 +9,13 @@ import type { Garment } from '#/shared/data/garment.ts';
 import { makeStudioJobs } from './studio-jobs.ts';
 import { makeStudioWork, renderStudio } from './studio-render-job.ts';
 
-const image = { key: 'existing', mime: 'image/png', width: 300, height: 400 };
+const image = {
+  key: 'existing',
+  mime: 'image/png',
+  width: 300,
+  height: 400,
+  contentBox: null,
+};
 const garment = (status: Garment['status'], hasStudio: boolean): Garment => ({
   id: 'shirt',
   status,
@@ -177,6 +184,69 @@ describe('studio render persistence', () => {
     expect(job.attachImage).toHaveBeenCalledTimes(1);
     expect(job.setImageChoice).not.toHaveBeenCalled();
     expect(row.status).toBe('active');
+  });
+
+  it('stores where the garment sits in the render, or no box when it cannot be measured', async () => {
+    const transparentRender = new Uint8Array(
+      await sharp({
+        create: {
+          width: 120,
+          height: 160,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+        },
+      })
+        .composite([
+          {
+            input: {
+              create: {
+                width: 60,
+                height: 100,
+                channels: 4,
+                background: { r: 36, g: 54, b: 75, alpha: 1 },
+              },
+            },
+            left: 30,
+            top: 20,
+          },
+        ])
+        .png()
+        .toBuffer(),
+    );
+    const measured = setup(garment('active', true));
+    const unreadable = setup(garment('active', true));
+    await Effect.runPromise(
+      measured.render(
+        Effect.succeed({
+          bytes: transparentRender,
+          mime: 'image/png',
+          transparent: true,
+        }),
+      ),
+    );
+    await Effect.runPromise(
+      unreadable.render(
+        Effect.succeed({
+          bytes: new Uint8Array([1]),
+          mime: 'image/png',
+          transparent: true,
+        }),
+      ),
+    );
+    expect(measured.attachImage).toHaveBeenCalledWith(
+      'shirt',
+      'studio',
+      expect.objectContaining({
+        width: 120,
+        height: 160,
+        contentBox: { left: 30, top: 20, width: 60, height: 100 },
+      }),
+    );
+    expect(unreadable.attachImage).toHaveBeenCalledWith(
+      'shirt',
+      'studio',
+      expect.objectContaining({ contentBox: null }),
+    );
   });
 });
 

@@ -15,6 +15,7 @@ import {
   linkButtonClass,
 } from '#/shared/ui/classes.ts';
 import { Notice } from '#/shared/ui/notice.tsx';
+import { ShareOutfitButton } from '#/shared/ui/share-outfit-dialog.tsx';
 import type { DayView } from '../services/history-fns.ts';
 import {
   type Choice,
@@ -173,6 +174,15 @@ export const DayPage = ({ view, save, renderSaveOutfit }: DayPageProps) => {
           </form>
           <div className="mt-3 flex items-center gap-4">
             {renderSaveOutfit(entries)}
+            <ShareOutfitButton
+              entries={entries.map((entry) => ({
+                slot: entry.slot,
+                garment: view.choices[entry.slot].find(
+                  (garment) => garment.id === entry.garmentId,
+                ),
+              }))}
+              title={formatLongDate(view.date)}
+            />
           </div>
         </>
       )}
