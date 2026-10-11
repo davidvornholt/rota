@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Effect } from 'effect';
+import { Deferred, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
 import type { CollageInput } from '#/shared/ai/collage-request.ts';
 import { collageFailure } from '#/shared/ai/collage-request.ts';
@@ -82,10 +82,12 @@ const setup = (
   options: {
     readonly stored?: Map<string, StoredCollage>;
     readonly failedWrites?: 'claim' | 'outcome';
+    readonly beforeFirstRead?: Effect.Effect<void>;
   } = {},
 ) => {
   const stored = options.stored ?? new Map<string, StoredCollage>();
   const inputs: Array<CollageInput> = [];
+  let beforeRead = options.beforeFirstRead ?? Effect.void;
   const writeFailure = new DataWriteError({
     message: 'The database write failed.',
     cause: 'Injected database failure.',
@@ -93,7 +95,13 @@ const setup = (
   const collages = makeOutfitCollages({
     garments: { list: () => Effect.succeed(wardrobe) },
     collages: {
-      find: (pieces) => Effect.sync(() => stored.get(pieces)),
+      find: (pieces) =>
+        Effect.gen(function* () {
+          const wait = beforeRead;
+          beforeRead = Effect.void;
+          yield* wait;
+          return stored.get(pieces);
+        }),
       claimAttempt: (pieces, message, retry) =>
         Effect.gen(function* () {
           yield* Effect.yieldNow;
@@ -153,10 +161,18 @@ const run = <A, E>(effect: Effect.Effect<A, E>) =>
 
 describe('outfit collages', () => {
   it('makes one picture per combination, answers pending meanwhile, then the stored picture', async () => {
-    const { collages, inputs, stored } = setup();
+    const reading = Deferred.makeUnsafe<void>();
+    const release = Deferred.makeUnsafe<void>();
+    const { collages, inputs, stored } = setup(['picture'], {
+      beforeFirstRead: Deferred.succeed(reading, undefined).pipe(
+        Effect.andThen(Deferred.await(release)),
+      ),
+    });
     const anotherRuntime = setup(['picture'], { stored });
     await run(
       Effect.gen(function* () {
+        const delayed = yield* Effect.forkChild(collages.state(outfit, false));
+        yield* Deferred.await(reading);
         expect(
           yield* Effect.all(
             [
@@ -171,6 +187,8 @@ describe('outfit collages', () => {
           { status: 'pending', progress: { status: 'preparing' } },
           { status: 'failed', message: collageFailure },
         ]);
+        yield* Deferred.succeed(release, undefined);
+        expect((yield* Fiber.join(delayed)).status).toBe('pending');
         expect((yield* collages.state(outfit, false)).status).toBe('pending');
         yield* TestClock.adjust(renderTime);
         expect(yield* collages.state(outfit, false)).toEqual({
@@ -197,7 +215,9 @@ describe('outfit collages', () => {
       'bottom:chinos-photo.jpg top:shirt-studio.png',
     ]);
   });
+});
 
+describe('outfit collage attempts', () => {
   it('answers a stored failure without paying again, and tries again when asked', async () => {
     const { collages, inputs } = setup(['failure', 'picture']);
     await run(

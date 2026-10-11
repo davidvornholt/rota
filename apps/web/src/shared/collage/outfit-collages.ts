@@ -160,10 +160,17 @@ export const makeOutfitCollages = (dependencies: CollageDependencies) => {
     progress: active.get(key) ?? { status: 'preparing' },
   });
 
-  const storedState = (stored: StoredCollage | undefined): CollageState =>
-    stored?.status === 'ready'
+  const storedState = (
+    key: string,
+    stored: StoredCollage | undefined,
+  ): CollageState => {
+    if (active.has(key)) {
+      return pending(key);
+    }
+    return stored?.status === 'ready'
       ? { status: 'ready', picture: pictureOf(media.urlFor, stored) }
       : { status: 'failed', message: stored?.message ?? collageFailure };
+  };
 
   const state = (entries: ReadonlyArray<CollageRequestEntry>, retry: boolean) =>
     Effect.gen(function* () {
@@ -181,11 +188,11 @@ export const makeOutfitCollages = (dependencies: CollageDependencies) => {
       }
       const stored = yield* collages.find(key);
       if (stored?.status === 'ready' || (stored && !retry)) {
-        return storedState(stored);
+        return storedState(key, stored);
       }
       return (yield* start(key, pieces, retry))
         ? pending(key)
-        : storedState(yield* collages.find(key));
+        : storedState(key, yield* collages.find(key));
     }).pipe(
       Effect.catchTag('CollageError', (error) =>
         Effect.succeed({
