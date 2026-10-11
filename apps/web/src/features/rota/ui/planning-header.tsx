@@ -5,20 +5,17 @@ import {
   tabActiveClass,
   tabClass,
 } from '#/shared/ui/classes.ts';
-import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { DayPreferences } from './day-preferences.tsx';
 import type { PlanningController } from './use-planning.ts';
 export const PlanningNavigation = ({
   controller,
-  onPanel,
 }: {
   readonly controller: PlanningController;
-  readonly onPanel: (panel: 'outfits' | 'laundry') => void;
 }) => {
   const { view, busy } = controller;
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-rule border-b">
+    <div className="mb-6 border-rule border-b">
       <nav aria-label="Outfit day" className="flex gap-6">
         {[
           { label: 'Today', date: view.actualToday },
@@ -43,22 +40,6 @@ export const PlanningNavigation = ({
           </Link>
         ))}
       </nav>
-      <div className="flex gap-1">
-        <IconButton
-          icon="bookmarks"
-          label="Saved outfits"
-          disabled={busy}
-          onClick={() => onPanel('outfits')}
-        />
-        <IconButton
-          icon="laundry"
-          label="Laundry"
-          disabled={
-            busy || controller.planSave.saving || controller.planSave.failed
-          }
-          onClick={() => onPanel('laundry')}
-        />
-      </div>
     </div>
   );
 };

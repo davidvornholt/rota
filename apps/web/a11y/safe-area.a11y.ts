@@ -10,7 +10,17 @@ const bottomInset = 34;
 const notchInset = 59;
 const safeBottom = portrait.height - bottomInset;
 const coversViewport = /viewport-fit=cover/u;
-const tabNames = ['Today', 'Wardrobe', 'History', 'Settings'] as const;
+// The narrowest width WCAG reflow asks for, and a comfortable thumb target.
+const narrowPhone = { width: 320, height: 640 } as const;
+const minimumTarget = 44;
+const tabNames = [
+  'Today',
+  'Wardrobe',
+  'Outfits',
+  'Laundry',
+  'History',
+  'Settings',
+] as const;
 
 const emulateRoundedPhone = async (
   page: playwright.Page,
@@ -60,6 +70,41 @@ test('bottom navigation stays clear of rounded corners and the home indicator', 
   );
   const navigationTop = (await navigation.boundingBox())?.y;
   expect(await bottomOf(signOut)).toBeLessThanOrEqual(navigationTop ?? 0);
+});
+
+test('bottom navigation fits every destination on a 320 px phone', async ({
+  page,
+}) => {
+  await page.setViewportSize(narrowPhone);
+  await page.goto(`${fixtureOrigin}a11y/fixtures/people.html?shell`);
+  const links = page
+    .getByRole('navigation', { name: 'Main' })
+    .getByRole('link');
+  await expect(links).toHaveText([...tabNames]);
+  const boxes = await links.evaluateAll((elements) =>
+    elements.map((element) => {
+      // A label broken across lines does not overflow, so count its lines.
+      const label = document.createRange();
+      label.selectNodeContents(element.lastChild ?? element);
+      const { left, right, height } = element.getBoundingClientRect();
+      return {
+        clipped: element.scrollWidth > element.clientWidth,
+        lines: label.getClientRects().length,
+        left,
+        right,
+        height,
+      };
+    }),
+  );
+  let previousRight = 0;
+  for (const box of boxes) {
+    expect(box.clipped).toBe(false);
+    expect(box.lines).toBe(1);
+    expect(box.left).toBeGreaterThanOrEqual(previousRight);
+    expect(box.height).toBeGreaterThanOrEqual(minimumTarget);
+    previousRight = box.right;
+  }
+  expect(previousRight).toBeLessThanOrEqual(narrowPhone.width);
 });
 
 test('a dialog sheet keeps its actions above the home indicator', async ({

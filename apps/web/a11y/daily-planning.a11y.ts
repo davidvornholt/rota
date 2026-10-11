@@ -36,10 +36,8 @@ test('manual tomorrow choices save independently of reusable outfits and never r
   await expect(
     page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Saved outfits', exact: true })
-    .click();
-  await expect(page.getByRole('dialog').getByRole('listitem')).toHaveCount(1);
+  await page.getByRole('link', { name: 'Outfits', exact: true }).click();
+  await expect(page.getByRole('main').getByRole('listitem')).toHaveCount(1);
   await expect(
     page.getByRole('heading', { name: 'Blue and navy' }),
   ).toBeVisible();

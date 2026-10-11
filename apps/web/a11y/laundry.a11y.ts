@@ -10,17 +10,17 @@ test('early laundry offers photos before selection, restores focus, and resets a
   page,
 }) => {
   await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
-  await page.getByRole('button', { name: 'Laundry', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Laundry', exact: true });
-  await dialog
+  await page.getByRole('link', { name: 'Laundry', exact: true }).click();
+  const laundry = page.getByRole('main');
+  await laundry
     .getByText('Send a piece to laundry early', { exact: true })
     .click();
-  const choose = dialog.getByRole('button', {
+  const choose = laundry.getByRole('button', {
     name: 'Choose a piece',
     exact: true,
   });
   await expect(
-    dialog.getByRole('button', { name: 'Put in basket' }),
+    laundry.getByRole('button', { name: 'Put in basket' }),
   ).toBeDisabled();
   await choose.click();
   const picker = page.getByRole('dialog', {
@@ -44,16 +44,16 @@ test('early laundry offers photos before selection, restores focus, and resets a
   await expect(picker).toHaveCount(0);
   await expect(choose).toBeFocused();
   await expect(
-    dialog.getByRole('button', { name: 'Put in basket' }),
+    laundry.getByRole('button', { name: 'Put in basket' }),
   ).toBeDisabled();
   await choose.click();
   await shirt.click();
-  const change = dialog.getByRole('button', {
+  const change = laundry.getByRole('button', {
     name: 'Change piece',
     exact: true,
   });
   await expect(change).toBeFocused();
-  await expect(dialog.getByRole('region', { name: 'In laundry' })).toHaveCount(
+  await expect(laundry.getByRole('region', { name: 'In laundry' })).toHaveCount(
     0,
   );
   await change.click();
@@ -61,21 +61,21 @@ test('early laundry offers photos before selection, restores focus, and resets a
   await picker.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(change).toBeFocused();
   await expect(
-    dialog.getByRole('img', { name: 'Blue Oxford shirt', exact: true }),
+    laundry.getByRole('img', { name: 'Blue Oxford shirt', exact: true }),
   ).toBeVisible();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
-  await dialog.getByRole('button', { name: 'Put in basket' }).click();
+  await laundry.getByRole('button', { name: 'Put in basket' }).click();
   await expect(choose).toBeVisible();
   await expect(
-    dialog.getByRole('button', { name: 'Put in basket' }),
+    laundry.getByRole('button', { name: 'Put in basket' }),
   ).toBeDisabled();
   await expect(
-    dialog.getByRole('button', { name: 'Back clean: Blue Oxford shirt' }),
+    laundry.getByRole('button', { name: 'Back clean: Blue Oxford shirt' }),
   ).toBeVisible();
   await choose.click();
   await expect(shirt).toHaveCount(0);
   await picker.getByRole('button', { name: 'Close', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('link', { name: 'Planning', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Choose top', exact: true }),
   ).toBeVisible();
@@ -85,9 +85,9 @@ test('the laundry picker explains when no washable pieces remain', async ({
   page,
 }) => {
   await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
-  await page.getByRole('button', { name: 'Laundry', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Laundry', exact: true });
-  await dialog
+  await page.getByRole('link', { name: 'Laundry', exact: true }).click();
+  const laundry = page.getByRole('main');
+  await laundry
     .getByText('Send a piece to laundry early', { exact: true })
     .click();
   const picker = page.getByRole('dialog', {
@@ -95,19 +95,19 @@ test('the laundry picker explains when no washable pieces remain', async ({
     exact: true,
   });
   const send = async (name: string) => {
-    await dialog
+    await laundry
       .getByRole('button', { name: 'Choose a piece', exact: true })
       .click();
     await picker.getByRole('button', { name, exact: false }).click();
-    await dialog.getByRole('button', { name: 'Put in basket' }).click();
+    await laundry.getByRole('button', { name: 'Put in basket' }).click();
     await expect(
-      dialog.getByRole('button', { name: `Back clean: ${name}`, exact: true }),
+      laundry.getByRole('button', { name: `Back clean: ${name}`, exact: true }),
     ).toBeVisible();
   };
   await send('Navy chinos');
   await send('Blue Oxford shirt');
   await send('White cotton shirt');
-  await dialog
+  await laundry
     .getByRole('button', { name: 'Choose a piece', exact: true })
     .click();
   await expect(
@@ -118,7 +118,7 @@ test('the laundry picker explains when no washable pieces remain', async ({
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await page.keyboard.press('Escape');
   await expect(
-    dialog.getByRole('button', { name: 'Put in basket' }),
+    laundry.getByRole('button', { name: 'Put in basket' }),
   ).toBeDisabled();
 });
 
@@ -129,9 +129,12 @@ test('laundry shows photos in both lists and a fallback for garments without pho
   await page
     .getByRole('button', { name: 'Send Navy chinos to laundry', exact: true })
     .click();
-  await page.getByRole('button', { name: 'Laundry', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  const returned = dialog.getByRole('region', { name: 'Expected back' });
+  await expect(
+    page.getByRole('button', { name: 'Choose bottom', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('link', { name: 'Laundry', exact: true }).click();
+  const laundry = page.getByRole('main');
+  const returned = laundry.getByRole('region', { name: 'Expected back' });
   const returnedPhoto = returned.locator('img');
   await expect(returnedPhoto).toBeVisible();
   await expect(returnedPhoto).toHaveAttribute(
@@ -144,7 +147,7 @@ test('laundry shows photos in both lists and a fallback for garments without pho
       returnedPhoto.evaluate((image: HTMLImageElement) => image.naturalWidth),
     )
     .toBeGreaterThan(0);
-  const waiting = dialog.getByRole('region', { name: 'In laundry' });
+  const waiting = laundry.getByRole('region', { name: 'In laundry' });
   await expect(
     waiting.getByRole('listitem').filter({ hasText: 'Navy chinos' }),
   ).toBeVisible();

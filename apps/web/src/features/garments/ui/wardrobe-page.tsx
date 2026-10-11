@@ -8,7 +8,6 @@ import {
 import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
 import { frameClass, tabActiveClass, tabClass } from '#/shared/ui/classes.ts';
 import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
-import { IconLink } from '#/shared/ui/icon-link.tsx';
 import { Swatches } from '#/shared/ui/swatches.tsx';
 import type { WardrobeView } from '../services/garments-fns.ts';
 import { DropOverlay } from './drop-overlay.tsx';
@@ -127,16 +126,6 @@ export const WardrobePage = ({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          <IconLink
-            icon="bookmarks"
-            label="Saved outfits"
-            linkOptions={{ to: '/', search: { panel: 'outfits' } }}
-          />
-          <IconLink
-            icon="laundry"
-            label="Laundry"
-            linkOptions={{ to: '/', search: { panel: 'laundry' } }}
-          />
           <UploadControl onIntake={intake.take} />
         </div>
       </div>
