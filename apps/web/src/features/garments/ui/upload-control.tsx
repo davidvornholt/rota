@@ -1,101 +1,95 @@
-import { useState } from 'react';
+import { Effect } from 'effect';
+import { ClipboardPaste } from 'lucide-react';
+import { useState, useSyncExternalStore } from 'react';
 
 import { quietButtonClass, signalButtonClass } from '#/shared/ui/classes.ts';
-import { Notice } from '#/shared/ui/notice.tsx';
-import { uploadEndpoint, uploadFieldName } from '../upload-contract.ts';
-import { downscaleForUpload } from './downscale-image.ts';
+import { type Intake, intakeOf, readClipboard } from './photo-intake.ts';
 import { PhotoPicker } from './photo-picker.tsx';
 
-type UploadState =
-  | { readonly kind: 'idle' }
-  | { readonly kind: 'preparing'; readonly count: number }
-  | { readonly kind: 'uploading'; readonly count: number }
-  | { readonly kind: 'failed'; readonly message: string };
+type PasteKeys = { readonly label: string; readonly aria: string };
+
+const noSubscription = () => () => undefined;
+const apple: PasteKeys = { label: '⌘V', aria: 'Meta+V' };
+const others: PasteKeys = { label: 'Ctrl+V', aria: 'Control+V' };
+const appleDevice = /Mac|iPhone|iPad/u;
+const pasteKeysHere = () =>
+  appleDevice.test(navigator.userAgent) ? apple : others;
+
+/**
+ * The paste shortcut as this device writes it, or null while rendering on the
+ * server, where the device is not known yet.
+ */
+const usePasteKeys = () =>
+  useSyncExternalStore(noSubscription, pasteKeysHere, () => null);
+
+/** The chooser's files read like a drop, so a stray document is named the same way. */
+const picked = (files: ReadonlyArray<File>): Intake =>
+  intakeOf({ files, getData: () => '' });
 
 type UploadControlProps = {
-  readonly onUploaded: (count: number) => void;
+  readonly onIntake: (intake: Intake) => void;
 };
 
 /**
- * Two ways in: the camera, for standing at the wardrobe, and the photo
- * library, for a batch. Either way the photos are shrunk on the device and sent
- * together; the cards appear in the queue the moment the server has them.
+ * Every way in. The camera, for standing at the wardrobe; the photo library,
+ * for a batch; and the clipboard, for a picture found elsewhere. A paste or a
+ * drop anywhere on the page does the same as these buttons.
  */
-export const UploadControl = ({ onUploaded }: UploadControlProps) => {
-  const [state, setState] = useState<UploadState>({ kind: 'idle' });
+export const UploadControl = ({ onIntake }: UploadControlProps) => {
+  const pasteKeys = usePasteKeys();
+  const [reading, setReading] = useState(false);
 
-  const send = async (files: ReadonlyArray<File>) => {
-    if (files.length === 0) {
-      return;
-    }
-    setState({ kind: 'preparing', count: files.length });
-    try {
-      const prepared = await Promise.all(files.map(downscaleForUpload));
-      setState({ kind: 'uploading', count: files.length });
-      const form = new FormData();
-      for (const file of prepared) {
-        form.append(uploadFieldName, file, file.name);
-      }
-      const response = await fetch(uploadEndpoint, {
-        method: 'POST',
-        body: form,
-      });
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(
-          message === '' ? `Upload failed (${response.status}).` : message,
-        );
-      }
-      setState({ kind: 'idle' });
-      onUploaded(files.length);
-    } catch (error) {
-      setState({
-        kind: 'failed',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'The upload did not go through.',
-      });
-    }
+  const paste = () => {
+    setReading(true);
+    Effect.runFork(
+      readClipboard((pasteKeys ?? others).label).pipe(
+        Effect.andThen((intake) =>
+          Effect.sync(() => {
+            setReading(false);
+            onIntake(intake);
+          }),
+        ),
+      ),
+    );
   };
 
-  const busy = state.kind === 'preparing' || state.kind === 'uploading';
-  const photos = (count: number) => `${count} photo${count === 1 ? '' : 's'}`;
-  let status: string | null = null;
-  if (state.kind === 'preparing') {
-    status = `Preparing ${photos(state.count)} …`;
-  } else if (state.kind === 'uploading') {
-    status = `Sending ${photos(state.count)} …`;
-  }
-
   return (
-    <div>
-      <div className="flex flex-wrap gap-3">
-        <PhotoPicker
-          busy={busy}
-          camera={true}
-          className={signalButtonClass}
-          label="Photograph a garment"
-          onPick={send}
+    <div className="flex flex-wrap gap-3">
+      <PhotoPicker
+        busy={false}
+        camera={true}
+        className={signalButtonClass}
+        label="Photograph a garment"
+        onPick={(files) => onIntake(picked(files))}
+      />
+      <PhotoPicker
+        busy={false}
+        className={quietButtonClass}
+        label="Choose photos"
+        multiple={true}
+        onPick={(files) => onIntake(picked(files))}
+      />
+      <button
+        aria-busy={reading}
+        aria-keyshortcuts={pasteKeys?.aria}
+        aria-label="Paste"
+        className={quietButtonClass}
+        disabled={reading}
+        onClick={paste}
+        type="button"
+      >
+        <ClipboardPaste
+          aria-hidden="true"
+          className="size-4 shrink-0"
+          strokeWidth={1.5}
         />
-        <PhotoPicker
-          busy={busy}
-          className={quietButtonClass}
-          label="Choose photos"
-          multiple={true}
-          onPick={send}
-        />
-      </div>
-      {status === null ? null : (
-        <p className="mt-3 text-ink-muted text-sm" role="status">
-          {status}
-        </p>
-      )}
-      {state.kind === 'failed' ? (
-        <Notice className="mt-3" live={true}>
-          {state.message}
-        </Notice>
-      ) : null}
+        Paste
+        {pasteKeys === null ? null : (
+          <kbd className="type-data pointer-fine:inline hidden font-sans text-ink-faint text-xs">
+            {pasteKeys.label}
+          </kbd>
+        )}
+      </button>
     </div>
   );
 };

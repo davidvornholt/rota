@@ -1,5 +1,5 @@
 import { Link, useRouter } from '@tanstack/react-router';
-import { useId, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import {
   type Slot,
   slotLabel,
@@ -11,9 +11,13 @@ import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { IconLink } from '#/shared/ui/icon-link.tsx';
 import { Swatches } from '#/shared/ui/swatches.tsx';
 import type { WardrobeView } from '../services/garments-fns.ts';
-import { ReviewCard } from './review-card.tsx';
+import { DropOverlay } from './drop-overlay.tsx';
+import { IntakeNoticeRow } from './intake-notice.tsx';
 import { UploadControl } from './upload-control.tsx';
 import { useGarmentPolling } from './use-garment-polling.ts';
+import { usePhotoIntake } from './use-photo-intake.ts';
+import { usePhotoUploads } from './use-photo-uploads.ts';
+import { WaitingQueue } from './waiting-queue.tsx';
 
 type Filter = 'all' | Slot;
 
@@ -63,9 +67,10 @@ const GarmentCell = ({ garment }: { readonly garment: GarmentView }) => (
 
 /**
  * The wardrobe: a contact sheet of every garment, with the ingest queue above
- * it while anything is still being read. Uploads land in the queue at once;
- * while a garment is processing the page asks the loader for news every few
- * seconds, so the card fills in without a reload.
+ * it while anything is still being read. A photo picked, pasted or dropped
+ * shows a card in the queue at once, before it is sent; while a garment is
+ * processing the page asks the loader for news every few seconds, so the card
+ * fills in without a reload.
  */
 export const WardrobePage = ({
   view,
@@ -76,15 +81,29 @@ export const WardrobePage = ({
 }) => {
   const router = useRouter();
   const headingId = useId();
-  const queueHeadingId = useId();
   const [filter, setFilter] = useState<Filter>('all');
   const [showRetired, setShowRetired] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const refresh = () => router.invalidate().catch(() => undefined);
+  const known = useMemo(
+    () =>
+      new Set(
+        [...view.queue, ...view.active, ...view.retired].map(
+          (garment) => garment.id,
+        ),
+      ),
+    [view],
+  );
+  const uploads = usePhotoUploads({ known, onSent: refresh });
+  const intake = usePhotoIntake({ onPictures: uploads.add });
+  const waiting = view.queue.length + uploads.pending.length;
+
   const processing = [...view.queue, ...view.active, ...view.retired].some(
     (garment) => garment.status === 'processing' || isRendering(garment),
   );
-  useGarmentPolling(processing);
-
-  const refresh = () => router.invalidate().catch(() => undefined);
+  // A sent photo is a garment the loader has not shown yet; ask until it does.
+  const unseen = uploads.pending.some((photo) => photo.state.phase === 'sent');
+  useGarmentPolling(processing || unseen);
   const shown = (showRetired ? view.retired : view.active).filter(
     (garment) => filter === 'all' || garment.slots.includes(filter),
   );
@@ -96,13 +115,15 @@ export const WardrobePage = ({
           <h1
             className="type-display text-4xl text-ink sm:text-5xl"
             id={headingId}
+            ref={headingRef}
+            tabIndex={-1}
           >
             Wardrobe
           </h1>
           <p className="type-data mt-1 text-ink-muted text-sm">
             {view.active.length} garment{view.active.length === 1 ? '' : 's'}
             {view.retired.length > 0 ? ` · ${view.retired.length} retired` : ''}
-            {view.queue.length > 0 ? ` · ${view.queue.length} waiting` : ''}
+            {waiting > 0 ? ` · ${waiting} waiting` : ''}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
@@ -116,26 +137,28 @@ export const WardrobePage = ({
             label="Laundry"
             linkOptions={{ to: '/', search: { panel: 'laundry' } }}
           />
-          <UploadControl onUploaded={refresh} />
+          <UploadControl onIntake={intake.take} />
         </div>
       </div>
+      {intake.notice === null ? null : (
+        <IntakeNoticeRow
+          key={intake.notice.id}
+          notice={intake.notice}
+          onDismiss={() => {
+            headingRef.current?.focus();
+            intake.dismiss();
+          }}
+        />
+      )}
 
-      {view.queue.length > 0 ? (
-        <section aria-labelledby={queueHeadingId} className="mt-8">
-          <h2 className="type-eyebrow" id={queueHeadingId}>
-            Waiting to join
-          </h2>
-          <ul className="mt-2 border-rule border-b">
-            {view.queue.map((garment) => (
-              <ReviewCard
-                categoryBudgets={categoryBudgets}
-                garment={garment}
-                key={`${garment.id}-${garment.status}`}
-                onChanged={refresh}
-              />
-            ))}
-          </ul>
-        </section>
+      {waiting > 0 ? (
+        <WaitingQueue
+          categoryBudgets={categoryBudgets}
+          onChanged={refresh}
+          onEmptied={() => headingRef.current?.focus()}
+          queue={view.queue}
+          uploads={uploads}
+        />
       ) : null}
 
       <section aria-labelledby={headingId} className="mt-8">
@@ -172,7 +195,7 @@ export const WardrobePage = ({
         {shown.length === 0 ? (
           <p className="mt-10 max-w-prose text-ink-muted">
             {view.active.length === 0 && !showRetired
-              ? 'Nothing here yet. Photograph a garment — on a bed or a floor in ordinary light is fine — and it will be read, named, and rendered for the wardrobe.'
+              ? 'Nothing here yet. Photograph a garment — on a bed or a floor in ordinary light is fine — or paste or drop a picture of one. It will be read, named, and rendered for the wardrobe.'
               : 'Nothing matches this filter.'}
           </p>
         ) : (
@@ -183,6 +206,7 @@ export const WardrobePage = ({
           </ul>
         )}
       </section>
+      {intake.dragging ? <DropOverlay /> : null}
     </div>
   );
 };
