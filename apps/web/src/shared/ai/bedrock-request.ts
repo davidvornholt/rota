@@ -3,9 +3,10 @@ import type {
   ConverseCommandOutput,
   ImageFormat,
 } from '@aws-sdk/client-bedrock-runtime';
-import { Duration, Effect, Schedule, Schema } from 'effect';
+import { Duration, Effect, Schedule, Schema, SchemaIssue } from 'effect';
 import { prepareBedrockParts } from './bedrock-images.ts';
 import { BedrockError } from './errors/ai-errors.ts';
+import { jsonAnswer } from './json-answer.ts';
 
 export type ImagePart = {
   readonly mimeType: string;
@@ -38,6 +39,14 @@ const internalServerError = 500;
 const badGateway = 502;
 const serviceUnavailable = 503;
 const gatewayTimeout = 504;
+const answerExcerptEnds = 300;
+const formatIssue = SchemaIssue.makeFormatterDefault();
+
+/** A long answer keeps both ends: any reasoning comes first and the JSON usually last. */
+const answerExcerpt = (text: string): string =>
+  text.length <= answerExcerptEnds * 2
+    ? text
+    : `${text.slice(0, answerExcerptEnds)} … ${text.slice(-answerExcerptEnds)}`;
 const transientStatuses = new Set([
   tooManyRequests,
   internalServerError,
@@ -149,15 +158,19 @@ export const makeGenerateJson =
               )
               .join('') ?? '';
           return Schema.decodeUnknownEffect(Schema.fromJsonString(schema))(
-            text,
+            jsonAnswer(text),
           ).pipe(
             Effect.mapError(
-              (cause) =>
+              (error) =>
                 new BedrockError({
                   reason: 'answer',
                   message:
                     'Claude answered outside the requested schema. Try again.',
-                  cause,
+                  // Plain strings, so the log shows what Claude said instead of a truncated issue object.
+                  cause: {
+                    issue: formatIssue(error.issue),
+                    answer: answerExcerpt(text),
+                  },
                 }),
             ),
           );
