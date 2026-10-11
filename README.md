@@ -21,3 +21,5 @@ Run `bun run check:fix` for the full gate. After changing the database schema, g
 ## Deployment
 
 [personal-infra](https://github.com/davidvornholt/personal-infra) owns production at `https://rota.vornholt.online` and the media bucket. Jobs and provider cooldowns are process-local: they do not survive restarts or coordinate multiple replicas. Pull request previews are omitted by maintainer decision.
+
+Merging to `main` releases to production: `Publish container` builds the image while Standards runs and releases it to prod-1 once Standards passes on that exact commit. To return to the previous release, run the `Roll back` workflow; running it again returns to the newer release.
