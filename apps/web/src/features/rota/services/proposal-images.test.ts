@@ -8,13 +8,7 @@ const expectedConcurrency = 4;
 
 const candidate = (garmentId: string) => ({
   garmentId,
-  image: {
-    key: garmentId,
-    mime: 'image/png',
-    width: 1024,
-    height: 1024,
-    contentBox: null,
-  },
+  image: { key: garmentId, mime: 'image/png', width: 1024, height: 1024 },
 });
 
 describe('proposal image preparation', () => {

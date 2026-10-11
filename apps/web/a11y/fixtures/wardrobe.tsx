@@ -23,7 +23,6 @@ const picture = (file: string, fit: GarmentImageView['fit']) =>
     width: 300,
     height: 400,
     fit,
-    content: null,
   }) as const;
 
 type DemoGarment = {
@@ -108,14 +107,7 @@ const recordingFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       received.unshift({
         ...garment({ id, name: 'New garment', hex: '#cccccc', wears: 0 }),
         status: 'processing',
-        original: {
-          url,
-          srcSet: '',
-          width: 3,
-          height: 4,
-          fit: 'cover',
-          content: null,
-        },
+        original: { url, srcSet: '', width: 3, height: 4, fit: 'cover' },
       });
     });
   }

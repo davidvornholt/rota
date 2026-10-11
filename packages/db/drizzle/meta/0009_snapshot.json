@@ -1,5 +1,5 @@
 {
-  "id": "08dc157b-e07a-4db5-ae4f-dfbe7305725b",
+  "id": "e98d4859-2075-46c3-bb80-f9b85d16955c",
   "prevId": "50a057eb-604f-403a-8671-3cbc238b4580",
   "version": "7",
   "dialect": "postgresql",
@@ -419,12 +419,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "content_box": {
-          "name": "content_box",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -475,6 +469,75 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.outfit_collage": {
+      "name": "outfit_collage",
+      "schema": "",
+      "columns": {
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pieces": {
+          "name": "pieces",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "outfit_collage_owner_id_pieces_pk": {
+          "name": "outfit_collage_owner_id_pieces_pk",
+          "columns": [
+            "owner_id",
+            "pieces"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "outfit_collage_outcome": {
+          "name": "outfit_collage_outcome",
+          "value": "(\"outfit_collage\".\"storage_key\" is not null and \"outfit_collage\".\"width\" is not null and \"outfit_collage\".\"height\" is not null and \"outfit_collage\".\"error\" is null) or (\"outfit_collage\".\"storage_key\" is null and \"outfit_collage\".\"width\" is null and \"outfit_collage\".\"height\" is null and \"outfit_collage\".\"error\" is not null)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.proposal": {

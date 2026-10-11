@@ -1,6 +1,5 @@
 import { Schema } from 'effect';
 
-import type { ContentBox } from '#/shared/media/content-box.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import {
   type GarmentCategory,
@@ -49,20 +48,11 @@ export const GarmentColorSchema = Schema.Record(Schema.String, hexColor).pipe(
 export const GarmentCategorySchema: Schema.Codec<GarmentCategory> =
   Schema.Literals(garmentCategories);
 
-export const ContentBoxSchema: Schema.Codec<ContentBox> = Schema.Struct({
-  left: Schema.Number,
-  top: Schema.Number,
-  width: Schema.Number,
-  height: Schema.Number,
-});
-
 export const GarmentImageSchema = Schema.Struct({
   key: Schema.String,
   mime: Schema.String,
   width: Schema.Number,
   height: Schema.Number,
-  /** Where the garment sits in a studio render; null for photos and unmeasured renders. */
-  contentBox: Schema.NullOr(ContentBoxSchema),
 });
 export type GarmentImage = Schema.Schema.Type<typeof GarmentImageSchema>;
 

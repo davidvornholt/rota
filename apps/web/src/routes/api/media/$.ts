@@ -42,7 +42,10 @@ const serveMedia = async (request: Request): Promise<Response> => {
   const actor = currentIdentity();
   const access = await pool.query(
     `select 1 from garment_image i join garment g on g.id = i.garment_id
-    where i.storage_key = $1 and (g.owner_id = $2 or $3) limit 1`,
+    where i.storage_key = $1 and (g.owner_id = $2 or $3)
+    union all
+    select 1 from outfit_collage c
+    where c.storage_key = $1 and (c.owner_id = $2 or $3) limit 1`,
     [key, actor.id, actor.admin],
   );
   if (!access.rowCount) {

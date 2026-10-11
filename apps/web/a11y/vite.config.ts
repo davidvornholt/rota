@@ -60,6 +60,7 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: {
       '#/shared/auth/session-fn.ts': fixtureModule('session-fns.ts'),
+      '#/shared/collage/collage-fns.ts': fixtureModule('collage-fns.ts'),
       '../services/people-fns.ts': fixtureModule('people-fns.ts'),
       '../services/settings-fns.ts': fixtureModule('settings-fns.ts'),
       '../services/planning-fns.ts': fixtureModule('planning-fns.ts'),

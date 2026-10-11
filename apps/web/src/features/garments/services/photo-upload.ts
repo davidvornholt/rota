@@ -76,7 +76,6 @@ export const storeUpload = (
       width: dimensions.width,
       height: dimensions.height,
       bytes: stored.bytes,
-      contentBox: null,
     };
     return image;
   });

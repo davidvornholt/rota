@@ -30,7 +30,6 @@ export const wardrobe = [
       width: 300,
       height: 400,
       fit: 'contain' as const,
-      content: null,
     },
   },
   {

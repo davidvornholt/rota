@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   collageEntries,
   collageLabel,
-} from '#/shared/collage/collage-pieces.ts';
+} from '#/shared/collage/collage-entries.ts';
 import type { SavedOutfit } from '#/shared/data/outfit.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import {

@@ -1,29 +1,16 @@
-import { Effect } from 'effect';
 import { useEffect, useState } from 'react';
-import { drawCollagePicture } from '#/shared/collage/collage-picture.ts';
 import {
   type CollageEntry,
   collageLabel,
   hasCollagePieces,
-} from '#/shared/collage/collage-pieces.ts';
+} from '#/shared/collage/collage-entries.ts';
+import type { CollagePicture } from '#/shared/collage/collage-state.ts';
 import { quietButtonClass, signalButtonClass } from './classes.ts';
 import { Dialog } from './dialog.tsx';
 import { IconButton } from './icon-button.tsx';
 import { Notice } from './notice.tsx';
 import { OutfitCollage } from './outfit-collage.tsx';
-
-type Picture =
-  | { readonly status: 'drawing' }
-  | {
-      readonly status: 'ready';
-      readonly file: File;
-      readonly url: string;
-      readonly shareable: boolean;
-    }
-  | { readonly status: 'failed'; readonly message: string };
-
-const themeColour = (name: string) =>
-  getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+import { useOutfitCollage } from './use-outfit-collage.ts';
 
 /** A file name a phone and a desktop both keep as it is. */
 const fileNameFor = (title: string) =>
@@ -41,112 +28,94 @@ const canShareFile = (file: File) =>
   navigator.canShare({ files: [file] });
 
 /**
- * Draws the picture as soon as the dialog opens, so pressing Share hands the
- * finished file to the system sheet while the browser still counts the press.
+ * Fetches the picture into a file as soon as it is there, so pressing Share
+ * hands the file to the system sheet while the browser still counts the press.
+ * Undefined while it loads, or where the browser cannot share files.
  */
-const usePicture = (
-  entries: ReadonlyArray<CollageEntry>,
-  title: string,
-): Picture => {
-  const [picture, setPicture] = useState<Picture>({ status: 'drawing' });
+const useShareableFile = (
+  picture: CollagePicture | undefined,
+  name: string,
+): File | undefined => {
+  const [file, setFile] = useState<File>();
   useEffect(() => {
+    setFile(undefined);
+    if (picture === undefined || typeof navigator.canShare !== 'function') {
+      return;
+    }
     const controller = new AbortController();
-    let url: string | undefined;
-    setPicture({ status: 'drawing' });
-    Effect.runPromise(
-      drawCollagePicture(entries, {
-        paper: themeColour('--color-paper-deep'),
-        blank: themeColour('--color-rule'),
-      }).pipe(Effect.result),
-      { signal: controller.signal },
-    )
-      .then((result) => {
-        if (result._tag === 'Failure') {
-          setPicture({ status: 'failed', message: result.failure.message });
+    fetch(picture.url, { signal: controller.signal })
+      .then((response) => (response.ok ? response.blob() : undefined))
+      .then((blob) => {
+        if (blob === undefined) {
           return;
         }
-        const file = new File([result.success], fileNameFor(title), {
-          type: 'image/png',
-        });
-        url = URL.createObjectURL(file);
-        setPicture({
-          status: 'ready',
-          file,
-          url,
-          shareable: canShareFile(file),
-        });
+        const candidate = new File([blob], name, { type: 'image/png' });
+        if (canShareFile(candidate)) {
+          setFile(candidate);
+        }
       })
+      // Without the file the dialog still offers the download.
       .catch(() => undefined);
-    return () => {
-      controller.abort();
-      if (url !== undefined) {
-        URL.revokeObjectURL(url);
-      }
-    };
-  }, [entries, title]);
-  return picture;
+    return () => controller.abort();
+  }, [picture, name]);
+  return file;
 };
 
 const Actions = ({
-  picture,
+  entries,
   title,
 }: {
-  readonly picture: Picture;
+  readonly entries: ReadonlyArray<CollageEntry>;
   readonly title: string;
 }) => {
+  const { state } = useOutfitCollage(entries);
+  const picture = state?.status === 'ready' ? state.picture : undefined;
+  const name = fileNameFor(title);
+  const file = useShareableFile(picture, name);
   const [failure, setFailure] = useState('');
-  if (picture.status === 'failed') {
-    return <Notice live={true}>{picture.message}</Notice>;
+  if (picture === undefined) {
+    return null;
   }
-  const ready = picture.status === 'ready';
   const share = () => {
-    if (!ready) {
+    if (file === undefined) {
       return;
     }
     setFailure('');
-    navigator
-      .share({ files: [picture.file], title })
-      .catch((error: unknown) => {
-        // Closing the share sheet without choosing an app is not a failure.
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
-          setFailure('The picture could not be shared. Download it instead.');
-        }
-      });
+    navigator.share({ files: [file], title }).catch((error: unknown) => {
+      // Closing the share sheet without choosing an app is not a failure.
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        setFailure('The picture could not be shared. Download it instead.');
+      }
+    });
   };
   return (
-    <>
+    <div className="mt-5">
       <div className="flex flex-wrap items-center gap-3">
-        {ready && picture.shareable ? (
+        {file === undefined ? null : (
           <button className={signalButtonClass} onClick={share} type="button">
             Share picture
           </button>
-        ) : null}
-        {ready ? (
-          <a
-            className={picture.shareable ? quietButtonClass : signalButtonClass}
-            download={picture.file.name}
-            href={picture.url}
-          >
-            Download picture
-          </a>
-        ) : (
-          <span className="text-ink-muted text-sm" role="status">
-            Preparing the picture …
-          </span>
         )}
+        <a
+          className={file === undefined ? signalButtonClass : quietButtonClass}
+          download={name}
+          href={picture.url}
+        >
+          Download picture
+        </a>
       </div>
       {failure === '' ? null : (
         <Notice className="mt-4" live={true}>
           {failure}
         </Notice>
       )}
-    </>
+    </div>
   );
 };
 
 /**
- * The outfit as one picture to send or keep: the collage on screen, and the
- * same layout as a PNG behind the Share and Download buttons.
+ * The outfit as one picture to send or keep: the collage, and the same
+ * picture behind the Share and Download buttons once it has been made.
  */
 const ShareOutfitDialog = ({
   entries: shownEntries,
@@ -157,10 +126,9 @@ const ShareOutfitDialog = ({
   readonly title: string;
   readonly onClose: () => void;
 }) => {
-  // The outfit as the dialog opened on: a refetch behind it must not redraw
-  // the file the Share button is about to hand over.
+  // The outfit as the dialog opened on: a refetch behind it must not swap
+  // the picture the Share button is about to hand over.
   const [entries] = useState(shownEntries);
-  const picture = usePicture(entries, title);
   return (
     <Dialog
       eyebrow="Share as picture"
@@ -175,9 +143,7 @@ const ShareOutfitDialog = ({
         loading="eager"
         width="min(100vw - 2.5rem, 24rem)"
       />
-      <div className="mt-5">
-        <Actions picture={picture} title={title} />
-      </div>
+      <Actions entries={entries} title={title} />
     </Dialog>
   );
 };

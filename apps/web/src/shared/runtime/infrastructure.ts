@@ -5,7 +5,7 @@ import {
 } from '#/shared/auth/identity.ts';
 /**
  * Everything a feature needs from below it: the SQL client, the repositories,
- * the media store, the two model clients, and the weather API. Features add
+ * the media store, the model clients, and the weather API. Features add
  * their own services on top and turn the result into a runtime with
  * `featureRuntime`, which is the one place an Effect becomes the promise
  * TanStack Start speaks in.
@@ -20,7 +20,9 @@ import type { SqlClient } from 'effect/sql/SqlClient';
 import type { SqlError } from 'effect/sql/SqlError';
 
 import { Bedrock } from '#/shared/ai/bedrock.ts';
+import { CollageRenderer } from '#/shared/ai/collage-renderer.ts';
 import { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
+import { CollageRepository } from '#/shared/data/collage-repository.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
@@ -41,9 +43,11 @@ export type Infrastructure =
   | SettingsRepository
   | WeatherRepository
   | DayNoteRepository
+  | CollageRepository
   | MediaStore
   | Bedrock
   | StudioRenderer
+  | CollageRenderer
   | WeatherApi;
 
 export const infrastructureLayer: Layer.Layer<
@@ -58,9 +62,11 @@ export const infrastructureLayer: Layer.Layer<
   SettingsRepository.layer,
   WeatherRepository.layer,
   DayNoteRepository.layer,
+  CollageRepository.layer,
   MediaStore.layer,
   Bedrock.layer,
   StudioRenderer.layer,
+  CollageRenderer.layer,
   WeatherApi.layer,
 ).pipe(Layer.provideMerge(sqlClientLayer));
 

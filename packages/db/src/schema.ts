@@ -148,10 +148,6 @@ export const garment = pgTable(
  * The stored files behind a garment: the phone photo as uploaded and the
  * studio render. `storage_key` is the content hash the media store keyed the
  * bytes under, so a key names exactly one immutable image forever.
- * `content_box` is the pixel rectangle the garment fills inside a studio
- * render, `{ left, top, width, height }`, so an outfit collage can place the
- * garment itself rather than the render's empty margins. It stays null for
- * phone photos and until a render has been measured.
  */
 export const garmentImage = pgTable(
   'garment_image',
@@ -166,7 +162,6 @@ export const garmentImage = pgTable(
     width: integer('width').notNull(),
     height: integer('height').notNull(),
     bytes: integer('bytes').notNull(),
-    contentBox: jsonb('content_box'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -322,6 +317,36 @@ export const savedOutfit = pgTable('saved_outfit', {
     .notNull()
     .defaultNow(),
 });
+
+/**
+ * A flat-lay picture the image model made from an outfit's garment pictures.
+ * `pieces` names the combination it shows: each slot with the stored picture
+ * of its garment. The same outfit saved, planned or worn shares one picture,
+ * and a garment that gets a new picture gets a new collage. A row is written
+ * when a generation ends, with the picture when it worked and with the error
+ * when it did not.
+ */
+export const outfitCollage = pgTable(
+  'outfit_collage',
+  {
+    ownerId: text('owner_id').notNull(),
+    pieces: text('pieces').notNull(),
+    storageKey: text('storage_key'),
+    width: integer('width'),
+    height: integer('height'),
+    error: text('error'),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.ownerId, table.pieces] }),
+    check(
+      'outfit_collage_outcome',
+      sql`(${table.storageKey} is not null and ${table.width} is not null and ${table.height} is not null and ${table.error} is null) or (${table.storageKey} is null and ${table.width} is null and ${table.height} is null and ${table.error} is not null)`,
+    ),
+  ],
+);
 
 /** A decision for a date is separate from actual wear and from generated suggestions. */
 export const dayPlan = pgTable(

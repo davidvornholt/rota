@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { collageEntries } from '#/shared/collage/collage-pieces.ts';
+import { collageEntries } from '#/shared/collage/collage-entries.ts';
 import { formatLongDate } from '#/shared/time/local-date.ts';
 import { frameClass } from '#/shared/ui/classes.ts';
 import { IconButton } from '#/shared/ui/icon-button.tsx';

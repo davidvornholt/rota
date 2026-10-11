@@ -1,1 +1,0 @@
-ALTER TABLE "garment_image" ADD COLUMN "content_box" jsonb;

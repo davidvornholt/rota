@@ -3,7 +3,9 @@ import { expect, test } from '@playwright/test';
 import { fixtureOrigin } from './fixture-origin.ts';
 
 const collagePage = `${fixtureOrigin}a11y/fixtures/outfit-collage.html`;
-const layeredInDialog = /^Layered: Navy pinstripe trousers/u;
+const weekend = 'Weekend: Sand chinos, Blue Oxford shirt, Green knit jumper';
+/** The fixture answers a new attempt as queued and the next poll, three seconds later, as ready. */
+const pollTimeout = 10_000;
 
 type SharedFile = {
   readonly name: string;
@@ -16,17 +18,65 @@ test('collages name the outfit and only the pieces they show', async ({
 }) => {
   await page.goto(collagePage);
   await expect(
+    page.getByRole('img', { name: weekend, exact: true }),
+  ).toHaveAttribute('src', '/a11y/fixtures/collage.png');
+  await expect(
+    page.getByRole('img', { name: 'Pared back: Sand chinos', exact: true }),
+  ).toBeVisible();
+  await expect(
     page.getByRole('img', {
-      name: 'Layered: Navy pinstripe trousers, White tee, Grey cardigan, Black loafers, Tan bag',
+      name: 'Office: Sand chinos, White Oxford shirt',
       exact: true,
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole('img', {
-      name: 'Fallbacks: Olive chinos, Blue Oxford shirt, Grey cardigan',
-      exact: true,
+    page.getByRole('status').filter({
+      hasText: 'Making the picture. This takes about a minute.',
     }),
   ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Share Unpictured as picture' }),
+  ).toBeDisabled();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+});
+
+test('a failed picture can be made again', async ({ page }) => {
+  await page.goto(collagePage);
+  const rainy = page.getByRole('listitem').filter({ hasText: 'Rainy day' });
+  await expect(
+    rainy.getByRole('status').filter({
+      hasText: 'Rota could not make this picture.',
+    }),
+  ).toBeVisible();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await rainy.getByRole('button', { name: 'Try again' }).click();
+  await expect(
+    rainy.getByRole('status').filter({
+      hasText: 'Waiting for another picture to finish.',
+    }),
+  ).toBeVisible();
+  await expect(
+    rainy.getByRole('img', {
+      name: 'Rainy day: Sand chinos, Blue Oxford shirt, Forest knit jumper',
+      exact: true,
+    }),
+  ).toHaveAttribute('src', '/a11y/fixtures/collage.png', {
+    timeout: pollTimeout,
+  });
+});
+
+test('a picture still being made offers nothing to share yet', async ({
+  page,
+}) => {
+  await page.goto(collagePage);
+  await page.getByRole('button', { name: 'Share Office as picture' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(
+    dialog.getByRole('status').filter({ hasText: 'Making the picture.' }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole('link', { name: 'Download picture' }),
+  ).toHaveCount(0);
   expect(await scanWcag22AaViolations(page)).toEqual([]);
 });
 
@@ -37,15 +87,15 @@ test('where the browser cannot share files, the outfit downloads as a 4:5 pictur
     Object.assign(navigator, { canShare: undefined });
   });
   await page.goto(collagePage);
-  const open = page.getByRole('button', { name: 'Share Layered as picture' });
+  const open = page.getByRole('button', { name: 'Share Weekend as picture' });
   await open.click();
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByRole('heading', { name: 'Layered' })).toBeFocused();
+  await expect(dialog.getByRole('heading', { name: 'Weekend' })).toBeFocused();
   await expect(
-    dialog.getByRole('img', { name: layeredInDialog }),
+    dialog.getByRole('img', { name: weekend, exact: true }),
   ).toBeVisible();
   const downloadLink = dialog.getByRole('link', { name: 'Download picture' });
-  await expect(downloadLink).toHaveAttribute('download', 'layered.png');
+  await expect(downloadLink).toHaveAttribute('download', 'weekend.png');
   await expect(
     dialog.getByRole('button', { name: 'Share picture' }),
   ).toHaveCount(0);
@@ -55,16 +105,16 @@ test('where the browser cannot share files, the outfit downloads as a 4:5 pictur
     page.waitForEvent('download'),
     downloadLink.click(),
   ]);
-  expect(download.suggestedFilename()).toBe('layered.png');
+  expect(download.suggestedFilename()).toBe('weekend.png');
   const href = await downloadLink.getAttribute('href');
   expect(
     await page.evaluate(async (url) => {
-      const picture = await createImageBitmap(
+      const bitmap = await createImageBitmap(
         await (await fetch(url ?? '')).blob(),
       );
-      return { width: picture.width, height: picture.height };
+      return { width: bitmap.width, height: bitmap.height };
     }, href),
-  ).toEqual({ width: 1080, height: 1350 });
+  ).toEqual({ width: 1088, height: 1360 });
 
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
@@ -92,18 +142,14 @@ test('where the browser can share files, the picture goes to the share sheet', a
     });
   });
   await page.goto(collagePage);
-  await page
-    .getByRole('button', { name: 'Share Single layer as picture' })
-    .click();
+  await page.getByRole('button', { name: 'Share Weekend as picture' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Share picture' }).click();
   expect(
     await page.evaluate(
       () => (globalThis as unknown as { shared: unknown }).shared,
     ),
-  ).toEqual([
-    { name: 'single-layer.png', type: 'image/png', title: 'Single layer' },
-  ]);
+  ).toEqual([{ name: 'weekend.png', type: 'image/png', title: 'Weekend' }]);
   await expect(
     dialog.getByRole('link', { name: 'Download picture' }),
   ).toBeVisible();

@@ -46,7 +46,6 @@ export const PendingCard = ({
     width: 3,
     height: 4,
     fit: 'cover',
-    content: null,
   } as const;
 
   // A sent photo's card hands over to the server's card for the same garment.
