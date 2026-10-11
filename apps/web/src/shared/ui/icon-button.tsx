@@ -13,6 +13,7 @@ import {
   Pencil,
   Plus,
   RotateCw,
+  Share,
   Trash2,
   Users,
   WashingMachine,
@@ -39,6 +40,7 @@ const icons = {
   users: Users,
   eye: Eye,
   arrowLeft: ArrowLeft,
+  share: Share,
 };
 export type ActionIcon = keyof typeof icons;
 

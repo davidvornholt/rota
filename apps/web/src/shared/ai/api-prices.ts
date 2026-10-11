@@ -1,6 +1,10 @@
 import type { TokenPrices } from './usage-cost.ts';
 
-const checkedOn = '2026-09-19';
+/** Foundry image models priced at OpenAI's reference rates, with the day each was checked. */
+const imageRatesCheckedOn: Readonly<Record<string, string>> = {
+  'gpt-image-2.5-flare': '2026-09-19',
+  'gpt-image-2.5-sunburst': '2026-10-11',
+};
 
 export type PriceSnapshot = TokenPrices & {
   readonly source: string;
@@ -16,18 +20,20 @@ export const apiPrice = ({
   readonly provider: 'bedrock' | 'foundry';
   readonly model: string;
 }): PriceSnapshot | undefined => {
-  if (provider === 'foundry' && model === 'gpt-image-2.5-flare') {
+  const imageCheckedOn =
+    provider === 'foundry' ? imageRatesCheckedOn[model] : undefined;
+  if (imageCheckedOn !== undefined) {
     // Foundry has not published these rates yet. This is an explicitly labelled
-    // OpenAI reference estimate, not an assertion about Azure billing.
+    // OpenAI reference estimate, not an assertion about Azure billing. Flare and
+    // Sunburst have the same rates.
     return {
       input: 5,
       output: 0,
       imageInput: 8,
       imageOutput: 30,
       cachedInput: 0,
-      source:
-        'https://developers.openai.com/api/docs/models/gpt-image-2.5-flare',
-      checkedOn,
+      source: `https://developers.openai.com/api/docs/models/${model}`,
+      checkedOn: imageCheckedOn,
       basis: 'OpenAI reference rates; Foundry invoice may differ',
     };
   }

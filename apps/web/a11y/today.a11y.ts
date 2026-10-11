@@ -150,6 +150,17 @@ test('saved outfits can be created, chosen, edited independently and deleted exp
   const outfit = dialog
     .getByRole('listitem')
     .filter({ has: page.getByRole('heading', { name: 'Office favourite' }) });
+  const share = outfit.getByRole('button', {
+    name: 'Share Office favourite as picture',
+  });
+  await share.click();
+  await expect(page.locator('dialog[open]')).toHaveCount(2);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('dialog[open]')).toHaveCount(1);
+  await expect(
+    page.getByRole('dialog', { name: 'Saved outfits', exact: true }),
+  ).toBeVisible();
+  await expect(share).toBeFocused();
   await outfit.getByRole('button', { name: 'Choose for tomorrow' }).click();
   await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
   await page

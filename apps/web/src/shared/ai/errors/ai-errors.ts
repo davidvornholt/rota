@@ -29,3 +29,9 @@ export class StudioRateLimit extends Schema.TaggedError<StudioRateLimit>()(
     cause: Schema.Defect(),
   },
 ) {}
+
+/** An outfit collage could not be made; the message is what the collage shows. */
+export class CollageError extends Schema.TaggedError<CollageError>()(
+  'CollageError',
+  { message: Schema.String, cause: Schema.Defect() },
+) {}

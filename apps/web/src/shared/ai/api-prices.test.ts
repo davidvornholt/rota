@@ -16,7 +16,16 @@ it('keeps unknown models and other profiles unpriced', () => {
   expect(apiPrice({ ...bedrock, provider: 'foundry' })).toBeUndefined();
 });
 it('labels Foundry image estimates as OpenAI reference rates', () => {
+  for (const model of ['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst']) {
+    const price = apiPrice({ provider: 'foundry', model });
+    expect(price?.basis).toBe(
+      'OpenAI reference rates; Foundry invoice may differ',
+    );
+    expect(price?.source).toBe(
+      `https://developers.openai.com/api/docs/models/${model}`,
+    );
+  }
   expect(
-    apiPrice({ provider: 'foundry', model: 'gpt-image-2.5-flare' })?.basis,
-  ).toBe('OpenAI reference rates; Foundry invoice may differ');
+    apiPrice({ provider: 'bedrock', model: 'gpt-image-2.5-sunburst' }),
+  ).toBeUndefined();
 });
