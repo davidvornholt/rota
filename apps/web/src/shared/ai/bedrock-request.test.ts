@@ -6,6 +6,11 @@ import {
 } from '@aws-sdk/client-bedrock-runtime';
 import { Deferred, Effect, Fiber, Schema } from 'effect';
 import { TestClock } from 'effect/testing';
+import {
+  type ImageRotation,
+  ImageRotationSchema,
+  imageRotations,
+} from '#/shared/media/rotate-image.ts';
 import { type GenerateJsonInput, makeGenerateJson } from './bedrock-request.ts';
 
 const input: GenerateJsonInput<{ choice: string }, { choice: string }> = {
@@ -45,6 +50,90 @@ const answer = (text: string): ConverseCommandOutput => ({
       ],
     },
   },
+});
+
+const orientation: GenerateJsonInput<
+  { rotationClockwise: ImageRotation },
+  { rotationClockwise: ImageRotation }
+> = {
+  purpose: 'garment',
+  system: 'Identify the upright orientation of a garment in a wardrobe photo.',
+  parts: [{ text: 'Report the rotation needed to make this garment upright.' }],
+  schema: Schema.Struct({ rotationClockwise: ImageRotationSchema }),
+  jsonSchema: {
+    type: 'object',
+    properties: {
+      rotationClockwise: { type: 'integer', enum: [...imageRotations] },
+    },
+    required: ['rotationClockwise'],
+  },
+};
+const reasonedAnswer =
+  'The neckline of this shirt is at the left side of the image, with the hem at the right. The schema says a neckline at the left needs a 90° clockwise rotation, so the garment becomes upright after turning it a quarter turn.\n\n{"rotationClockwise":90}';
+const orient = (text: string) =>
+  Effect.runPromise(
+    Effect.result(
+      makeGenerateJson(
+        () => Promise.resolve(answer(text)),
+        'test-model',
+      )(orientation),
+    ),
+  );
+
+describe('Bedrock answers', () => {
+  it.each([
+    ['reasoning before the JSON', reasonedAnswer],
+    ['a fenced json block', '```json\n{"rotationClockwise":90}\n```'],
+    [
+      'a stray brace before the JSON',
+      'The collar {or the placket sits at the left.\n\n{"rotationClockwise":90}',
+    ],
+  ])('reads the JSON from %s', async (_case, text) => {
+    expect(await orient(text)).toMatchObject({
+      _tag: 'Success',
+      success: { rotationClockwise: 90 },
+    });
+  });
+
+  it.each([
+    ['prose with no JSON', 'The neckline is at the left, so turn it 90°.'],
+    [
+      'JSON with a value outside the schema',
+      'The garment is slightly tilted.\n\n{"rotationClockwise":45}',
+    ],
+  ])('rejects %s', async (_case, text) => {
+    expect(await orient(text)).toMatchObject({
+      _tag: 'Failure',
+      failure: { _tag: 'BedrockError', reason: 'answer' },
+    });
+  });
+
+  it('keeps the answer text and the formatted issue when decoding fails', async () => {
+    const text = 'The garment is slightly tilted.\n\n{"rotationClockwise":45}';
+    expect(await orient(text)).toMatchObject({
+      _tag: 'Failure',
+      failure: {
+        message: 'Claude answered outside the requested schema. Try again.',
+        cause: {
+          issue: expect.stringContaining('rotationClockwise'),
+          answer: text,
+        },
+      },
+    });
+  });
+
+  it('keeps both ends of a long answer in the failure cause', async () => {
+    const reasoning = 'The neckline is hard to see. '.repeat(40);
+    const text = `${reasoning}{"rotationClockwise":45}`;
+    expect(await orient(text)).toMatchObject({
+      _tag: 'Failure',
+      failure: {
+        cause: {
+          answer: `${text.slice(0, 300)} … ${text.slice(-300)}`,
+        },
+      },
+    });
+  });
 });
 
 describe('Bedrock outfit requests', () => {
