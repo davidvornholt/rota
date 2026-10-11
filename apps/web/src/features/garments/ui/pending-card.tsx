@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useRef } from 'react';
 
 import { linkButtonClass, quietButtonClass } from '#/shared/ui/classes.ts';
 import { QueueCard } from './queue-card.tsx';
@@ -11,6 +11,8 @@ type PendingCardProps = {
   readonly reveal: boolean;
   readonly onRetry: () => void;
   readonly onRemove: () => void;
+  /** The card is leaving while it holds focus, which would otherwise drop to the page. */
+  readonly onLeaveWithFocus: () => void;
 };
 
 const prefersReducedMotion = () =>
@@ -33,6 +35,7 @@ export const PendingCard = ({
   reveal,
   onRetry,
   onRemove,
+  onLeaveWithFocus,
 }: PendingCardProps) => {
   const cardRef = useRef<HTMLLIElement>(null);
   const titleRef = useRef<HTMLParagraphElement>(null);
@@ -44,6 +47,18 @@ export const PendingCard = ({
     height: 4,
     fit: 'cover',
   } as const;
+
+  // A sent photo's card hands over to the server's card for the same garment.
+  // Layout cleanup runs while the card is still in the document.
+  const leaveWithFocus = useEffectEvent(onLeaveWithFocus);
+  useLayoutEffect(() => {
+    const card = cardRef.current;
+    return () => {
+      if (card?.contains(document.activeElement)) {
+        leaveWithFocus();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (reveal) {

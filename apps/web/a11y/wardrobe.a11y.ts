@@ -6,12 +6,17 @@ import { fixtureOrigin } from './fixture-origin.ts';
 const wardrobe = `${fixtureOrigin}a11y/fixtures/wardrobe.html`;
 const uploads = '**/api/garments/upload';
 const tooLarge = 413;
+const seeOther = 303;
 const linkMessage =
   'That is a link to a picture, not the picture itself. Copy the image, then paste it here.';
 const waitingCount = /· 1 waiting/u;
 const pasteShortcut = /^(?<modifier>Control|Meta)\+V$/u;
 
-type Answer = { readonly status: number; readonly body: string };
+type Answer = {
+  readonly status: number;
+  readonly body: string;
+  readonly location?: string;
+};
 
 /** Answers each upload in turn; `null` drops the connection instead. */
 const answerUploads = async (
@@ -32,6 +37,8 @@ const answerUploads = async (
       body: answer.body,
       contentType:
         answer.status < 300 ? 'application/json' : 'text/plain; charset=utf-8',
+      headers:
+        answer.location === undefined ? {} : { location: answer.location },
     });
   });
 };
@@ -150,9 +157,12 @@ test('a photo that did not go through can be sent again or removed', async ({
     null,
     accepted('retried-1'),
     { status: tooLarge, body: 'That photo is too large.' },
+    // An expired session: the route guard sends the request to sign in.
+    { status: seeOther, body: '', location: '/login' },
   ]);
   await page.goto(wardrobe);
   const queue = page.getByRole('region', { name: 'Waiting to join' });
+  const queueHeading = page.getByRole('heading', { name: 'Waiting to join' });
   const choose = page.getByLabel('Choose photos');
 
   await choose.setInputFiles('a11y/fixtures/pixel.png');
@@ -163,6 +173,8 @@ test('a photo that did not go through can be sent again or removed', async ({
   await queue.getByRole('button', { name: 'Try again' }).click();
   await expect(queue.getByRole('status')).toBeFocused();
   await expect(queue.getByRole('status')).toHaveText('Looking at the photo …');
+  // The server's card replaces the sent photo's; focus stays in the queue.
+  await expect(queueHeading).toBeFocused();
 
   await choose.setInputFiles('a11y/fixtures/pixel.png');
   const refused = queue
@@ -175,10 +187,17 @@ test('a photo that did not go through can be sent again or removed', async ({
   );
   await refused.getByRole('button', { name: 'Remove' }).click();
   await expect(refused).toHaveCount(0);
-  await expect(
-    page.getByRole('heading', { name: 'Waiting to join' }),
-  ).toBeFocused();
+  await expect(queueHeading).toBeFocused();
   await expect(queue.getByRole('listitem')).toHaveCount(1);
+
+  await choose.setInputFiles('a11y/fixtures/pixel.png');
+  const signedOut = queue
+    .getByRole('listitem')
+    .filter({ hasText: 'You were signed out' });
+  await expect(signedOut).toBeVisible();
+  await expect(
+    signedOut.getByRole('button', { name: 'Try again' }),
+  ).toHaveCount(0);
 });
 
 test('pictures dragged over the page can be dropped anywhere', async ({

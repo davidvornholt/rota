@@ -49,6 +49,7 @@ export const WaitingQueue = ({
         {uploads.pending.map((photo) => (
           <PendingCard
             key={photo.key}
+            onLeaveWithFocus={() => headingRef.current?.focus()}
             onRemove={() => remove(photo.key)}
             onRetry={() => uploads.retry(photo.key)}
             photo={photo}

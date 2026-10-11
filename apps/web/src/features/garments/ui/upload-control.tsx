@@ -1,6 +1,6 @@
-import { Effect } from 'effect';
+import { Effect, Fiber } from 'effect';
 import { ClipboardPaste } from 'lucide-react';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { quietButtonClass, signalButtonClass } from '#/shared/ui/classes.ts';
 import { type Intake, intakeOf, readClipboard } from './photo-intake.ts';
@@ -38,13 +38,26 @@ type UploadControlProps = {
 export const UploadControl = ({ onIntake }: UploadControlProps) => {
   const pasteKeys = usePasteKeys();
   const [reading, setReading] = useState(false);
+  const readingRef = useRef<Fiber.Fiber<void> | null>(null);
+
+  // A clipboard read can outlast the page; what it finds then has nowhere to go.
+  useEffect(
+    () => () => {
+      const { current } = readingRef;
+      if (current !== null) {
+        Effect.runFork(Fiber.interrupt(current));
+      }
+    },
+    [],
+  );
 
   const paste = () => {
     setReading(true);
-    Effect.runFork(
+    readingRef.current = Effect.runFork(
       readClipboard((pasteKeys ?? others).label).pipe(
         Effect.andThen((intake) =>
           Effect.sync(() => {
+            readingRef.current = null;
             setReading(false);
             onIntake(intake);
           }),

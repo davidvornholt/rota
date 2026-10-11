@@ -34,6 +34,12 @@ const unreachable = new PhotoUploadError({
   retryable: true,
 });
 
+const signedOut = new PhotoUploadError({
+  message:
+    'You were signed out, so the photo was not added. Sign in again, then add it.',
+  retryable: false,
+});
+
 /** The server explains a refusal in plain text; a proxy's error page does not. */
 const refusal = (response: Response) =>
   Effect.promise(() => response.text().catch(() => '')).pipe(
@@ -64,6 +70,10 @@ export const uploadPhoto = Effect.fnUntraced(function* (file: File) {
     try: () => fetch(uploadEndpoint, { method: 'POST', body: form }),
     catch: () => unreachable,
   });
+  // The upload route sends a signed-out request to the sign-in page.
+  if (response.redirected) {
+    return yield* signedOut;
+  }
   if (!response.ok) {
     return yield* yield* refusal(response);
   }
