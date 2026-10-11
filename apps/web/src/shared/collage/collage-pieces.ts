@@ -1,16 +1,14 @@
 /**
- * The garments an outfit's collage is made from, on the server. Each piece is
- * the garment's displayed picture, so choosing another picture or rendering a
- * new one asks for a new collage. A garment without a picture or no longer in
- * the wardrobe is left out; the outfit editor names it.
+ * Resolves the page's pictured garments against the owner's wardrobe. A
+ * changed selection can still use the requested original or studio picture;
+ * a picture no longer attached to that garment fails the whole request.
  */
 
-import {
-  displayImage,
-  type Garment,
-  type GarmentImage,
-} from '#/shared/data/garment.ts';
+import { Effect } from 'effect';
+import { CollageError } from '#/shared/ai/errors/ai-errors.ts';
+import type { Garment, GarmentImage } from '#/shared/data/garment.ts';
 import { type Slot, slotOrder } from '#/shared/data/garment-types.ts';
+import type { CollageRequestEntry } from './collage-state.ts';
 
 export type CollagePiece = {
   readonly slot: Slot;
@@ -18,23 +16,36 @@ export type CollagePiece = {
   readonly image: GarmentImage;
 };
 
-export const collagePieces = (
-  entries: ReadonlyArray<{ readonly slot: Slot; readonly garmentId: string }>,
+export const collagePieces = Effect.fnUntraced(function* (
+  entries: ReadonlyArray<CollageRequestEntry>,
   garments: ReadonlyArray<Garment>,
-): ReadonlyArray<CollagePiece> =>
-  slotOrder.flatMap((slot) =>
-    entries
-      .filter((entry) => entry.slot === slot)
-      .flatMap((entry) => {
-        const garment = garments.find(
-          (candidate) => candidate.id === entry.garmentId,
-        );
-        const image = garment === undefined ? undefined : displayImage(garment);
-        return garment === undefined || image === undefined
-          ? []
-          : [{ slot, name: garment.name, image }];
-      }),
-  );
+  urlFor: (key: string) => string,
+): Effect.fn.Return<ReadonlyArray<CollagePiece>, CollageError> {
+  const pieces: Array<CollagePiece> = [];
+  for (const slot of slotOrder) {
+    for (const entry of entries.filter(
+      (candidate) => candidate.slot === slot,
+    )) {
+      const garment = garments.find(
+        (candidate) => candidate.id === entry.garmentId,
+      );
+      const image = [garment?.images.original, garment?.images.studio].find(
+        (candidate) =>
+          candidate !== undefined && urlFor(candidate.key) === entry.imageUrl,
+      );
+      if (garment === undefined || image === undefined) {
+        return yield* new CollageError({
+          message:
+            'A picture in this outfit is no longer available. Refresh the page to use the current pictures.',
+          cause:
+            'The requested picture is not attached to this garment in the wardrobe.',
+        });
+      }
+      pieces.push({ slot, name: garment.name, image });
+    }
+  }
+  return pieces;
+});
 
 /** Names the combination a collage shows: outfits with the same pieces share one picture. */
 export const piecesKey = (pieces: ReadonlyArray<CollagePiece>): string =>

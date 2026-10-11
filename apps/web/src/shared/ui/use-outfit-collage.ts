@@ -30,6 +30,7 @@ export const useOutfitCollage = (
   const request = garments.map(({ slot, garment }) => ({
     slot,
     garmentId: garment.id,
+    imageUrl: garment.image.url,
   }));
   // The picture URL names the stored picture, so another picture of a garment is another collage.
   const queryKey = [

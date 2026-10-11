@@ -322,9 +322,9 @@ export const savedOutfit = pgTable('saved_outfit', {
  * A flat-lay picture the image model made from an outfit's garment pictures.
  * `pieces` names the combination it shows: each slot with the stored picture
  * of its garment. The same outfit saved, planned or worn shares one picture,
- * and a garment that gets a new picture gets a new collage. A row is written
- * when a generation ends, with the picture when it worked and with the error
- * when it did not.
+ * and a garment that gets a new picture gets a new collage. An error row
+ * claims the attempt before generation starts; success replaces it with the
+ * picture. An unfinished or failed attempt requires an explicit retry.
  */
 export const outfitCollage = pgTable(
   'outfit_collage',

@@ -9,9 +9,11 @@ import { CollageError } from '#/shared/ai/errors/ai-errors.ts';
 import { studioPersistenceTimeout } from '#/shared/ai/studio-budgets.ts';
 import type { StudioProgress } from '#/shared/ai/studio-progress.ts';
 import type { ReportStudioProgress } from '#/shared/ai/studio-scheduler.ts';
-import type { CollageRepository } from '#/shared/data/collage-repository.ts';
+import type {
+  CollageRepository,
+  StoredCollage,
+} from '#/shared/data/collage-repository.ts';
 import type { GarmentRepository } from '#/shared/data/garment-repository.ts';
-import type { Slot } from '#/shared/data/garment-types.ts';
 import { imageDimensions } from '#/shared/media/image-dimensions.ts';
 import type { MediaStore } from '#/shared/media/media-store.ts';
 import { mediaSrcSet } from '#/shared/media/media-variants.ts';
@@ -21,7 +23,11 @@ import {
   piecesKey,
 } from './collage-pieces.ts';
 import { collagePrompt } from './collage-prompt.ts';
-import type { CollagePicture, CollageState } from './collage-state.ts';
+import type {
+  CollagePicture,
+  CollageRequestEntry,
+  CollageState,
+} from './collage-state.ts';
 
 const pictureMime = 'image/png';
 
@@ -32,7 +38,7 @@ type CollageDependencies = {
   readonly garments: Pick<GarmentRepository['Service'], 'list'>;
   readonly collages: Pick<
     CollageRepository['Service'],
-    'find' | 'saveReady' | 'saveFailed'
+    'find' | 'claimAttempt' | 'saveReady' | 'saveFailed'
   >;
   readonly media: Pick<MediaStore['Service'], 'get' | 'put' | 'urlFor'>;
   readonly renderer: Pick<CollageRenderer['Service'], 'render'>;
@@ -114,27 +120,38 @@ export const makeOutfitCollages = (dependencies: CollageDependencies) => {
   const { garments, collages, media } = dependencies;
   const active = new Map<string, StudioProgress>();
 
-  /** Starts the job unless one for the same pieces is running; the check and the claim happen together. */
-  const start = (key: string, pieces: ReadonlyArray<CollagePiece>) =>
+  /** Reserve locally before the asynchronous durable claim; dispatch only after it succeeds. */
+  const start = (
+    key: string,
+    pieces: ReadonlyArray<CollagePiece>,
+    retry: boolean,
+  ) =>
     Effect.uninterruptibleMask((restore) =>
       Effect.gen(function* () {
         if (active.has(key)) {
-          return;
+          return true;
         }
         active.set(key, { status: 'preparing' });
+        const clear = Effect.sync(() => {
+          active.delete(key);
+        });
+        const claimed = yield* restore(
+          collages.claimAttempt(key, collageFailure, retry),
+        ).pipe(Effect.onError(() => clear));
+        if (!claimed) {
+          yield* clear;
+          return false;
+        }
         const report: ReportStudioProgress = (progress) =>
           Effect.sync(() => {
             active.set(key, progress);
           });
         yield* makeCollage(dependencies, key, pieces, report).pipe(
           restore,
-          Effect.ensuring(
-            Effect.sync(() => {
-              active.delete(key);
-            }),
-          ),
+          Effect.ensuring(clear),
           Effect.forkDetach,
         );
+        return true;
       }),
     );
 
@@ -143,15 +160,18 @@ export const makeOutfitCollages = (dependencies: CollageDependencies) => {
     progress: active.get(key) ?? { status: 'preparing' },
   });
 
-  const state = (
-    entries: ReadonlyArray<{
-      readonly slot: Slot;
-      readonly garmentId: string;
-    }>,
-    retry: boolean,
-  ) =>
+  const storedState = (stored: StoredCollage | undefined): CollageState =>
+    stored?.status === 'ready'
+      ? { status: 'ready', picture: pictureOf(media.urlFor, stored) }
+      : { status: 'failed', message: stored?.message ?? collageFailure };
+
+  const state = (entries: ReadonlyArray<CollageRequestEntry>, retry: boolean) =>
     Effect.gen(function* () {
-      const pieces = collagePieces(entries, yield* garments.list());
+      const pieces = yield* collagePieces(
+        entries,
+        yield* garments.list(),
+        media.urlFor,
+      );
       if (pieces.length === 0) {
         return { status: 'empty' } satisfies CollageState;
       }
@@ -160,21 +180,20 @@ export const makeOutfitCollages = (dependencies: CollageDependencies) => {
         return pending(key);
       }
       const stored = yield* collages.find(key);
-      if (stored?.status === 'ready') {
-        return {
-          status: 'ready',
-          picture: pictureOf(media.urlFor, stored),
-        } satisfies CollageState;
+      if (stored?.status === 'ready' || (stored && !retry)) {
+        return storedState(stored);
       }
-      if (stored?.status === 'failed' && !retry) {
-        return {
+      return (yield* start(key, pieces, retry))
+        ? pending(key)
+        : storedState(yield* collages.find(key));
+    }).pipe(
+      Effect.catchTag('CollageError', (error) =>
+        Effect.succeed({
           status: 'failed',
-          message: stored.message,
-        } satisfies CollageState;
-      }
-      yield* start(key, pieces);
-      return pending(key);
-    });
+          message: error.message,
+        } satisfies CollageState),
+      ),
+    );
 
   return { state };
 };

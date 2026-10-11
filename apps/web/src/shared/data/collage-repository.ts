@@ -3,7 +3,7 @@ import { SqlClient } from 'effect/sql';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import { readError, writeError } from './errors/data-errors.ts';
 
-/** A collage that was made, or the reason the last attempt failed. */
+/** A saved collage, or a durable marker for an unfinished or failed attempt. */
 export type StoredCollage =
   | {
       readonly status: 'ready';
@@ -77,6 +77,20 @@ export class CollageRepository extends Context.Service<CollageRepository>()(
                 height = excluded.height, error = null, updated_at = now()
         `.pipe(Effect.asVoid, Effect.mapError(write));
 
+      /** Record the attempt before dispatch; only an explicit retry can claim an existing failure. */
+      const claimAttempt = (pieces: string, message: string, retry: boolean) =>
+        sql`
+          insert into outfit_collage (owner_id, pieces, error)
+          values (${owner.id}, ${pieces}, ${message})
+          on conflict (owner_id, pieces) do update
+            set error = excluded.error, updated_at = now()
+            where ${retry} and outfit_collage.storage_key is null
+          returning pieces
+        `.pipe(
+          Effect.map((rows) => rows.length > 0),
+          Effect.mapError(write),
+        );
+
       /** A failure never replaces a picture that was made in the meantime. */
       const saveFailed = (pieces: string, message: string) =>
         sql`
@@ -87,7 +101,7 @@ export class CollageRepository extends Context.Service<CollageRepository>()(
             where outfit_collage.storage_key is null
         `.pipe(Effect.asVoid, Effect.mapError(write));
 
-      return { find, saveReady, saveFailed };
+      return { find, claimAttempt, saveReady, saveFailed };
     }),
   },
 ) {

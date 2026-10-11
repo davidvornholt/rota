@@ -1,12 +1,13 @@
 import { Effect } from 'effect';
 import type {
   CollagePicture,
+  CollageRequestEntry,
   CollageState,
 } from '#/shared/collage/collage-state.ts';
 
 type CollageRequest = {
   readonly data: {
-    readonly entries: ReadonlyArray<{ readonly garmentId: string }>;
+    readonly entries: ReadonlyArray<CollageRequestEntry>;
     readonly retry: boolean;
   };
 };
