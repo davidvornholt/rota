@@ -6,37 +6,60 @@ const decodeJson = Schema.decodeUnknownOption(
 );
 const isJson = (text: string): boolean => Option.isSome(decodeJson(text));
 
-/** The whole text when it is JSON, otherwise the last `{…}` slice that ends at the last `}` and parses. */
-const lastJsonObject = (text: string): string | undefined => {
+/** Skip prose braces, then decode enclosing candidates without rescuing children of an invalid candidate. */
+const lastJsonContainer = (text: string): string | undefined => {
   const trimmed = text.trim();
   if (isJson(trimmed)) {
     return trimmed;
   }
-  const end = trimmed.lastIndexOf('}');
-  for (let start = end; start >= 0; start -= 1) {
-    if (trimmed[start] === '{') {
-      const slice = trimmed.slice(start, end + 1);
+  // A key quote or empty-object close distinguishes an object from a stray prose brace.
+  const openings = /\{(?=\s*["}])|\[/gu;
+  let last: string | undefined;
+  for (
+    let opening = openings.exec(trimmed);
+    opening !== null;
+    opening = openings.exec(trimmed)
+  ) {
+    const closing = opening[0] === '{' ? '}' : ']';
+    let candidate: string | undefined;
+    for (
+      let end = trimmed.indexOf(closing, opening.index + 1);
+      end !== -1;
+      end = trimmed.indexOf(closing, end + 1)
+    ) {
+      const slice = trimmed.slice(opening.index, end + 1);
       if (isJson(slice)) {
-        return slice;
+        candidate = slice;
+        openings.lastIndex = end + 1;
+        break;
       }
     }
+    if (candidate === undefined) {
+      return undefined;
+    }
+    last = candidate;
   }
-  return undefined;
+  return last;
 };
 
 /**
  * Claude sometimes writes its reasoning or a Markdown fence around the JSON it was asked for.
- * Returns the JSON part of the answer, preferring the last fenced block, or the trimmed text when no JSON object is found.
+ * Preserves a complete JSON answer, otherwise prefers the last fenced block or container in prose.
+ * Returns the trimmed text when extraction fails so schema decoding reports the invalid answer.
  */
 export const jsonAnswer = (text: string): string => {
+  const trimmed = text.trim();
+  if (isJson(trimmed)) {
+    return trimmed;
+  }
   const fenced = Array.from(
     text.matchAll(fencedBlock),
     (match) => match.groups?.content,
   );
   const lastFenced = fenced.at(-1);
   return (
-    (lastFenced === undefined ? undefined : lastJsonObject(lastFenced)) ??
-    lastJsonObject(text) ??
-    text.trim()
+    (lastFenced === undefined ? undefined : lastJsonContainer(lastFenced)) ??
+    lastJsonContainer(trimmed) ??
+    trimmed
   );
 };

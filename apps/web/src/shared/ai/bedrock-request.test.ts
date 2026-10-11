@@ -83,6 +83,10 @@ const orient = (text: string) =>
 describe('Bedrock answers', () => {
   it.each([
     ['reasoning before the JSON', reasonedAnswer],
+    [
+      'a complete JSON answer containing a Markdown fence',
+      '{"rotationClockwise":90,"description":"```null```"}',
+    ],
     ['a fenced json block', '```json\n{"rotationClockwise":90}\n```'],
     [
       'a stray brace before the JSON',
@@ -97,6 +101,20 @@ describe('Bedrock answers', () => {
 
   it.each([
     ['prose with no JSON', 'The neckline is at the left, so turn it 90°.'],
+    ['a bare array', '[{"rotationClockwise":90}]'],
+    [
+      'an array following prose',
+      'Here is the answer: [{"rotationClockwise":90}]',
+    ],
+    [
+      'a fenced array following prose',
+      '```json\nHere is the answer: [{"rotationClockwise":90}]\n```',
+    ],
+    [
+      'a truncated enclosing object',
+      'Final answer: {"rotationClockwise":45,"example":{"rotationClockwise":90}',
+    ],
+    ['a truncated enclosing array', 'Final answer: [{"rotationClockwise":90}'],
     [
       'JSON with a value outside the schema',
       'The garment is slightly tilted.\n\n{"rotationClockwise":45}',
