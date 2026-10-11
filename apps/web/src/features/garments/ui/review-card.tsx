@@ -10,12 +10,13 @@ import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
 import { checkClass, signalButtonClass } from '#/shared/ui/classes.ts';
 import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
-import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { acceptGarmentFn, deleteGarmentFn } from '../services/garments-fns.ts';
 import { requestStudioRender } from '../services/studio-request.ts';
 import { editOf } from './garment-edit.ts';
 import { GarmentForm } from './garment-form.tsx';
+import { QueueCard } from './queue-card.tsx';
+import { readingWords } from './queue-words.ts';
 import { StudioRenderControl } from './studio-render-control.tsx';
 import { useGarmentPolling } from './use-garment-polling.ts';
 
@@ -97,24 +98,15 @@ const ImageChoiceControl = ({
 );
 
 const ProcessingCard = ({ garment }: { readonly garment: GarmentView }) => (
-  <li className="grid gap-4 border-rule border-t py-5 sm:grid-cols-[10rem_1fr] sm:gap-6">
-    <GarmentFigure
-      alt=""
-      image={garment.original}
-      name="New garment"
-      sizes="(min-width: 640px) 10rem, 100vw"
-    />
-    <div>
-      <p className="type-eyebrow">Reading</p>
-      <p className="type-display mt-1 text-2xl text-ink" role="status">
-        Looking at the photo …
-      </p>
-      <p className="mt-2 max-w-prose text-ink-muted text-sm">
-        The garment is being named and measured, then photographed flat for the
-        wardrobe. The card fills in as it lands.
-      </p>
-    </div>
-  </li>
+  <QueueCard
+    eyebrow={readingWords.eyebrow}
+    image={garment.original}
+    title={readingWords.title}
+  >
+    <p className="mt-2 max-w-prose text-ink-muted text-sm">
+      {readingWords.body}
+    </p>
+  </QueueCard>
 );
 
 const failureMessage = (error: unknown) =>

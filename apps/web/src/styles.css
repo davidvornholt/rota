@@ -81,6 +81,18 @@
       transform: scaleX(1);
     }
   }
+
+  /* A third of the rule's width, run from the left edge past the right. */
+  --animate-tape: tape 1400ms var(--ease-standard) infinite;
+
+  @keyframes tape {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(300%);
+    }
+  }
 }
 
 @layer base {
