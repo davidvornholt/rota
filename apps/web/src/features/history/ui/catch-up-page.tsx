@@ -2,7 +2,6 @@ import { useMutation } from '@tanstack/react-query';
 import { Link, useRouter } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
-import { slotOrder } from '#/shared/data/garment-types.ts';
 import {
   formatLongDate,
   formatWeekday,
@@ -24,7 +23,7 @@ import {
   daysToSave,
   replaceAt,
 } from './catch-up-choices.ts';
-import { type Choice, isBlank } from './day-choice.ts';
+import { type Choice, isBlank, isExpected, slotsToLog } from './day-choice.ts';
 import { SlotPicker } from './slot-picker.tsx';
 import { weatherLine } from './weather-line.ts';
 
@@ -113,11 +112,12 @@ const DayFieldset = ({
       )}
     </div>
     <ul className="mt-3 border-rule border-b sm:grid sm:grid-cols-2 sm:gap-x-8">
-      {slotOrder.map((slot) => (
+      {slotsToLog(choices, choice).map((slot) => (
         <SlotPicker
           candidates={choices[slot]}
           chosen={choices[slot].find((garment) => garment.id === choice[slot])}
           day={day.date}
+          expected={isExpected(choice, slot)}
           key={slot}
           onChange={(garmentId) => onChange({ ...choice, [slot]: garmentId })}
           slot={slot}

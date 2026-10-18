@@ -28,3 +28,19 @@ it('layers the upper body as worn and places shoes and bag beside the clothes', 
   );
   expect(prompt).toContain('Place the shoes and the bag beside the clothes.');
 });
+
+it('places a hat and a scarf as worn around a dress', () => {
+  const prompt = collagePrompt([
+    { slot: 'dress', name: 'Red summer dress' },
+    { slot: 'scarf', name: 'Silk scarf' },
+    { slot: 'hat', name: 'Straw hat' },
+  ]);
+  expect(prompt).toContain(
+    '(image 1: Red summer dress, the dress; image 2: Silk scarf, the scarf; image 3: Straw hat, the hat)',
+  );
+  expect(prompt).not.toContain('upper-body layers');
+  expect(prompt).toContain(
+    'Drape the scarf across the neckline, as worn. Place the hat above the neckline, where it is worn.',
+  );
+  expect(prompt).not.toContain('beside the clothes');
+});

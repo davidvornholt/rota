@@ -71,6 +71,13 @@
       "when": 1791737654473,
       "tag": "0009_outfit_collage",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792338243002,
+      "tag": "0010_dresses_and_accessories",
+      "breakpoints": true
     }
   ]
 }

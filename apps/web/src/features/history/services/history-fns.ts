@@ -202,7 +202,10 @@ const slotChoices = (views: ReadonlyArray<GarmentView>): SlotChoices => {
     bottom: eligible('bottom'),
     under: eligible('under'),
     top: eligible('top'),
+    dress: eligible('dress'),
     over: eligible('over'),
+    scarf: eligible('scarf'),
+    hat: eligible('hat'),
     shoes: eligible('shoes'),
     bag: eligible('bag'),
   };

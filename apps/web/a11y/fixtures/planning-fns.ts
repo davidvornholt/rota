@@ -53,6 +53,16 @@ export const wardrobe = [
     category: 'handbag',
     slots: ['bag'] as const,
   },
+  {
+    ...shirt,
+    id: 'demo-dress',
+    name: 'Green linen dress',
+    category: 'dress',
+    slots: ['dress'] as const,
+    material: 'Linen',
+    colors: [{ hex: '#4f6b4a' }],
+    daysSinceWorn: null,
+  },
 ];
 const outfitEntries = [
   { slot: 'bottom' as const, garmentId: bottom.id },

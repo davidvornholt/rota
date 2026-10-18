@@ -1,19 +1,28 @@
 import { Schema } from 'effect';
-import type { Slot } from '#/shared/data/garment-types.ts';
+import {
+  type Slot,
+  separateSlots,
+  slotOrder,
+} from '#/shared/data/garment-types.ts';
 
 /**
  * What Bedrock answers with. Garments are named by the short aliases the prompt
  * introduced (C1, B2, T1 …), never by id: an alias is one token the model
- * cannot mistype, and the engine maps it back.
+ * cannot mistype, and the engine maps it back. Any slot may be null here; the
+ * engine checks that the answer is a complete outfit.
  */
+const slotAnswer = Schema.NullOr(Schema.String);
 export const ProposalAnswerSchema = Schema.Struct({
   outfit: Schema.Struct({
-    bottom: Schema.String,
-    under: Schema.NullOr(Schema.String),
-    top: Schema.String,
-    over: Schema.NullOr(Schema.String),
-    shoes: Schema.NullOr(Schema.String),
-    bag: Schema.NullOr(Schema.String),
+    bottom: slotAnswer,
+    under: slotAnswer,
+    top: slotAnswer,
+    dress: slotAnswer,
+    over: slotAnswer,
+    scarf: slotAnswer,
+    hat: slotAnswer,
+    shoes: slotAnswer,
+    bag: slotAnswer,
   }),
   headline: Schema.String,
   reasons: Schema.Array(
@@ -34,19 +43,40 @@ const optionalSlotDescription: Readonly<Partial<Record<Slot, string>>> = {
   shoes:
     " Include suitable offered shoes; null only when unavailable or unsuitable for the weather, outfit or wearer's note.",
   bag: " Include a suitable offered bag; null only when unavailable or unsuitable for the weather, outfit or wearer's note.",
+  dress:
+    ' Choose a dress in place of a top and a bottom when it suits the weather, occasion and recent outfits; otherwise null.',
+  scarf:
+    " Choose only when the weather, outfit or wearer's note calls for one; otherwise null.",
+  hat: " Choose only when the weather, outfit or wearer's note calls for one, such as a beanie in the cold or a cap in strong sun; otherwise null.",
 };
+const separateWithDressDescription =
+  ' Null when a dress is chosen, unless the dress is worn over a top or with leggings.';
+
+/**
+ * A top and a bottom are required strings unless a dress is offered; then the
+ * model picks either and the engine rejects an incomplete outfit.
+ */
 export const proposalAnswerJsonSchema = (
   aliases: ReadonlyMap<string, { readonly slot: Slot }>,
 ) => {
-  const forSlot = (slot: Slot, optional: boolean) => {
+  const dressOffered = [...aliases.values()].some(
+    (garment) => garment.slot === 'dress',
+  );
+  const forSlot = (slot: Slot) => {
     const choices = [...aliases]
       .filter(([, garment]) => garment.slot === slot)
       .map(([name]) => name);
+    const separate = separateSlots.includes(slot);
+    const optional = !separate || dressOffered;
     const optionalType = choices.length === 0 ? 'null' : ['string', 'null'];
+    const guidance =
+      separate && dressOffered
+        ? separateWithDressDescription
+        : (optionalSlotDescription[slot] ?? '');
     return {
       type: optional ? optionalType : 'string',
       enum: optional ? [...choices, null] : choices,
-      description: `An offered alias for ${slot}, never a garment name.${optionalSlotDescription[slot] ?? ''}`,
+      description: `An offered alias for ${slot}, never a garment name.${guidance}`,
     };
   };
   return {
@@ -55,14 +85,17 @@ export const proposalAnswerJsonSchema = (
       outfit: {
         type: 'object',
         properties: {
-          bottom: forSlot('bottom', false),
-          under: forSlot('under', true),
-          top: forSlot('top', false),
-          over: forSlot('over', true),
-          shoes: forSlot('shoes', true),
-          bag: forSlot('bag', true),
+          bottom: forSlot('bottom'),
+          under: forSlot('under'),
+          top: forSlot('top'),
+          dress: forSlot('dress'),
+          over: forSlot('over'),
+          scarf: forSlot('scarf'),
+          hat: forSlot('hat'),
+          shoes: forSlot('shoes'),
+          bag: forSlot('bag'),
         },
-        required: ['bottom', 'under', 'top', 'over', 'shoes', 'bag'],
+        required: [...slotOrder],
       },
       headline: alias(
         'One short sentence, second person, plain and specific, that opens the morning: what to keep, what is fresh, and the one reason. At most 90 characters. Example: "Keep the grey chinos; a fresh white shirt for the warmer afternoon."',
