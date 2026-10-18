@@ -12,6 +12,7 @@ import {
 import {
   garmentCategories,
   scaleMinimum,
+  slotOrder,
 } from '#/shared/data/garment-types.ts';
 import {
   PhotoOrientationSchema,
@@ -77,10 +78,10 @@ export const extractionJsonSchema = {
       type: 'array',
       items: {
         type: 'string',
-        enum: ['bottom', 'under', 'top', 'over', 'shoes', 'bag'],
+        enum: [...slotOrder],
       },
       description:
-        'Every place this garment can be worn. bottom = trousers or shorts. under = beneath a top (undershirt). top = the visible torso layer. over = above a top (jumper, cardigan, overshirt; a shirt can also be an over layer above a tee). shoes = footwear, including a pair. bag = a handbag or other bag.',
+        'Every place this garment can be worn. bottom = trousers, shorts or a skirt. under = beneath a top (undershirt). top = the visible torso layer. dress = a dress, worn in place of a top and a bottom. over = above a top or dress (jumper, cardigan, overshirt; a shirt can also be an over layer above a tee). scarf = a scarf. hat = a cap, beanie or hat. shoes = footwear, including a pair. bag = a handbag or other bag.',
     },
     warmth: {
       type: 'integer',
@@ -104,7 +105,7 @@ export const extractionJsonSchema = {
       minimum: 1,
       maximum: 10,
       description:
-        'How many separate wears before washing (not necessarily consecutive); use 1 for shoes and bags, whose allowance is ignored. For clothing, judged from material and how close to the skin it sits. Undershirts and tees 1–2, shirts 2, trousers and jumpers 4–5, wool outer layers up to 7.',
+        'How many separate wears before washing (not necessarily consecutive); use 1 for shoes, bags, hats and scarves, whose allowance is ignored. For clothing, judged from material and how close to the skin it sits. Undershirts and tees 1–2, shirts and dresses 2, trousers, skirts and jumpers 4–5, wool outer layers up to 7.',
     },
     colors: {
       type: 'array',

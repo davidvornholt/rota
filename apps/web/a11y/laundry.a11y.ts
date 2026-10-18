@@ -107,6 +107,7 @@ test('the laundry picker explains when no washable pieces remain', async ({
   await send('Navy chinos');
   await send('Blue Oxford shirt');
   await send('White cotton shirt');
+  await send('Green linen dress');
   await laundry
     .getByRole('button', { name: 'Choose a piece', exact: true })
     .click();

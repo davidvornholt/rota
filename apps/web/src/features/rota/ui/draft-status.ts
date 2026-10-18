@@ -1,11 +1,15 @@
-import { hasWearBudget, upperBodySlots } from '#/shared/data/garment-types.ts';
+import {
+  hasWearBudget,
+  isCompleteOutfit,
+  torsoSlots,
+  upperBodySlots,
+} from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import type { PlanningController } from './use-planning.ts';
 
 export const completeOutfit = (entries: ReadonlyArray<OutfitEntry>): boolean =>
-  entries.some((entry) => entry.slot === 'top') &&
-  entries.some((entry) => entry.slot === 'bottom');
+  isCompleteOutfit(entries.map((entry) => entry.slot));
 const concernFor = (
   slot: OutfitEntry['slot'],
   garment: GarmentView,
@@ -17,7 +21,7 @@ const concernFor = (
   ) {
     return [`${garment.name} is ready to wash.`];
   }
-  if (slot === 'top' && cleanTop && garment.wearsSinceWash > 0) {
+  if (torsoSlots.has(slot) && cleanTop && garment.wearsSinceWash > 0) {
     return [`${garment.name} has been worn since washing.`];
   }
   if (upperBodySlots.has(slot) && garment.daysSinceWorn === 1) {

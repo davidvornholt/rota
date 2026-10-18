@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   hasWearBudget,
   type Slot,
+  separateSlots,
   slotLabel,
   slotOrder,
 } from '#/shared/data/garment-types.ts';
@@ -37,10 +38,12 @@ const OutfitPiece = ({
   onPin,
   onChoose,
   onRemove,
+  buttonRef,
 }: Omit<OutfitEditorProps, 'onChange'> & {
   readonly slot: Slot;
   readonly onChoose: (slot: Slot) => void;
   readonly onRemove: (slot: Slot) => void;
+  readonly buttonRef: (slot: Slot, node: HTMLButtonElement | null) => void;
 }) => {
   const entry = entries.find((piece) => piece.slot === slot);
   const garment = wardrobe.find((piece) => piece.id === entry?.garmentId);
@@ -51,6 +54,7 @@ const OutfitPiece = ({
         className="group block w-full text-left"
         disabled={disabled}
         onClick={() => onChoose(slot)}
+        ref={(node) => buttonRef(slot, node)}
         type="button"
         aria-label={
           garment === undefined
@@ -133,11 +137,29 @@ export const OutfitEditor = ({
   onLaundry,
 }: OutfitEditorProps) => {
   const [choosing, setChoosing] = useState<Slot | null>(null);
+  const [chosen, setChosen] = useState<Slot | null>(null);
+  const pieceButtonsRef = useRef(new Map<Slot, HTMLButtonElement>());
+  // The picker's opener may be gone after a pick (an add button, or the top
+  // and bottom a dress replaced), so land on the piece just chosen.
+  useEffect(() => {
+    if (chosen !== null) {
+      pieceButtonsRef.current.get(chosen)?.focus();
+      setChosen(null);
+    }
+  }, [chosen]);
+  const buttonRef = (slot: Slot, node: HTMLButtonElement | null) => {
+    if (node === null) {
+      pieceButtonsRef.current.delete(slot);
+    } else {
+      pieceButtonsRef.current.set(slot, node);
+    }
+  };
+  // A dress takes the place of the top and bottom; either can still be added under it.
+  const wearsDress = entries.some((entry) => entry.slot === 'dress');
+  const essential: ReadonlyArray<Slot> = wearsDress ? ['dress'] : separateSlots;
   const shown = slotOrder.filter(
     (slot) =>
-      slot === 'top' ||
-      slot === 'bottom' ||
-      entries.some((entry) => entry.slot === slot),
+      essential.includes(slot) || entries.some((entry) => entry.slot === slot),
   );
   const optional = slotOrder.filter(
     (slot) =>
@@ -147,9 +169,12 @@ export const OutfitEditor = ({
   const remove = (slot: Slot) =>
     onChange(entries.filter((entry) => entry.slot !== slot));
   const choose = (slot: Slot, garment: GarmentView) => {
+    const replaced: ReadonlyArray<Slot> =
+      slot === 'dress' && !wearsDress ? [slot, ...separateSlots] : [slot];
     onChange([
       ...entries.filter(
-        (entry) => entry.slot !== slot && entry.garmentId !== garment.id,
+        (entry) =>
+          !replaced.includes(entry.slot) && entry.garmentId !== garment.id,
       ),
       { slot, garmentId: garment.id },
     ]);
@@ -157,6 +182,7 @@ export const OutfitEditor = ({
       onPin(garment.id);
     }
     setChoosing(null);
+    setChosen(slot);
   };
   return (
     <>
@@ -175,6 +201,7 @@ export const OutfitEditor = ({
             onPin={onPin}
             onChoose={setChoosing}
             onRemove={remove}
+            buttonRef={buttonRef}
           />
         ))}
       </div>
@@ -188,7 +215,9 @@ export const OutfitEditor = ({
               onClick={() => setChoosing(slot)}
               type="button"
             >
-              Add {slotLabel[slot].toLowerCase()}
+              {slot === 'dress'
+                ? 'Wear a dress'
+                : `Add ${slotLabel[slot].toLowerCase()}`}
             </button>
           ))}
         </div>

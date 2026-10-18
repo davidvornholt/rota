@@ -345,10 +345,12 @@ describe('daily variety and laundry', () => {
       ),
     ).toEqual([]);
   });
-  it('allows shoes and bags to repeat without a wash allowance', () => {
+  it('allows accessories to repeat without a wash allowance', () => {
     for (const [slot, category] of [
       ['shoes', 'shoes'],
       ['bag', 'handbag'],
+      ['hat', 'beanie'],
+      ['scarf', 'scarf'],
     ] as const) {
       const accessory = garment('accessory', [slot], { category });
       const log = ['2026-09-01', '2026-09-02', '2026-09-03'].map((date) =>

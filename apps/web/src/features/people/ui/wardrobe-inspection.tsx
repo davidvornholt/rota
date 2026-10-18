@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { categoryName } from '#/shared/data/garment-types.ts';
 import { mediaUrl, tileWidth } from '#/shared/media/media-variants.ts';
 import { frameClass, linkButtonClass } from '#/shared/ui/classes.ts';
 import type { AdminGarment } from '../services/people-fns.ts';
@@ -36,7 +37,7 @@ export const WardrobeInspection = ({
                       loading="lazy"
                       width={600}
                       height={800}
-                      alt={`${garment.name || garment.category || 'Garment'} — ${label.toLowerCase()}`}
+                      alt={`${garment.name || categoryName(garment.category) || 'Garment'} — ${label.toLowerCase()}`}
                       className="aspect-[3/4] w-full bg-paper-deep object-contain"
                       src={mediaUrl(key, tileWidth)}
                     />
@@ -51,7 +52,7 @@ export const WardrobeInspection = ({
               {garment.name || 'Unnamed garment'}
             </h2>
             <p className="mt-1 text-ink-muted">
-              {garment.category} · {garment.status}
+              {categoryName(garment.category)} · {garment.status}
             </p>
             {garment.notes ? (
               <p className="mt-3 whitespace-pre-wrap text-sm">

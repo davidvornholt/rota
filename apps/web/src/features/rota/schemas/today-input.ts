@@ -1,10 +1,9 @@
 import { Schema } from 'effect';
 
 import { SlotSchema } from '#/shared/data/garment.ts';
+import { slotOrder } from '#/shared/data/garment-types.ts';
 import { UuidSchema } from '#/shared/data/uuid-schema.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
-
-const slotCount = 6;
 
 export const OutfitEntryInputSchema = Schema.Struct({
   garmentId: UuidSchema,
@@ -14,7 +13,7 @@ export const OutfitEntryInputSchema = Schema.Struct({
 export const LogOutfitInputSchema = Schema.Struct({
   date: LocalDateSchema,
   entries: Schema.Array(OutfitEntryInputSchema).check(
-    Schema.isMaxLength(slotCount),
+    Schema.isMaxLength(slotOrder.length),
   ),
   source: Schema.Literals(['override', 'backfill', 'edited']),
 });
@@ -31,7 +30,7 @@ export const LogDaysInputSchema = Schema.Struct({
       date: LocalDateSchema,
       entries: Schema.Array(OutfitEntryInputSchema).check(
         Schema.isMinLength(1),
-        Schema.isMaxLength(slotCount),
+        Schema.isMaxLength(slotOrder.length),
       ),
     }),
   ).check(Schema.isMinLength(1)),

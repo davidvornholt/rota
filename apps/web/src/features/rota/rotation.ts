@@ -11,6 +11,7 @@ import {
   hasWearBudget,
   type Slot,
   slotOrder,
+  torsoSlots,
   upperBodySlots,
 } from '#/shared/data/garment-types.ts';
 import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
@@ -183,7 +184,7 @@ export const candidatesFor = (
   const all = input.garments.flatMap((garment): ReadonlyArray<Candidate> => {
     if (
       !availableToWear(garment, input.log, input.today, input.settings) ||
-      (slot === 'top' &&
+      (torsoSlots.has(slot) &&
         input.cleanTop &&
         garmentCare(garment, input.log, input.today, input.settings)
           .wearsSinceWash > 0) ||
@@ -220,10 +221,10 @@ export const candidatesFor = (
     ? all.filter((candidate) => !wornAboveWaist.has(candidate.garment.id))
     : all;
   const rested = varied.filter((candidate) => !candidate.inCooldown);
-  // Between clean-top days, keep partly worn tops in play even when the
-  // style cooldown prefers a less recent piece. Rest does not mean washing.
+  // Between clean-top days, keep partly worn tops and dresses in play even when
+  // the style cooldown prefers a less recent piece. Rest does not mean washing.
   const reusable =
-    slot === 'top' && !input.cleanTop
+    torsoSlots.has(slot) && !input.cleanTop
       ? varied.filter((candidate) => candidate.wearsSinceWash > 0)
       : [];
   const pool =

@@ -338,11 +338,13 @@ test('clean-top cadence can be set and cleared without accessory wash budgets', 
   await page.getByRole('button', { name: 'Save rotation settings' }).click();
   await expect(start).toHaveValue('2026-09-19');
   await expect(
-    page.getByRole('spinbutton', { name: 'shoes', exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole('spinbutton', { name: 'handbag', exact: true }),
-  ).toHaveCount(0);
+    page.getByRole('spinbutton', { name: 'Trousers', exact: true }),
+  ).toBeVisible();
+  for (const accessory of ['Shoes', 'Handbag', 'Cap', 'Scarf']) {
+    await expect(
+      page.getByRole('spinbutton', { name: accessory, exact: true }),
+    ).toHaveCount(0);
+  }
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await start.fill('');
   await page.getByRole('button', { name: 'Save rotation settings' }).click();
