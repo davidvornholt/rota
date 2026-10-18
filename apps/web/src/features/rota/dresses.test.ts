@@ -175,19 +175,6 @@ describe('a dress in place of a top and a bottom', () => {
     expect(required(kept)).toEqual(['dress']);
   });
 
-  it('offers a turned-down dress again when nothing else completes the outfit', () => {
-    const shoes = garment('trainers', 'trainers', ['shoes']);
-    const input = {
-      ...rotation([dress, shoes]),
-      excluded: new Set([dress.id]),
-    };
-    const choices = slotChoicesFor(input, [], []);
-    const offered = choices.find((choice) => choice.slot === 'dress');
-    expect(offered?.turnedDownOnly).toBeTrue();
-    expect(offered?.candidates.map((c) => c.garment.id)).toEqual([dress.id]);
-    expect(required(choices)).toEqual(['dress']);
-  });
-
   it('lets the model answer with a dress alone, but not with half an outfit', async () => {
     const input = rotation([skirt, blouse, dress]);
     const choices = slotChoicesFor(input, [], []);
@@ -240,6 +227,35 @@ describe('a dress in place of a top and a bottom', () => {
     };
     expect(candidatesFor(clean, 'dress', new Set())).toEqual([]);
     expect(continuations(rotation([dress], log))).toEqual([]);
+  });
+});
+
+describe('another suggestion after a turned-down dress', () => {
+  it('offers a turned-down dress again when nothing else completes the outfit', () => {
+    const shoes = garment('trainers', 'trainers', ['shoes']);
+    const input = {
+      ...rotation([dress, shoes]),
+      excluded: new Set([dress.id]),
+    };
+    const choices = slotChoicesFor(input, [], []);
+    const offered = choices.find((choice) => choice.slot === 'dress');
+    expect(offered?.turnedDownOnly).toBeTrue();
+    expect(offered?.candidates.map((c) => c.garment.id)).toEqual([dress.id]);
+    expect(required(choices)).toEqual(['dress']);
+    // A shirt kept as the overlayer cannot also be the top.
+    const shirt = garment('shirt', 'shirt', ['top', 'over']);
+    const kept = choicesWithPins(
+      {
+        ...input,
+        garments: [dress, shoes, shirt, garment('skirt', 'skirt', ['bottom'])],
+      },
+      [],
+      [{ garmentId: shirt.id, slot: 'over' }],
+    );
+    expect(
+      kept.find((choice) => choice.slot === 'dress')?.turnedDownOnly,
+    ).toBeTrue();
+    expect(required(kept)).toEqual(['dress', 'over']);
   });
 });
 

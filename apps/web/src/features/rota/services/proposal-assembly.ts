@@ -54,11 +54,15 @@ export const slotChoicesFor = (
   const withTurnedDown = (slot: Slot) =>
     candidatesFor({ ...input, excluded: new Set() }, slot, chosen);
   const freshDress = candidatesFor(input, 'dress', chosen).length > 0;
+  // A garment kept for another slot cannot also fill this one.
+  const pinnedIds = new Set(pinned.map((pin) => pin.garmentId));
   const separatesFit = separateSlots.every(
     (slot) =>
       continuing.some((c) => c.slot === slot) ||
       pinned.some((pin) => pin.slot === slot) ||
-      withTurnedDown(slot).length > 0,
+      withTurnedDown(slot).some(
+        (candidate) => !pinnedIds.has(candidate.garment.id),
+      ),
   );
   const turnedDownDresses =
     freshDress || separatesFit ? [] : withTurnedDown('dress');
