@@ -24,6 +24,7 @@ import { SettingsRepository } from '#/shared/data/settings-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import { addDays, localDate } from '#/shared/time/local-date.ts';
+import { verifyCollections } from './verify-collections.ts';
 import { verifyCare, verifyDailyDrafts } from './verify-daily-drafts.ts';
 import { verifyDirectLaundry } from './verify-direct-laundry.ts';
 import { verifyPlanningIsolation } from './verify-planning-isolation.ts';
@@ -96,7 +97,7 @@ const bedrockLayer = Layer.succeed(
         );
       }
       sawSavedOutfit = input.parts.some(
-        (part) => 'text' in part && part.text.includes('Blue and navy'),
+        (part) => 'text' in part && part.text.includes('Blue and navy [Work]:'),
       );
       const schema = input.jsonSchema as {
         properties: {
@@ -226,13 +227,18 @@ const verify = Effect.gen(function* () {
     id: outfitId,
     name: 'Blue and navy',
     entries,
+    collections: ['Work', ' work ', 'Summer'],
   });
+  yield* verifyCollections(clock, entries);
   yield* changePlanning(nextClock, {
     action: 'note',
     text: 'Meeting tomorrow',
   });
   yield* suggestPlanning(nextClock, [entries[0]]);
-  assert(sawSavedOutfit, 'The model receives saved combinations.');
+  assert(
+    sawSavedOutfit,
+    'The model receives saved combinations with their collections.',
+  );
   const generated = yield* planningView(nextClock);
   assert(
     generated.day.proposal?.items.some(
@@ -345,7 +351,7 @@ try {
   await verifyPlanningIsolation(pool, databaseUrl.href);
   await Effect.runPromise(
     Effect.logInfo(
-      'Planning integration passed: migrations, suggestions, pinned garments, saved outfits, plans, wear, weather changes and laundry.',
+      'Planning integration passed: migrations, suggestions, pinned garments, saved outfits, collections, plans, wear, weather changes and laundry.',
     ),
   );
 } finally {

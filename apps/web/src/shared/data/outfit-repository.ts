@@ -21,7 +21,7 @@ export class OutfitRepository extends Context.Service<OutfitRepository>()(
       const sql = yield* SqlClient.SqlClient;
       const owner = yield* WardrobeOwner;
       const list = () =>
-        sql`select id, name, entries from saved_outfit where owner_id = ${owner.id} order by updated_at desc`.pipe(
+        sql`select id, name, entries, collections from saved_outfit where owner_id = ${owner.id} order by updated_at desc`.pipe(
           Effect.flatMap(
             Schema.decodeUnknownEffect(Schema.Array(SavedOutfitSchema)),
           ),
@@ -29,8 +29,13 @@ export class OutfitRepository extends Context.Service<OutfitRepository>()(
         );
       const save = (outfit: SavedOutfit) =>
         sql`
-      insert into saved_outfit (owner_id, id, name, entries) values (${owner.id}, ${outfit.id}, ${outfit.name}, ${JSON.stringify(outfit.entries)}::jsonb)
-      on conflict (id) do update set name = excluded.name, entries = excluded.entries, updated_at = now() where saved_outfit.owner_id = ${owner.id}
+      insert into saved_outfit (owner_id, id, name, entries, collections) values (${owner.id}, ${outfit.id}, ${outfit.name}, ${JSON.stringify(outfit.entries)}::jsonb, ${outfit.collections}::text[])
+      on conflict (id) do update set name = excluded.name, entries = excluded.entries, collections = excluded.collections, updated_at = now() where saved_outfit.owner_id = ${owner.id}
+    `.pipe(Effect.asVoid, Effect.mapError(write));
+      // Unlike an edit, regrouping does not move the outfit up the list.
+      const setCollections = (id: string, collections: ReadonlyArray<string>) =>
+        sql`
+      update saved_outfit set collections = ${collections}::text[] where owner_id = ${owner.id} and id = ${id}
     `.pipe(Effect.asVoid, Effect.mapError(write));
       const remove = (id: string) =>
         sql`delete from saved_outfit where id = ${id} and owner_id = ${owner.id}`.pipe(
@@ -57,7 +62,15 @@ export class OutfitRepository extends Context.Service<OutfitRepository>()(
       insert into day_plan (owner_id, for_date, clean_top) values (${owner.id}, ${date}, ${value})
       on conflict (owner_id, for_date) do update set clean_top = excluded.clean_top, updated_at = now()
     `.pipe(Effect.asVoid, Effect.mapError(write));
-      return { list, save, remove, plan, savePlan, setCleanTop };
+      return {
+        list,
+        save,
+        remove,
+        setCollections,
+        plan,
+        savePlan,
+        setCleanTop,
+      };
     }),
   },
 ) {

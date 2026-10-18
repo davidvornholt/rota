@@ -2,10 +2,17 @@ import { Schema } from 'effect';
 import { OutfitEntriesSchema } from '#/shared/data/outfit.ts';
 import { UuidSchema } from '#/shared/data/uuid-schema.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
+import {
+  collectionNameLength,
+  collectionsPerOutfit,
+} from '../outfit-collections.ts';
 
 const maximumLaundryBatch = 500;
 const nameLength = 80;
 const noteLength = 280;
+const CollectionNameSchema = Schema.String.check(
+  Schema.isMaxLength(collectionNameLength),
+);
 export const PlanningDateSchema = Schema.Struct({
   date: Schema.NullOr(LocalDateSchema),
 });
@@ -55,8 +62,20 @@ export const PlanningActionSchema = Schema.Struct({
         Schema.isMaxLength(nameLength),
       ),
       entries: OutfitEntriesSchema,
+      collections: Schema.Array(CollectionNameSchema).check(
+        Schema.isMaxLength(collectionsPerOutfit),
+      ),
     }),
     Schema.Struct({ action: Schema.Literal('delete-outfit'), id: UuidSchema }),
+    Schema.Struct({
+      action: Schema.Literal('rename-collection'),
+      from: CollectionNameSchema,
+      to: CollectionNameSchema,
+    }),
+    Schema.Struct({
+      action: Schema.Literal('delete-collection'),
+      name: CollectionNameSchema,
+    }),
   ]),
 });
 export type PlanningChange = Schema.Schema.Type<

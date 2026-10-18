@@ -76,7 +76,9 @@ const withOutfitContext = (
   const favourites = saved.flatMap((outfit) => {
     const aliases = aliasesFor(outfit.entries);
     return aliases.every((alias) => alias !== undefined)
-      ? [`${outfit.name}: ${aliases.join(', ')}`]
+      ? [
+          `${outfit.name}${outfit.collections.length === 0 ? '' : ` [${outfit.collections.join(', ')}]`}: ${aliases.join(', ')}`,
+        ]
       : [];
   });
   return {
@@ -84,7 +86,7 @@ const withOutfitContext = (
     parts: [
       ...prompt.parts,
       {
-        text: `Keep these wearer-selected aliases exactly: ${aliasesFor(pinned).join(', ') || 'none'}. Saved combinations the wearer likes (consider when suitable, but you may propose new combinations): ${favourites.join('; ') || 'none'}.`,
+        text: `Keep these wearer-selected aliases exactly: ${aliasesFor(pinned).join(', ') || 'none'}. Saved combinations the wearer likes (consider when suitable, but you may propose new combinations; square brackets list the wearer's own collections for an outfit, such as an occasion or a season, which can show when it suits the wearer's note): ${favourites.join('; ') || 'none'}.`,
       },
     ],
   };

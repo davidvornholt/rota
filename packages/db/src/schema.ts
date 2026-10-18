@@ -312,12 +312,17 @@ export const settings = pgTable(
   ],
 );
 
-/** A reusable combination; edits to a day's outfit never mutate this record. */
+/**
+ * A reusable combination; edits to a day's outfit never mutate this record.
+ * `collections` are the wearer's own groups, such as an occasion or a season;
+ * an outfit can be in several, and a collection exists while an outfit is in it.
+ */
 export const savedOutfit = pgTable('saved_outfit', {
   ownerId: text('owner_id').notNull(),
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   entries: jsonb('entries').notNull(),
+  collections: text('collections').array().notNull().default([]),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
