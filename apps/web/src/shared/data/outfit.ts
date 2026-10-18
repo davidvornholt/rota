@@ -21,6 +21,7 @@ export const SavedOutfitSchema = Schema.Struct({
   id: UuidSchema,
   name: Schema.String,
   entries: OutfitEntriesSchema,
+  collections: Schema.Array(Schema.String),
 });
 export type SavedOutfit = Schema.Schema.Type<typeof SavedOutfitSchema>;
 export const PlanSchema = Schema.Struct({

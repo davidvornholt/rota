@@ -82,10 +82,30 @@ const route = createRoute({
 const outfitsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/outfits',
+  validateSearch: (search: Record<string, unknown>) => ({
+    collection: Array.isArray(search.collection)
+      ? search.collection.filter((name) => typeof name === 'string')
+      : undefined,
+  }),
   loader: () => structuredClone(planningFixture(demoProposal.today)),
-  component: () => (
-    <OutfitsPage initial={outfitsRoute.useLoaderData<typeof router>()} />
-  ),
+  component: () => {
+    const navigate = outfitsRoute.useNavigate();
+    return (
+      <OutfitsPage
+        initial={outfitsRoute.useLoaderData<typeof router>()}
+        filter={outfitsRoute.useSearch<typeof router>().collection ?? []}
+        onFilter={(filter) => {
+          navigate({
+            search: {
+              collection: filter.length === 0 ? undefined : [...filter],
+            },
+            replace: true,
+            resetScroll: false,
+          }).catch(() => undefined);
+        }}
+      />
+    );
+  },
 });
 const laundryRoute = createRoute({
   getParentRoute: () => rootRoute,

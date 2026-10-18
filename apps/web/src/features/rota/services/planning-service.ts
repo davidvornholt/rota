@@ -1,19 +1,31 @@
 import { Effect } from 'effect';
 import { SqlClient } from 'effect/sql';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
-import { writeError } from '#/shared/data/errors/data-errors.ts';
+import {
+  type DataWriteError,
+  writeError,
+} from '#/shared/data/errors/data-errors.ts';
 import { cleanTopOn, garmentCare } from '#/shared/data/garment-care.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import {
   toGarmentView,
   wearFactsByGarment,
 } from '#/shared/data/garment-view.ts';
+import type { SavedOutfit } from '#/shared/data/outfit.ts';
 import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import { ProposalStateError } from '../errors/rota-errors.ts';
+import {
+  type CollectionUpdate,
+  collectionsOf,
+  removeCollection,
+  renameCollection,
+  resolveCollections,
+  tidyCollection,
+} from '../outfit-collections.ts';
 import type { PlanningChange } from '../schemas/planning-input.ts';
 import type { PlanningView } from '../schemas/planning-view.ts';
 import {
@@ -160,6 +172,93 @@ const applyEntryChange = (
     yield* proposals.wear(clock, change.entries);
   });
 
+/**
+ * These changes write what they computed from the member's saved outfits, so
+ * each holds the member's lock from that read until it commits. Overlapping
+ * changes from two tabs then take turns instead of undoing each other.
+ */
+const rewriteOutfits = (
+  what: string,
+  write: (
+    saved: ReadonlyArray<SavedOutfit>,
+  ) => Effect.Effect<void, DataWriteError>,
+) =>
+  Effect.gen(function* () {
+    const outfits = yield* OutfitRepository;
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql
+      .withTransaction(
+        Effect.gen(function* () {
+          yield* outfits.lock();
+          yield* write(yield* outfits.list());
+        }),
+      )
+      .pipe(
+        Effect.catchTag('SqlError', (cause) =>
+          Effect.fail(writeError(what)(cause)),
+        ),
+      );
+  });
+
+const applyOutfitChange = (
+  change: Extract<
+    PlanningChange,
+    {
+      action:
+        | 'save-outfit'
+        | 'delete-outfit'
+        | 'rename-collection'
+        | 'delete-collection';
+    }
+  >,
+) =>
+  Effect.gen(function* () {
+    const outfits = yield* OutfitRepository;
+    const regroup = (updates: ReadonlyArray<CollectionUpdate>) =>
+      Effect.forEach(
+        updates,
+        (update) => outfits.setCollections(update.id, update.collections),
+        { discard: true },
+      );
+    switch (change.action) {
+      case 'save-outfit': {
+        const garments = yield* GarmentRepository;
+        yield* validateEntries(change.entries, yield* garments.list(), true);
+        if (change.name.trim() === '') {
+          return yield* new ProposalStateError('Give this outfit a name.');
+        }
+        return yield* rewriteOutfits('The outfit', (saved) =>
+          outfits.save({
+            id: change.id,
+            name: change.name.trim(),
+            entries: change.entries,
+            collections: resolveCollections(
+              change.collections,
+              collectionsOf(
+                saved.filter((outfit) => outfit.id !== change.id),
+              ).map((collection) => collection.name),
+            ),
+          }),
+        );
+      }
+      case 'delete-outfit':
+        return yield* outfits.remove(change.id);
+      case 'rename-collection': {
+        const to = tidyCollection(change.to);
+        if (to === '') {
+          return yield* new ProposalStateError('Give the collection a name.');
+        }
+        return yield* rewriteOutfits('Collections', (saved) =>
+          regroup(renameCollection(saved, change.from, to)),
+        );
+      }
+      default:
+        return yield* rewriteOutfits('Collections', (saved) =>
+          regroup(removeCollection(saved, change.name)),
+        );
+    }
+  });
+
 export const changePlanning = (clock: WardrobeClock, change: PlanningChange) =>
   Effect.gen(function* () {
     const outfits = yield* OutfitRepository;
@@ -221,21 +320,11 @@ export const changePlanning = (clock: WardrobeClock, change: PlanningChange) =>
           );
         break;
       }
-      case 'save-outfit': {
-        const garments = yield* GarmentRepository;
-        yield* validateEntries(change.entries, yield* garments.list(), true);
-        if (change.name.trim() === '') {
-          return yield* new ProposalStateError('Give this outfit a name.');
-        }
-        yield* outfits.save({
-          id: change.id,
-          name: change.name.trim(),
-          entries: change.entries,
-        });
-        break;
-      }
+      case 'save-outfit':
       case 'delete-outfit':
-        yield* outfits.remove(change.id);
+      case 'rename-collection':
+      case 'delete-collection':
+        yield* applyOutfitChange(change);
         break;
       default:
         break;

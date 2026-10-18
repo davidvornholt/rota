@@ -7,6 +7,7 @@ import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import type { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { addDays, localDate } from '#/shared/time/local-date.ts';
+import { changeSavedOutfits } from './saved-outfits.ts';
 import { demoProposal, shirt } from './today-proposal.ts';
 
 const laundryDays = 4;
@@ -74,7 +75,14 @@ const outfitsKey = 'planning-outfits';
 const savedOutfits = (): PlanningView['outfits'] => {
   const stored = sessionStorage.getItem(outfitsKey);
   return stored === null
-    ? [{ id: 'demo-saved', name: 'Blue and navy', entries: outfitEntries }]
+    ? [
+        {
+          id: 'demo-saved',
+          name: 'Blue and navy',
+          entries: outfitEntries,
+          collections: [],
+        },
+      ]
     : (JSON.parse(stored) as PlanningView['outfits']);
 };
 export const planningFixture = (date: string): PlanningView => {
@@ -261,19 +269,10 @@ export const changePlanningFn = ({
           next = updateCare(view, change);
           break;
         case 'save-outfit':
-          next = {
-            ...view,
-            outfits: [
-              ...view.outfits.filter((outfit) => outfit.id !== change.id),
-              { id: change.id, name: change.name, entries: change.entries },
-            ],
-          };
-          break;
         case 'delete-outfit':
-          next = {
-            ...view,
-            outfits: view.outfits.filter((outfit) => outfit.id !== change.id),
-          };
+        case 'rename-collection':
+        case 'delete-collection':
+          next = { ...view, outfits: changeSavedOutfits(view.outfits, change) };
           break;
         default:
           break;
