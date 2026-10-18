@@ -175,7 +175,7 @@ export class TodayService extends Context.Service<TodayService>()(
       return {
         view,
         tick: (clock: WardrobeClock) =>
-          tick({ wearLog, proposalService }, clock),
+          tick({ garments, wearLog, proposalService }, clock),
       };
     }),
   },
