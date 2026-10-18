@@ -129,7 +129,7 @@ describe('slotChoicesFor', () => {
       forecastStale: false,
       occasion: 'Meeting today',
       continuations: continuing,
-      slotChoices: slotChoicesFor(rotation, continuing),
+      slotChoices: slotChoicesFor(rotation, continuing, []),
       recent: [],
       imageFor: () => undefined,
     });
@@ -186,7 +186,7 @@ describe('slotChoicesFor', () => {
       forecastStale: false,
       occasion: null,
       continuations: continuing,
-      slotChoices: slotChoicesFor(rotation, continuing),
+      slotChoices: slotChoicesFor(rotation, continuing, []),
       recent: [],
       imageFor: () => undefined,
     });
@@ -206,6 +206,7 @@ describe('rejected alternatives', () => {
     const open = slotChoicesFor(
       input([shorts, linen, tee], ['shorts', 'linen']),
       [],
+      [],
     );
 
     const bottom = slotNamed(open, 'bottom');
@@ -218,7 +219,7 @@ describe('rejected alternatives', () => {
   });
 
   it('keeps a required slot empty when the wardrobe has nothing for it at all', () => {
-    const open = slotChoicesFor(input([linen, tee], ['linen']), []);
+    const open = slotChoicesFor(input([linen, tee], ['linen']), [], []);
 
     const bottom = slotNamed(open, 'bottom');
     expect(bottom?.turnedDownOnly).toBeFalse();
@@ -229,6 +230,7 @@ describe('rejected alternatives', () => {
     const cardigan = garment('cardigan', ['over']);
     const open = slotChoicesFor(
       input([shorts, tee, cardigan], ['cardigan']),
+      [],
       [],
     );
 
@@ -267,7 +269,7 @@ it('describes each recent day with every piece’s role in worn order', () => {
     forecastStale: false,
     occasion: null,
     continuations: [],
-    slotChoices: slotChoicesFor(rotation, []),
+    slotChoices: slotChoicesFor(rotation, [], []),
     recent,
     imageFor: () => undefined,
   });
@@ -295,7 +297,7 @@ it('shows an original image once while offering the garment in each eligible slo
     forecastStale: false,
     occasion: null,
     continuations: [],
-    slotChoices: slotChoicesFor(rotation, []),
+    slotChoices: slotChoicesFor(rotation, [], []),
     recent: [],
     imageFor: (g) => (g.id === shirt.id ? image : undefined),
   });
@@ -328,7 +330,7 @@ describe('complete outfit suggestions', () => {
       forecastStale: false,
       occasion: null,
       continuations: [],
-      slotChoices: slotChoicesFor(rotation, []),
+      slotChoices: slotChoicesFor(rotation, [], []),
       recent: [],
       imageFor: () => undefined,
     });
@@ -384,7 +386,7 @@ describe('complete outfit suggestions', () => {
       ],
       [shoes.id, bag.id],
     );
-    const choices = slotChoicesFor(rotation, []);
+    const choices = slotChoicesFor(rotation, [], []);
     for (const slot of ['shoes', 'bag'] as const) {
       expect(slotNamed(choices, slot)?.candidates).toEqual([]);
       expect(slotNamed(choices, slot)?.turnedDownOnly).toBeFalse();

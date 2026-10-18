@@ -156,18 +156,17 @@ describe('a dress in place of a top and a bottom', () => {
   });
 
   it('requires a top and a bottom only when no dress is offered', () => {
-    expect(required(slotChoicesFor(rotation([skirt, blouse]), []))).toEqual([
-      'bottom',
-      'top',
-    ]);
+    expect(required(slotChoicesFor(rotation([skirt, blouse]), [], []))).toEqual(
+      ['bottom', 'top'],
+    );
     expect(
-      required(slotChoicesFor(rotation([skirt, blouse, dress]), [])),
+      required(slotChoicesFor(rotation([skirt, blouse, dress]), [], [])),
     ).toEqual([]);
   });
 
   it('lets a kept dress complete the outfit even when it was worn yesterday', () => {
     const input = rotation([skirt, blouse, dress], [worn(dress.id, 'dress')]);
-    expect(required(slotChoicesFor(input, []))).toEqual(['bottom', 'top']);
+    expect(required(slotChoicesFor(input, [], []))).toEqual(['bottom', 'top']);
     const kept = choicesWithPins(
       input,
       [],
@@ -176,9 +175,22 @@ describe('a dress in place of a top and a bottom', () => {
     expect(required(kept)).toEqual(['dress']);
   });
 
+  it('offers a turned-down dress again when nothing else completes the outfit', () => {
+    const shoes = garment('trainers', 'trainers', ['shoes']);
+    const input = {
+      ...rotation([dress, shoes]),
+      excluded: new Set([dress.id]),
+    };
+    const choices = slotChoicesFor(input, [], []);
+    const offered = choices.find((choice) => choice.slot === 'dress');
+    expect(offered?.turnedDownOnly).toBeTrue();
+    expect(offered?.candidates.map((c) => c.garment.id)).toEqual([dress.id]);
+    expect(required(choices)).toEqual(['dress']);
+  });
+
   it('lets the model answer with a dress alone, but not with half an outfit', async () => {
     const input = rotation([skirt, blouse, dress]);
-    const choices = slotChoicesFor(input, []);
+    const choices = slotChoicesFor(input, [], []);
     const prompt = promptFor(choices);
     const outfit = proposalAnswerJsonSchema(prompt.aliases).properties.outfit
       .properties;
@@ -203,7 +215,7 @@ describe('a dress in place of a top and a bottom', () => {
   });
 
   it('keeps a top and a bottom required in the answer when no dress is offered', () => {
-    const prompt = promptFor(slotChoicesFor(rotation([skirt, blouse]), []));
+    const prompt = promptFor(slotChoicesFor(rotation([skirt, blouse]), [], []));
     const outfit = proposalAnswerJsonSchema(prompt.aliases).properties.outfit
       .properties;
     expect(outfit.top.type).toBe('string');
@@ -235,6 +247,7 @@ describe('hats and scarves', () => {
   it('offers them as optional pieces with guidance for the weather', () => {
     const choices = slotChoicesFor(
       rotation([skirt, blouse, beanie, scarf]),
+      [],
       [],
     );
     for (const slot of ['hat', 'scarf'] as const) {

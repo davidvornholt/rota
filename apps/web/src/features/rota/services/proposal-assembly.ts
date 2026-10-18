@@ -41,15 +41,37 @@ const recentDays = 14;
  * A required slot that only today's turned-down garments could fill gets them
  * back rather than failing: the wearer asked for another suggestion, and the
  * rest of the outfit can still change around the one garment there is no
- * alternative to.
+ * alternative to. When no other dress is available and the top and bottom
+ * cannot both be filled, even by turned-down, continuing or pinned garments,
+ * today's turned-down dresses come back instead as the required piece.
  */
 export const slotChoicesFor = (
   input: RotationInput,
   continuing: ReadonlyArray<Continuation>,
+  pinned: ReadonlyArray<OutfitEntry>,
 ): ReadonlyArray<SlotChoices> => {
   const chosen = new Set(continuing.map((c) => c.garment.id));
-  const dressOffered = candidatesFor(input, 'dress', chosen).length > 0;
+  const withTurnedDown = (slot: Slot) =>
+    candidatesFor({ ...input, excluded: new Set() }, slot, chosen);
+  const freshDress = candidatesFor(input, 'dress', chosen).length > 0;
+  const separatesFit = separateSlots.every(
+    (slot) =>
+      continuing.some((c) => c.slot === slot) ||
+      pinned.some((pin) => pin.slot === slot) ||
+      withTurnedDown(slot).length > 0,
+  );
+  const turnedDownDresses =
+    freshDress || separatesFit ? [] : withTurnedDown('dress');
+  const dressOffered = freshDress || turnedDownDresses.length > 0;
   return slotOrder.map((slot) => {
+    if (slot === 'dress' && turnedDownDresses.length > 0) {
+      return {
+        slot,
+        required: true,
+        candidates: turnedDownDresses,
+        turnedDownOnly: true,
+      };
+    }
     const required = !dressOffered && separateSlots.includes(slot);
     const candidates = candidatesFor(input, slot, chosen);
     if (
@@ -60,11 +82,7 @@ export const slotChoicesFor = (
     ) {
       return { slot, required, candidates, turnedDownOnly: false };
     }
-    const turnedDown = candidatesFor(
-      { ...input, excluded: new Set() },
-      slot,
-      chosen,
-    );
+    const turnedDown = withTurnedDown(slot);
     return {
       slot,
       required,
@@ -182,7 +200,7 @@ export const choicesWithPins = (
   const pinnedIds = new Set(pinned.map((pin) => pin.garmentId));
   // A kept dress already completes the outfit.
   const dressPinned = pinned.some((pin) => pin.slot === 'dress');
-  return slotChoicesFor(input, continuing).map((choice) => {
+  return slotChoicesFor(input, continuing, pinned).map((choice) => {
     const pin = pinned.find((entry) => entry.slot === choice.slot);
     return pin === undefined
       ? {
