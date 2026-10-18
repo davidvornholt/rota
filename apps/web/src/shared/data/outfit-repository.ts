@@ -37,6 +37,13 @@ export class OutfitRepository extends Context.Service<OutfitRepository>()(
         sql`
       update saved_outfit set collections = ${collections}::text[] where owner_id = ${owner.id} and id = ${id}
     `.pipe(Effect.asVoid, Effect.mapError(write));
+      // Serializes the owner's saved-outfit changes until the caller's
+      // transaction ends; outside a transaction it is released at once.
+      const lock = () =>
+        sql`select pg_advisory_xact_lock(hashtextextended('rota:saved-outfit:' || ${owner.id}::text, 0))`.pipe(
+          Effect.asVoid,
+          Effect.mapError(write),
+        );
       const remove = (id: string) =>
         sql`delete from saved_outfit where id = ${id} and owner_id = ${owner.id}`.pipe(
           Effect.asVoid,
@@ -64,6 +71,7 @@ export class OutfitRepository extends Context.Service<OutfitRepository>()(
     `.pipe(Effect.asVoid, Effect.mapError(write));
       return {
         list,
+        lock,
         save,
         remove,
         setCollections,

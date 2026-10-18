@@ -1,13 +1,17 @@
 import { Effect } from 'effect';
 import { SqlClient } from 'effect/sql';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
-import { writeError } from '#/shared/data/errors/data-errors.ts';
+import {
+  type DataWriteError,
+  writeError,
+} from '#/shared/data/errors/data-errors.ts';
 import { cleanTopOn, garmentCare } from '#/shared/data/garment-care.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
 import {
   toGarmentView,
   wearFactsByGarment,
 } from '#/shared/data/garment-view.ts';
+import type { SavedOutfit } from '#/shared/data/outfit.ts';
 import { OutfitRepository } from '#/shared/data/outfit-repository.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
@@ -168,21 +172,30 @@ const applyEntryChange = (
     yield* proposals.wear(clock, change.entries);
   });
 
-const regroup = (updates: ReadonlyArray<CollectionUpdate>) =>
+/**
+ * These changes write what they computed from the member's saved outfits, so
+ * each holds the member's lock from that read until it commits. Overlapping
+ * changes from two tabs then take turns instead of undoing each other.
+ */
+const rewriteOutfits = (
+  what: string,
+  write: (
+    saved: ReadonlyArray<SavedOutfit>,
+  ) => Effect.Effect<void, DataWriteError>,
+) =>
   Effect.gen(function* () {
     const outfits = yield* OutfitRepository;
     const sql = yield* SqlClient.SqlClient;
     yield* sql
       .withTransaction(
-        Effect.forEach(
-          updates,
-          (update) => outfits.setCollections(update.id, update.collections),
-          { discard: true },
-        ),
+        Effect.gen(function* () {
+          yield* outfits.lock();
+          yield* write(yield* outfits.list());
+        }),
       )
       .pipe(
         Effect.catchTag('SqlError', (cause) =>
-          Effect.fail(writeError('Collections')(cause)),
+          Effect.fail(writeError(what)(cause)),
         ),
       );
   });
@@ -201,6 +214,12 @@ const applyOutfitChange = (
 ) =>
   Effect.gen(function* () {
     const outfits = yield* OutfitRepository;
+    const regroup = (updates: ReadonlyArray<CollectionUpdate>) =>
+      Effect.forEach(
+        updates,
+        (update) => outfits.setCollections(update.id, update.collections),
+        { discard: true },
+      );
     switch (change.action) {
       case 'save-outfit': {
         const garments = yield* GarmentRepository;
@@ -208,19 +227,19 @@ const applyOutfitChange = (
         if (change.name.trim() === '') {
           return yield* new ProposalStateError('Give this outfit a name.');
         }
-        const others = (yield* outfits.list()).filter(
-          (outfit) => outfit.id !== change.id,
+        return yield* rewriteOutfits('The outfit', (saved) =>
+          outfits.save({
+            id: change.id,
+            name: change.name.trim(),
+            entries: change.entries,
+            collections: resolveCollections(
+              change.collections,
+              collectionsOf(
+                saved.filter((outfit) => outfit.id !== change.id),
+              ).map((collection) => collection.name),
+            ),
+          }),
         );
-        yield* outfits.save({
-          id: change.id,
-          name: change.name.trim(),
-          entries: change.entries,
-          collections: resolveCollections(
-            change.collections,
-            collectionsOf(others).map((collection) => collection.name),
-          ),
-        });
-        return;
       }
       case 'delete-outfit':
         return yield* outfits.remove(change.id);
@@ -229,13 +248,13 @@ const applyOutfitChange = (
         if (to === '') {
           return yield* new ProposalStateError('Give the collection a name.');
         }
-        return yield* regroup(
-          renameCollection(yield* outfits.list(), change.from, to),
+        return yield* rewriteOutfits('Collections', (saved) =>
+          regroup(renameCollection(saved, change.from, to)),
         );
       }
       default:
-        return yield* regroup(
-          removeCollection(yield* outfits.list(), change.name),
+        return yield* rewriteOutfits('Collections', (saved) =>
+          regroup(removeCollection(saved, change.name)),
         );
     }
   });
