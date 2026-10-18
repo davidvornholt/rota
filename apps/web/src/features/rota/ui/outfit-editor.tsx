@@ -137,16 +137,16 @@ export const OutfitEditor = ({
   onLaundry,
 }: OutfitEditorProps) => {
   const [choosing, setChoosing] = useState<Slot | null>(null);
-  const [chosen, setChosen] = useState<Slot | null>(null);
+  const [focusNext, setFocusNext] = useState<Slot | null>(null);
   const pieceButtonsRef = useRef(new Map<Slot, HTMLButtonElement>());
-  // The picker's opener may be gone after a pick (an add button, or the top
-  // and bottom a dress replaced), so land on the piece just chosen.
+  // The focused control may be gone after a pick (an add button, or the top and
+  // bottom a dress replaced) or a dress removal, so land on a remaining piece.
   useEffect(() => {
-    if (chosen !== null) {
-      pieceButtonsRef.current.get(chosen)?.focus();
-      setChosen(null);
+    if (focusNext !== null) {
+      pieceButtonsRef.current.get(focusNext)?.focus();
+      setFocusNext(null);
     }
-  }, [chosen]);
+  }, [focusNext]);
   const buttonRef = (slot: Slot, node: HTMLButtonElement | null) => {
     if (node === null) {
       pieceButtonsRef.current.delete(slot);
@@ -166,8 +166,10 @@ export const OutfitEditor = ({
       !shown.includes(slot) &&
       wardrobe.some((garment) => garment.slots.includes(slot)),
   );
-  const remove = (slot: Slot) =>
+  const remove = (slot: Slot) => {
     onChange(entries.filter((entry) => entry.slot !== slot));
+    setFocusNext(slot === 'dress' ? 'bottom' : null);
+  };
   const choose = (slot: Slot, garment: GarmentView) => {
     const replaced: ReadonlyArray<Slot> =
       slot === 'dress' && !wearsDress ? [slot, ...separateSlots] : [slot];
@@ -182,7 +184,7 @@ export const OutfitEditor = ({
       onPin(garment.id);
     }
     setChoosing(null);
-    setChosen(slot);
+    setFocusNext(slot);
   };
   return (
     <>

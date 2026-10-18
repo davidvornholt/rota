@@ -320,11 +320,12 @@ test('a dress takes the place of the top and bottom and saves as a whole outfit'
   await expect(
     page.getByText('Saved to your outfits.', { exact: true }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Remove dress', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Choose top' })).toBeVisible();
+  await page.getByRole('button', { name: 'Remove dress', exact: true }).focus();
+  await page.keyboard.press('Enter');
   await expect(
     page.getByRole('button', { name: 'Choose bottom' }),
-  ).toBeVisible();
+  ).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Choose top' })).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Wear a dress' }),
   ).toBeVisible();
