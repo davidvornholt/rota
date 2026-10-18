@@ -1,4 +1,5 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
   fieldClass,
   labelClass,
@@ -11,6 +12,30 @@ import {
   tidyCollection,
 } from '../outfit-collections.ts';
 import { CollectionChip } from './collection-chip.tsx';
+
+/**
+ * Adding empties the name, which disables the focused Add button, and adding
+ * the last collection there is room for disables the field as well. The
+ * addition renders at once, so focus can move to the field, or else to the
+ * new chip, which is pressed and stays enabled.
+ */
+const useFocusAfterAdd = () => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const chipsRef = useRef(new Map<string, HTMLButtonElement | null>());
+  const addThenFocus = (chip: string, addition: () => void) => {
+    flushSync(addition);
+    const input = inputRef.current;
+    if (input !== null && !input.disabled) {
+      input.focus();
+    } else {
+      chipsRef.current.get(chip)?.focus();
+    }
+  };
+  const chipRef = (name: string) => (node: HTMLButtonElement | null) => {
+    chipsRef.current.set(name, node);
+  };
+  return { inputRef, chipRef, addThenFocus };
+};
 
 /**
  * Puts an outfit in existing collections or a new one. The new name stays in
@@ -41,6 +66,7 @@ export const CollectionPicker = ({
     [...existing, ...chosen],
   );
   const full = chosen.length >= collectionsPerOutfit;
+  const focus = useFocusAfterAdd();
   const choose = (name: string) =>
     onChange(resolveCollections([...chosen, name], options));
   const add = () => {
@@ -48,9 +74,13 @@ export const CollectionPicker = ({
     if (name === '' || full) {
       return;
     }
-    setAdded((current) => [...current, name]);
-    choose(name);
-    onDraft('');
+    // The chip spells the name the way an existing collection does.
+    const [chip = name] = resolveCollections([name], options);
+    focus.addThenFocus(chip, () => {
+      setAdded((current) => [...current, name]);
+      choose(name);
+      onDraft('');
+    });
   };
   return (
     <fieldset aria-describedby={hintId} className="mb-6">
@@ -75,6 +105,7 @@ export const CollectionPicker = ({
                     ? onChange(chosen.filter((item) => item !== name))
                     : choose(name)
                 }
+                ref={focus.chipRef(name)}
               />
             );
           })}
@@ -97,6 +128,7 @@ export const CollectionPicker = ({
               add();
             }
           }}
+          ref={focus.inputRef}
           value={draft}
         />
         <button

@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import type { Ref } from 'react';
 
 /**
  * A collection that can be switched on or off, to filter by it or to put an
@@ -10,12 +11,15 @@ export const CollectionChip = ({
   pressed,
   disabled,
   onToggle,
+  ref,
 }: {
   readonly name: string;
   readonly count?: number;
   readonly pressed: boolean;
   readonly disabled: boolean;
   readonly onToggle: () => void;
+  /** Lets the picker focus a chip it has just added. */
+  readonly ref?: Ref<HTMLButtonElement>;
 }) => (
   <button
     aria-label={
@@ -32,6 +36,7 @@ export const CollectionChip = ({
     ].join(' ')}
     disabled={disabled}
     onClick={onToggle}
+    ref={ref}
     type="button"
   >
     {pressed ? <Check aria-hidden="true" className="size-4" /> : null}

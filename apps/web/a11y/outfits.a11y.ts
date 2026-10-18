@@ -205,3 +205,94 @@ test('collections are renamed, merged and deleted while their outfits stay', asy
   ).toBeFocused();
   await expect(page.getByText('1 saved outfit', { exact: true })).toBeVisible();
 });
+
+test('focus stays on the page when a collection action removes or disables the focused control', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?page=outfits`);
+  const heading = page.getByRole('heading', { level: 1, name: 'Outfits' });
+
+  // Adding with the Add button empties the name, which disables the button.
+  await page.getByRole('button', { name: 'Edit Blue and navy' }).click();
+  let dialog = page.getByRole('dialog', { name: 'Edit Blue and navy' });
+  let newCollection = dialog.getByRole('textbox', { name: 'New collection' });
+  await newCollection.fill('Work');
+  await newCollection.press('Tab');
+  await expect(
+    dialog.getByRole('button', { name: 'Add', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(
+    dialog.getByRole('button', { name: 'Work', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  // Soft, so one run reports every place where focus falls back to the page.
+  await expect.soft(newCollection).toBeFocused();
+  await newCollection.fill('Summer');
+  await newCollection.press('Enter');
+  await dialog
+    .getByRole('button', { name: 'Save outfit', exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+
+  // A second outfit keeps Work in the filter after Blue and navy leaves it.
+  const filter = page.getByRole('group', { name: 'Filter by collection' });
+  await filter.getByRole('button', { name: 'Work, 1 outfit' }).click();
+  await page.getByRole('button', { name: 'Create outfit' }).click();
+  dialog = page.getByRole('dialog', { name: 'Create outfit' });
+  await dialog.getByRole('textbox', { name: 'Outfit name' }).fill('Weekend');
+  await dialog.getByRole('button', { name: 'Choose top', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Choose top' })
+    .getByRole('button', { name: whiteShirt })
+    .click();
+  await dialog
+    .getByRole('button', { name: 'Choose bottom', exact: true })
+    .click();
+  await page
+    .getByRole('dialog', { name: 'Choose bottom' })
+    .getByRole('button', { name: chinos })
+    .click();
+  await dialog
+    .getByRole('button', { name: 'Save outfit', exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+
+  // Saved out of Work, the card whose button opened the dialog is gone.
+  await page.getByRole('button', { name: 'Edit Blue and navy' }).click();
+  dialog = page.getByRole('dialog', { name: 'Edit Blue and navy' });
+  await dialog.getByRole('button', { name: 'Work', exact: true }).click();
+  await dialog
+    .getByRole('button', { name: 'Save outfit', exact: true })
+    .press('Enter');
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByText('1 of 2 saved outfits', { exact: true }),
+  ).toBeVisible();
+  await expect.soft(heading).toBeFocused();
+
+  // Show all removes itself, both beside the filter and when nothing matches.
+  await page.getByRole('button', { name: 'Show all' }).press('Enter');
+  await expect(
+    page.getByText('2 saved outfits', { exact: true }),
+  ).toBeVisible();
+  await expect.soft(heading).toBeFocused();
+  await filter.getByRole('button', { name: 'Work, 1 outfit' }).click();
+  await filter.getByRole('button', { name: 'Summer, 1 outfit' }).click();
+  const empty = page.getByText('No saved outfit is in Work and Summer.');
+  await empty.getByRole('button', { name: 'Show all' }).press('Enter');
+  await expect(empty).toHaveCount(0);
+  await expect.soft(heading).toBeFocused();
+
+  // The twelfth collection, the most an outfit can be in, disables the field.
+  await page.getByRole('button', { name: 'Create outfit' }).click();
+  dialog = page.getByRole('dialog', { name: 'Create outfit' });
+  newCollection = dialog.getByRole('textbox', { name: 'New collection' });
+  for (let trip = 1; trip <= 12; trip += 1) {
+    await newCollection.fill(`Trip ${trip}`);
+    await newCollection.press('Enter');
+  }
+  await expect(newCollection).toBeDisabled();
+  await expect
+    .soft(dialog.getByRole('button', { name: 'Trip 12', exact: true }))
+    .toBeFocused();
+});

@@ -7,11 +7,13 @@ export const CollectionFilter = ({
   collections,
   chosen,
   onChange,
+  onShowAll,
   onEdit,
 }: {
   readonly collections: ReadonlyArray<CollectionCount>;
   readonly chosen: ReadonlyArray<string>;
   readonly onChange: (chosen: ReadonlyArray<string>) => void;
+  readonly onShowAll: () => void;
   readonly onEdit: () => void;
 }) => (
   <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -39,11 +41,7 @@ export const CollectionFilter = ({
     </fieldset>
     <div className="flex gap-4">
       {chosen.length === 0 ? null : (
-        <button
-          className={linkButtonClass}
-          onClick={() => onChange([])}
-          type="button"
-        >
+        <button className={linkButtonClass} onClick={onShowAll} type="button">
           Show all
         </button>
       )}

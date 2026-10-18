@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { type RefObject, useEffect, useId, useRef, useState } from 'react';
+import { type RefObject, useId, useRef, useState } from 'react';
 import {
   collageEntries,
   collageLabel,
@@ -26,6 +26,7 @@ import type { PlanningView } from '../schemas/planning-view.ts';
 import { CollectionFilter } from './collection-filter.tsx';
 import { CollectionsDialog } from './collections-dialog.tsx';
 import { OutfitFormDialog } from './outfit-form-dialog.tsx';
+import { useFocusFallback } from './use-focus-fallback.ts';
 import { usePlanningChange } from './use-planning-change.ts';
 
 type Editing = { readonly title: string; readonly outfit: SavedOutfit };
@@ -223,26 +224,10 @@ const useCollectionChanges = (
  * Opens the collections dialog. Deleting the last collection removes the
  * button that opened it, so closing then lands on the page heading instead.
  */
-const useManaging = (
-  headingRef: RefObject<HTMLHeadingElement | null>,
-  hasCollections: boolean,
-) => {
+const useManaging = (headingRef: RefObject<HTMLHeadingElement | null>) => {
   const [isOpen, setOpen] = useState(false);
-  const openerGoneRef = useRef(false);
-  useEffect(() => {
-    if (!isOpen && openerGoneRef.current) {
-      openerGoneRef.current = false;
-      headingRef.current?.focus();
-    }
-  }, [isOpen, headingRef]);
-  return {
-    isOpen,
-    open: () => setOpen(true),
-    close: () => {
-      openerGoneRef.current = !hasCollections;
-      setOpen(false);
-    },
-  };
+  useFocusFallback(isOpen, headingRef);
+  return { isOpen, open: () => setOpen(true), close: () => setOpen(false) };
 };
 
 const countLabel = (shown: number, count: number) =>
@@ -274,8 +259,10 @@ export const OutfitsPage = ({
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const headingRef = useRef<HTMLHeadingElement>(null);
+  // Saving an outfit out of the filter removes the card that opened its dialog.
+  useFocusFallback(editing !== null, headingRef);
   const collections = collectionsOf(view.outfits);
-  const managing = useManaging(headingRef, collections.length > 0);
+  const managing = useManaging(headingRef);
   const names = collections.map((collection) => collection.name);
   // A collection renamed or emptied elsewhere drops out of the filter.
   const chosen = filter.filter((name) => names.includes(name));
@@ -294,6 +281,11 @@ export const OutfitsPage = ({
     } catch (failure) {
       setError(failureMessage(failure));
     }
+  };
+  // Show all removes the button that was pressed.
+  const showAll = () => {
+    onFilter([]);
+    headingRef.current?.focus();
   };
   return (
     <div className={frameClass}>
@@ -336,6 +328,7 @@ export const OutfitsPage = ({
           collections={collections}
           chosen={chosen}
           onChange={onFilter}
+          onShowAll={showAll}
           onEdit={managing.open}
         />
       )}
@@ -361,7 +354,7 @@ export const OutfitsPage = ({
         onDelete={(outfit) => {
           remove(outfit).catch(() => undefined);
         }}
-        onShowAll={() => onFilter([])}
+        onShowAll={showAll}
       />
       {editing === null ? null : (
         <OutfitFormDialog
