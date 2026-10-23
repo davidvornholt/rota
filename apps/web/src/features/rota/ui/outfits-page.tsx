@@ -83,25 +83,41 @@ const useOutcome = () => {
   return { error, message, setMessage, report };
 };
 
+type Filtering = {
+  readonly filter: OutfitFilter;
+  readonly active: OutfitFilter;
+  readonly onFilter: (filter: OutfitFilter) => void;
+};
+
+/**
+ * Keeps the favourites filter in step with a change and returns whether it
+ * still applies. Once no favourite is shown, the filter drops favourites, so
+ * marking one later does not suddenly narrow the list.
+ */
+const keepFavouritesInStep = (
+  next: PlanningView,
+  { filter, active, onFilter }: Filtering,
+) => {
+  const showsFavourites =
+    active.favourites && next.outfits.some((item) => item.favourite);
+  if (filter.favourites && !showsFavourites) {
+    onFilter({ ...filter, favourites: false });
+  }
+  return showsFavourites;
+};
+
 /**
  * Marks or unmarks a favourite. Unmarking one under the favourites filter
- * removes its card, so focus moves to the page heading. Once no favourite is
- * shown, the filter drops favourites, so marking one later does not suddenly
- * narrow the list.
+ * removes its card, so focus moves to the page heading.
  */
 const toggleFavourite = async (
   outfit: SavedOutfit,
   {
     change,
-    filter,
-    active,
-    onFilter,
     headingRef,
-  }: {
+    ...filtering
+  }: Filtering & {
     readonly change: (input: PlanningChange) => Promise<PlanningView>;
-    readonly filter: OutfitFilter;
-    readonly active: OutfitFilter;
-    readonly onFilter: (filter: OutfitFilter) => void;
     readonly headingRef: RefObject<HTMLHeadingElement | null>;
   },
 ) => {
@@ -111,13 +127,8 @@ const toggleFavourite = async (
     id: outfit.id,
     favourite,
   });
-  const showsFavourites =
-    active.favourites && next.outfits.some((item) => item.favourite);
-  if (showsFavourites && !favourite) {
+  if (keepFavouritesInStep(next, filtering) && !favourite) {
     headingRef.current?.focus();
-  }
-  if (filter.favourites && !showsFavourites) {
-    onFilter({ ...filter, favourites: false });
   }
   return favourite
     ? `Added ${outfit.name} to favourites.`
@@ -195,7 +206,8 @@ export const OutfitsPage = ({
   const shown = view.outfits.filter((outfit) => matchesFilter(outfit, active));
   const remove = (outfit: SavedOutfit) =>
     report(async () => {
-      await change({ action: 'delete-outfit', id: outfit.id });
+      const next = await change({ action: 'delete-outfit', id: outfit.id });
+      keepFavouritesInStep(next, { filter, active, onFilter });
       setConfirming(null);
       // The card that held focus is gone.
       headingRef.current?.focus();

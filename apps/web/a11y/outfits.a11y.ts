@@ -165,10 +165,7 @@ test('favourites are marked with a heart and filtered alone or with collections'
   await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?page=outfits`);
   const filter = page.getByRole('group', { name: 'Filter outfits' });
   await expect(filter).toHaveCount(0);
-  const blue = page.getByRole('button', {
-    name: 'Favourite Blue and navy',
-    exact: true,
-  });
+  const blue = page.getByRole('button', { name: 'Favourite Blue and navy' });
   await expect(blue).toHaveAttribute('aria-pressed', 'false');
   await blue.click();
   await expect(blue).toHaveAttribute('aria-pressed', 'true');
@@ -252,6 +249,16 @@ test('favourites are marked with a heart and filtered alone or with collections'
   await expect(
     page.getByText('2 saved outfits', { exact: true }),
   ).toBeVisible();
+
+  // Deleting the last favourite also drops favourites from the address.
+  await filter.getByRole('button', { name: 'Favourites, 1 outfit' }).click();
+  await page.getByRole('button', { name: 'Delete Blue and navy' }).click();
+  await page.getByRole('button', { name: 'Delete outfit' }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => sessionStorage.getItem('planning-location')),
+    )
+    .toBe('/outfits');
 });
 
 test('collections are renamed, merged and deleted while their outfits stay', async ({
