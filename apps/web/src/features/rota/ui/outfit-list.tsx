@@ -1,17 +1,60 @@
 import { Link } from '@tanstack/react-router';
-import { useId } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   collageEntries,
   collageLabel,
+  hasCollagePieces,
 } from '#/shared/collage/collage-entries.ts';
 import type { SavedOutfit } from '#/shared/data/outfit.ts';
 import { addDays } from '#/shared/time/local-date.ts';
 import { linkButtonClass, quietButtonClass } from '#/shared/ui/classes.ts';
 import { IconButton } from '#/shared/ui/icon-button.tsx';
+import { MenuButton } from '#/shared/ui/menu-button.tsx';
 import { OutfitCollage } from '#/shared/ui/outfit-collage.tsx';
-import { ShareOutfitButton } from '#/shared/ui/share-outfit-dialog.tsx';
+import { ShareOutfitDialog } from '#/shared/ui/share-outfit-dialog.tsx';
 import type { OutfitFilter } from '../outfit-filter.ts';
 import type { PlanningView } from '../schemas/planning-view.ts';
+
+/**
+ * Asked from the menu, the question takes focus, so a screen reader reads it
+ * and Tab reaches the answers in turn.
+ */
+const DeleteQuestion = ({
+  busy,
+  onDelete,
+  onKeep,
+}: {
+  readonly busy: boolean;
+  readonly onDelete: () => void;
+  readonly onKeep: () => void;
+}) => {
+  const questionId = useId();
+  const groupRef = useRef<HTMLFieldSetElement>(null);
+  useEffect(() => groupRef.current?.focus(), []);
+  return (
+    <fieldset
+      aria-labelledby={questionId}
+      className="mt-2 flex w-fit items-center gap-4"
+      ref={groupRef}
+      tabIndex={-1}
+    >
+      <span className="text-sm" id={questionId}>
+        Delete this saved outfit?
+      </span>
+      <button
+        className={linkButtonClass}
+        disabled={busy}
+        type="button"
+        onClick={onDelete}
+      >
+        Delete outfit
+      </button>
+      <button className={linkButtonClass} type="button" onClick={onKeep}>
+        Cancel
+      </button>
+    </fieldset>
+  );
+};
 
 const OutfitCard = ({
   outfit,
@@ -35,6 +78,8 @@ const OutfitCard = ({
   readonly onKeep: () => void;
 }) => {
   const nameId = useId();
+  const moreRef = useRef<HTMLElement>(null);
+  const [sharing, setSharing] = useState(false);
   const entries = collageEntries(outfit.entries, view.wardrobe);
   // Choosing opens Today with the outfit, which plans it for that day.
   const days = [
@@ -72,22 +117,25 @@ const OutfitCard = ({
             disabled={busy}
             onClick={onFavourite}
           />
-          <IconButton
-            icon="edit"
-            label={`Edit ${outfit.name}`}
-            disabled={busy}
-            onClick={onEdit}
-          />
-          <ShareOutfitButton
-            entries={entries}
-            label={`Share ${outfit.name} as picture`}
-            title={outfit.name}
-          />
-          <IconButton
-            icon="trash"
-            label={`Delete ${outfit.name}`}
-            disabled={busy}
-            onClick={onAskDelete}
+          <MenuButton
+            label={`More actions for ${outfit.name}`}
+            tooltip="More actions"
+            ref={moreRef}
+            actions={[
+              { label: 'Edit', icon: 'edit', disabled: busy, onSelect: onEdit },
+              {
+                label: 'Share as picture',
+                icon: 'share',
+                disabled: !hasCollagePieces(entries),
+                onSelect: () => setSharing(true),
+              },
+              {
+                label: 'Delete',
+                icon: 'trash',
+                disabled: busy,
+                onSelect: onAskDelete,
+              },
+            ]}
           />
         </div>
       </div>
@@ -106,20 +154,21 @@ const OutfitCard = ({
         ))}
       </div>
       {confirming ? (
-        <div className="mt-2 flex items-center gap-4">
-          <span className="text-sm">Delete this saved outfit?</span>
-          <button
-            className={linkButtonClass}
-            disabled={busy}
-            type="button"
-            onClick={onDelete}
-          >
-            Delete outfit
-          </button>
-          <button className={linkButtonClass} type="button" onClick={onKeep}>
-            Cancel
-          </button>
-        </div>
+        <DeleteQuestion
+          busy={busy}
+          onDelete={onDelete}
+          onKeep={() => {
+            onKeep();
+            moreRef.current?.focus();
+          }}
+        />
+      ) : null}
+      {sharing ? (
+        <ShareOutfitDialog
+          entries={entries}
+          title={outfit.name}
+          onClose={() => setSharing(false)}
+        />
       ) : null}
     </li>
   );

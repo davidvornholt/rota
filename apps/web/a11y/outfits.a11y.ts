@@ -1,6 +1,7 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
 import { fixtureOrigin } from './fixture-origin.ts';
+import { chooseOutfitAction } from './outfit-actions.ts';
 
 const whiteShirt = /^White cotton shirt/u;
 const chinos = /^Navy chinos/u;
@@ -65,9 +66,7 @@ test('deleting the last outfit leaves an empty page with focus on its heading', 
   page,
 }) => {
   await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?page=outfits`);
-  await page
-    .getByRole('button', { name: 'Delete Blue and navy', exact: true })
-    .click();
+  await chooseOutfitAction(page, 'Blue and navy', 'Delete');
   await page
     .getByRole('button', { name: 'Delete outfit', exact: true })
     .click();
@@ -94,7 +93,7 @@ test('outfits go into collections and the filter shows those in every chosen one
     0,
   );
 
-  await page.getByRole('button', { name: 'Edit Blue and navy' }).click();
+  await chooseOutfitAction(page, 'Blue and navy', 'Edit');
   let dialog = page.getByRole('dialog', { name: 'Edit Blue and navy' });
   const newCollection = dialog.getByRole('textbox', { name: 'New collection' });
   await newCollection.fill('Work');
@@ -252,7 +251,7 @@ test('favourites are marked with a heart and filtered alone or with collections'
 
   // Deleting the last favourite also drops favourites from the address.
   await filter.getByRole('button', { name: 'Favourites, 1 outfit' }).click();
-  await page.getByRole('button', { name: 'Delete Blue and navy' }).click();
+  await chooseOutfitAction(page, 'Blue and navy', 'Delete');
   await page.getByRole('button', { name: 'Delete outfit' }).click();
   await expect
     .poll(() =>
@@ -265,7 +264,7 @@ test('collections are renamed, merged and deleted while their outfits stay', asy
   page,
 }) => {
   await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?page=outfits`);
-  await page.getByRole('button', { name: 'Edit Blue and navy' }).click();
+  await chooseOutfitAction(page, 'Blue and navy', 'Edit');
   const outfitDialog = page.getByRole('dialog', { name: 'Edit Blue and navy' });
   const newCollection = outfitDialog.getByRole('textbox', {
     name: 'New collection',
@@ -315,7 +314,7 @@ test('focus stays on the page when a collection action removes or disables the f
   const heading = page.getByRole('heading', { level: 1, name: 'Outfits' });
 
   // Adding with the Add button empties the name, which disables the button.
-  await page.getByRole('button', { name: 'Edit Blue and navy' }).click();
+  await chooseOutfitAction(page, 'Blue and navy', 'Edit');
   let dialog = page.getByRole('dialog', { name: 'Edit Blue and navy' });
   let newCollection = dialog.getByRole('textbox', { name: 'New collection' });
   await newCollection.fill('Work');
@@ -360,7 +359,7 @@ test('focus stays on the page when a collection action removes or disables the f
   await expect(dialog).toHaveCount(0);
 
   // Saved out of Work, the card whose button opened the dialog is gone.
-  await page.getByRole('button', { name: 'Edit Blue and navy' }).click();
+  await chooseOutfitAction(page, 'Blue and navy', 'Edit');
   dialog = page.getByRole('dialog', { name: 'Edit Blue and navy' });
   await dialog.getByRole('button', { name: 'Work', exact: true }).click();
   await dialog
