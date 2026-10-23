@@ -90,9 +90,9 @@ test('outfits go into collections and the filter shows those in every chosen one
   page,
 }) => {
   await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?page=outfits`);
-  await expect(
-    page.getByRole('group', { name: 'Filter by collection' }),
-  ).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Filter outfits' })).toHaveCount(
+    0,
+  );
 
   await page.getByRole('button', { name: 'Edit Blue and navy' }).click();
   let dialog = page.getByRole('dialog', { name: 'Edit Blue and navy' });
@@ -135,7 +135,7 @@ test('outfits go into collections and the filter shows those in every chosen one
     .click();
   await expect(dialog).toHaveCount(0);
 
-  const filter = page.getByRole('group', { name: 'Filter by collection' });
+  const filter = page.getByRole('group', { name: 'Filter outfits' });
   const work = filter.getByRole('button', { name: 'Work, 1 outfit' });
   await work.click();
   await expect(work).toHaveAttribute('aria-pressed', 'true');
@@ -159,6 +159,101 @@ test('outfits go into collections and the filter shows those in every chosen one
   await expect(summer).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('favourites are marked with a heart and filtered alone or with collections', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?page=outfits`);
+  const filter = page.getByRole('group', { name: 'Filter outfits' });
+  await expect(filter).toHaveCount(0);
+  const blue = page.getByRole('button', {
+    name: 'Favourite Blue and navy',
+    exact: true,
+  });
+  await expect(blue).toHaveAttribute('aria-pressed', 'false');
+  await blue.click();
+  await expect(blue).toHaveAttribute('aria-pressed', 'true');
+  await expect(blue).toBeFocused();
+  await expect(
+    page.getByText('Added Blue and navy to favourites.', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Edit collections' }),
+  ).toHaveCount(0);
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+
+  // A new outfit starts as a favourite under the favourites filter.
+  await filter.getByRole('button', { name: 'Favourites, 1 outfit' }).click();
+  await page.getByRole('button', { name: 'Create outfit' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Create outfit' });
+  await dialog.getByRole('textbox', { name: 'Outfit name' }).fill('Weekend');
+  await dialog.getByRole('textbox', { name: 'New collection' }).fill('Weekend');
+  await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Choose top', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Choose top' })
+    .getByRole('button', { name: whiteShirt })
+    .click();
+  await dialog
+    .getByRole('button', { name: 'Choose bottom', exact: true })
+    .click();
+  await page
+    .getByRole('dialog', { name: 'Choose bottom' })
+    .getByRole('button', { name: chinos })
+    .click();
+  await dialog
+    .getByRole('button', { name: 'Save outfit', exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  const weekend = page.getByRole('button', {
+    name: 'Favourite Weekend',
+    exact: true,
+  });
+  await expect(weekend).toHaveAttribute('aria-pressed', 'true');
+
+  await filter.getByRole('button', { name: 'Weekend, 1 outfit' }).click();
+  await page.reload();
+  await expect(
+    filter.getByRole('button', { name: 'Favourites, 2 outfits' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByText('1 of 2 saved outfits', { exact: true }),
+  ).toBeVisible();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+
+  // Unmarking an outfit under the filter removes the card that held focus.
+  await weekend.click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Outfits' }),
+  ).toBeFocused();
+  await expect(
+    page.getByText('Removed Weekend from favourites.', { exact: true }),
+  ).toBeVisible();
+  const empty = page.getByText('No favourite is in Weekend.');
+  await expect(empty).toBeVisible();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await empty.getByRole('button', { name: 'Show all' }).click();
+  await expect(
+    page.getByText('2 saved outfits', { exact: true }),
+  ).toBeVisible();
+
+  // Without favourites left, the filter lets go of them, and marking one
+  // later does not narrow the list.
+  await filter.getByRole('button', { name: 'Favourites, 1 outfit' }).click();
+  await blue.click();
+  await expect(blue).toHaveAttribute('aria-pressed', 'false');
+  await expect(blue).toBeFocused();
+  await expect(
+    filter.getByRole('button', { name: 'Favourites', exact: false }),
+  ).toHaveCount(0);
+  await blue.click();
+  await expect(
+    filter.getByRole('button', { name: 'Favourites, 1 outfit' }),
+  ).toHaveAttribute('aria-pressed', 'false');
+  await expect(
+    page.getByText('2 saved outfits', { exact: true }),
+  ).toBeVisible();
+});
+
 test('collections are renamed, merged and deleted while their outfits stay', async ({
   page,
 }) => {
@@ -175,7 +270,7 @@ test('collections are renamed, merged and deleted while their outfits stay', asy
   await outfitDialog
     .getByRole('button', { name: 'Save outfit', exact: true })
     .click();
-  const filter = page.getByRole('group', { name: 'Filter by collection' });
+  const filter = page.getByRole('group', { name: 'Filter outfits' });
   await filter.getByRole('button', { name: 'Summer, 1 outfit' }).click();
 
   await page.getByRole('button', { name: 'Edit collections' }).click();
@@ -235,7 +330,7 @@ test('focus stays on the page when a collection action removes or disables the f
   await expect(dialog).toHaveCount(0);
 
   // A second outfit keeps Work in the filter after Blue and navy leaves it.
-  const filter = page.getByRole('group', { name: 'Filter by collection' });
+  const filter = page.getByRole('group', { name: 'Filter outfits' });
   await filter.getByRole('button', { name: 'Work, 1 outfit' }).click();
   await page.getByRole('button', { name: 'Create outfit' }).click();
   dialog = page.getByRole('dialog', { name: 'Create outfit' });
