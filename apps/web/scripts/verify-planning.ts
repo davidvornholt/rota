@@ -27,6 +27,7 @@ import { addDays, localDate } from '#/shared/time/local-date.ts';
 import { verifyCollections } from './verify-collections.ts';
 import { verifyCare, verifyDailyDrafts } from './verify-daily-drafts.ts';
 import { verifyDirectLaundry } from './verify-direct-laundry.ts';
+import { verifyFavourites } from './verify-favourites.ts';
 import { verifyPlanningIsolation } from './verify-planning-isolation.ts';
 import { verifySuggestionRollback } from './verify-suggestion-rollback.ts';
 
@@ -97,7 +98,9 @@ const bedrockLayer = Layer.succeed(
         );
       }
       sawSavedOutfit = input.parts.some(
-        (part) => 'text' in part && part.text.includes('Blue and navy [Work]:'),
+        (part) =>
+          'text' in part &&
+          part.text.includes('Blue and navy (favourite) [Work]:'),
       );
       const schema = input.jsonSchema as {
         properties: {
@@ -228,8 +231,10 @@ const verify = Effect.gen(function* () {
     name: 'Blue and navy',
     entries,
     collections: ['Work', ' work ', 'Summer'],
+    favourite: false,
   });
   yield* verifyCollections(clock, entries);
+  yield* verifyFavourites(clock, entries);
   yield* changePlanning(nextClock, {
     action: 'note',
     text: 'Meeting tomorrow',
@@ -237,7 +242,7 @@ const verify = Effect.gen(function* () {
   yield* suggestPlanning(nextClock, [entries[0]]);
   assert(
     sawSavedOutfit,
-    'The model receives saved combinations with their collections.',
+    'The model receives saved combinations with their favourite mark and collections.',
   );
   const generated = yield* planningView(nextClock);
   assert(
@@ -351,7 +356,7 @@ try {
   await verifyPlanningIsolation(pool, databaseUrl.href);
   await Effect.runPromise(
     Effect.logInfo(
-      'Planning integration passed: migrations, suggestions, pinned garments, saved outfits, collections, plans, wear, weather changes and laundry.',
+      'Planning integration passed: migrations, suggestions, pinned garments, saved outfits, collections, favourites, plans, wear, weather changes and laundry.',
     ),
   );
 } finally {

@@ -81,6 +81,7 @@ const savedOutfits = (): PlanningView['outfits'] => {
           name: 'Blue and navy',
           entries: outfitEntries,
           collections: [],
+          favourite: false,
         },
       ]
     : (JSON.parse(stored) as PlanningView['outfits']);
@@ -270,6 +271,7 @@ export const changePlanningFn = ({
           break;
         case 'save-outfit':
         case 'delete-outfit':
+        case 'favourite-outfit':
         case 'rename-collection':
         case 'delete-collection':
           next = { ...view, outfits: changeSavedOutfits(view.outfits, change) };

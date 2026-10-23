@@ -207,6 +207,7 @@ const applyOutfitChange = (
       action:
         | 'save-outfit'
         | 'delete-outfit'
+        | 'favourite-outfit'
         | 'rename-collection'
         | 'delete-collection';
     }
@@ -238,11 +239,14 @@ const applyOutfitChange = (
                 saved.filter((outfit) => outfit.id !== change.id),
               ).map((collection) => collection.name),
             ),
+            favourite: change.favourite,
           }),
         );
       }
       case 'delete-outfit':
         return yield* outfits.remove(change.id);
+      case 'favourite-outfit':
+        return yield* outfits.setFavourite(change.id, change.favourite);
       case 'rename-collection': {
         const to = tidyCollection(change.to);
         if (to === '') {
@@ -322,6 +326,7 @@ export const changePlanning = (clock: WardrobeClock, change: PlanningChange) =>
       }
       case 'save-outfit':
       case 'delete-outfit':
+      case 'favourite-outfit':
       case 'rename-collection':
       case 'delete-collection':
         yield* applyOutfitChange(change);

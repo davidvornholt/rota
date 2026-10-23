@@ -5,18 +5,24 @@ import { OutfitsPage } from '#/features/rota/ui/outfits-page.tsx';
 import { pageTitle } from '#/shared/ui/page-title.ts';
 
 const searchSchema = z.object({
+  favourites: z.boolean().optional(),
   collection: z.array(z.string()).optional(),
 });
 const OutfitsRoute = () => {
   const navigate = Route.useNavigate();
-  const { collection = [] } = Route.useSearch();
+  const { favourites = false, collection = [] } = Route.useSearch();
   return (
     <OutfitsPage
       initial={Route.useLoaderData()}
-      filter={collection}
+      filter={{ favourites, collections: collection }}
       onFilter={(filter) => {
         navigate({
-          search: filter.length === 0 ? {} : { collection: [...filter] },
+          search: {
+            ...(filter.favourites ? { favourites: true } : {}),
+            ...(filter.collections.length === 0
+              ? {}
+              : { collection: [...filter.collections] }),
+          },
           replace: true,
           resetScroll: false,
         }).catch(() => undefined);

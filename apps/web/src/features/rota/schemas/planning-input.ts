@@ -65,8 +65,15 @@ export const PlanningActionSchema = Schema.Struct({
       collections: Schema.Array(CollectionNameSchema).check(
         Schema.isMaxLength(collectionsPerOutfit),
       ),
+      // Applies to a new outfit only; an edit keeps the current mark.
+      favourite: Schema.Boolean,
     }),
     Schema.Struct({ action: Schema.Literal('delete-outfit'), id: UuidSchema }),
+    Schema.Struct({
+      action: Schema.Literal('favourite-outfit'),
+      id: UuidSchema,
+      favourite: Schema.Boolean,
+    }),
     Schema.Struct({
       action: Schema.Literal('rename-collection'),
       from: CollectionNameSchema,

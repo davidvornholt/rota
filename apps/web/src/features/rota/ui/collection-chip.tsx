@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, Heart } from 'lucide-react';
 import type { Ref } from 'react';
 
 /**
@@ -10,6 +10,7 @@ export const CollectionChip = ({
   count,
   pressed,
   disabled,
+  heart = false,
   onToggle,
   ref,
 }: {
@@ -17,6 +18,8 @@ export const CollectionChip = ({
   readonly count?: number;
   readonly pressed: boolean;
   readonly disabled: boolean;
+  /** Marks the favourites filter: a heart, filled when on, replaces the tick. */
+  readonly heart?: boolean;
   readonly onToggle: () => void;
   /** Lets the picker focus a chip it has just added. */
   readonly ref?: Ref<HTMLButtonElement>;
@@ -39,7 +42,14 @@ export const CollectionChip = ({
     ref={ref}
     type="button"
   >
-    {pressed ? <Check aria-hidden="true" className="size-4" /> : null}
+    {heart ? (
+      <Heart
+        aria-hidden="true"
+        className="size-4"
+        fill={pressed ? 'currentColor' : 'none'}
+      />
+    ) : null}
+    {!heart && pressed ? <Check aria-hidden="true" className="size-4" /> : null}
     {name}
     {count === undefined ? null : (
       <span

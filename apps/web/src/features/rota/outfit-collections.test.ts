@@ -11,7 +11,13 @@ import {
 const outfit = (
   id: string,
   collections: ReadonlyArray<string>,
-): SavedOutfit => ({ id, name: id, entries: [], collections });
+): SavedOutfit => ({
+  id,
+  name: id,
+  entries: [],
+  collections,
+  favourite: false,
+});
 
 const outfits = [
   outfit('summer-work', ['Summer', 'Work']),

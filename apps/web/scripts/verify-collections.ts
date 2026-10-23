@@ -99,6 +99,7 @@ export const verifyCollections = (
       name: 'Weekend wear',
       entries,
       collections: ['summer', 'Weekend'],
+      favourite: false,
     });
     assert.deepEqual(
       (yield* outfits.list()).map((item) => item.name),
@@ -144,6 +145,7 @@ export const verifyCollections = (
       name: 'Weekend wear',
       entries,
       collections: ['Trip'],
+      favourite: false,
     });
     yield* changePlanning(clock, { action: 'delete-collection', name: 'Trip' });
     yield* changePlanning(clock, {
@@ -152,6 +154,7 @@ export const verifyCollections = (
       name: 'Loose outfit',
       entries,
       collections: [],
+      favourite: false,
     });
     assert.deepEqual(
       yield* collectionsByName,
