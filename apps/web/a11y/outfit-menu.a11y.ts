@@ -36,6 +36,13 @@ test('the card menu opens, moves and closes from the keyboard', async ({
   await expect(action('Delete')).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(action('Edit')).toBeFocused();
+  // Shift+Tab goes back to the button, and closes the menu as Escape does.
+  await page.keyboard.press('Shift+Tab');
+  await expect(menu).toHaveCount(0);
+  await expect(more).toBeFocused();
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('ArrowDown');
+  await expect(action('Edit')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
   await expect(more).toBeFocused();

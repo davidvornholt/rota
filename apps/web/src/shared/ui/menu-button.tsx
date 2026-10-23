@@ -35,26 +35,38 @@ const stepFor = (key: string, at: number, count: number) => {
   }
 };
 
-/** Closes the menu on a press anywhere outside it or its button. */
-const useOutsidePress = (
+/**
+ * Closes the menu on a press anywhere outside it or its button, or once focus
+ * moves on past both, as Tab does.
+ */
+const useCloseOutside = (
   open: boolean,
   rootRef: RefObject<HTMLElement | null>,
   close: () => void,
 ) => {
   useEffect(() => {
-    if (!open) {
+    const root = rootRef.current;
+    if (!open || root === null) {
       return;
     }
+    const outside = (target: EventTarget | null) =>
+      target instanceof Node && !root.contains(target);
     const press = (event: PointerEvent) => {
-      if (
-        event.target instanceof Node &&
-        !rootRef.current?.contains(event.target)
-      ) {
+      if (outside(event.target)) {
+        close();
+      }
+    };
+    const leave = (event: FocusEvent) => {
+      if (outside(event.relatedTarget)) {
         close();
       }
     };
     document.addEventListener('pointerdown', press, true);
-    return () => document.removeEventListener('pointerdown', press, true);
+    root.addEventListener('focusout', leave);
+    return () => {
+      document.removeEventListener('pointerdown', press, true);
+      root.removeEventListener('focusout', leave);
+    };
   }, [open, rootRef, close]);
 };
 
@@ -121,7 +133,7 @@ export const MenuButton = ({
       });
     }
   }, [opening, actions.length]);
-  useOutsidePress(open, rootRef, close);
+  useCloseOutside(open, rootRef, close);
 
   const openFromKey = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -130,7 +142,8 @@ export const MenuButton = ({
     }
   };
   const moveFocus = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Escape') {
+    // Shift+Tab goes back to the button anyway; it closes the menu on the way.
+    if (event.key === 'Escape' || (event.key === 'Tab' && event.shiftKey)) {
       event.preventDefault();
       close();
       buttonRef.current?.focus();
@@ -172,15 +185,6 @@ export const MenuButton = ({
             upward ? 'bottom-full mb-1' : 'top-full mt-1',
           ].join(' ')}
           id={id}
-          onBlur={(event) => {
-            // Tab moves focus on past the menu; that closes it.
-            if (
-              event.relatedTarget instanceof Node &&
-              !rootRef.current?.contains(event.relatedTarget)
-            ) {
-              close();
-            }
-          }}
           onKeyDown={moveFocus}
           ref={menuRef}
           role="menu"
