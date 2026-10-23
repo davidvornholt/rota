@@ -8,6 +8,7 @@ import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 
 const weekendId = '55555555-5555-4555-8555-555555555555';
+const looseId = '77777777-7777-4777-8777-777777777777';
 const lockWaiters = 2;
 const lockPolls = 250;
 
@@ -137,5 +138,26 @@ export const verifyCollections = (
       }),
     );
     assert.equal(blank._tag, 'Failure');
+    yield* changePlanning(clock, {
+      action: 'save-outfit',
+      id: weekendId,
+      name: 'Weekend wear',
+      entries,
+      collections: ['Trip'],
+    });
+    yield* changePlanning(clock, { action: 'delete-collection', name: 'Trip' });
+    yield* changePlanning(clock, {
+      action: 'save-outfit',
+      id: looseId,
+      name: 'Loose outfit',
+      entries,
+      collections: [],
+    });
+    assert.deepEqual(
+      yield* collectionsByName,
+      { 'Loose outfit': [], 'Weekend wear': [], 'Blue and navy': ['Work'] },
+      'An outfit can be saved in no collection or leave its last one.',
+    );
     yield* changePlanning(clock, { action: 'delete-outfit', id: weekendId });
+    yield* changePlanning(clock, { action: 'delete-outfit', id: looseId });
   });

@@ -1,3 +1,4 @@
+import { PgTypes } from '@effect/sql-pg';
 import { Context, Effect, Layer, Schema } from 'effect';
 import { SqlClient } from 'effect/sql';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
@@ -14,6 +15,11 @@ import {
 const read = readError('The outfits');
 const write = writeError('The outfit');
 
+// The driver cannot infer an element type from an empty array, so the
+// parameter states it.
+const textArray = (values: ReadonlyArray<string>) =>
+  Effect.fromResult(PgTypes.array(values, PgTypes.OID.text));
+
 export class OutfitRepository extends Context.Service<OutfitRepository>()(
   'shared/OutfitRepository',
   {
@@ -28,15 +34,27 @@ export class OutfitRepository extends Context.Service<OutfitRepository>()(
           Effect.mapError(read),
         );
       const save = (outfit: SavedOutfit) =>
-        sql`
-      insert into saved_outfit (owner_id, id, name, entries, collections) values (${owner.id}, ${outfit.id}, ${outfit.name}, ${JSON.stringify(outfit.entries)}::jsonb, ${outfit.collections}::text[])
+        textArray(outfit.collections).pipe(
+          Effect.flatMap(
+            (collections) => sql`
+      insert into saved_outfit (owner_id, id, name, entries, collections) values (${owner.id}, ${outfit.id}, ${outfit.name}, ${JSON.stringify(outfit.entries)}::jsonb, ${collections})
       on conflict (id) do update set name = excluded.name, entries = excluded.entries, collections = excluded.collections, updated_at = now() where saved_outfit.owner_id = ${owner.id}
-    `.pipe(Effect.asVoid, Effect.mapError(write));
+    `,
+          ),
+          Effect.asVoid,
+          Effect.mapError(write),
+        );
       // Unlike an edit, regrouping does not move the outfit up the list.
       const setCollections = (id: string, collections: ReadonlyArray<string>) =>
-        sql`
-      update saved_outfit set collections = ${collections}::text[] where owner_id = ${owner.id} and id = ${id}
-    `.pipe(Effect.asVoid, Effect.mapError(write));
+        textArray(collections).pipe(
+          Effect.flatMap(
+            (parameter) => sql`
+      update saved_outfit set collections = ${parameter} where owner_id = ${owner.id} and id = ${id}
+    `,
+          ),
+          Effect.asVoid,
+          Effect.mapError(write),
+        );
       // Serializes the owner's saved-outfit changes until the caller's
       // transaction ends; outside a transaction it is released at once.
       const lock = () =>
