@@ -84,6 +84,22 @@ test('a press outside the card menu or on its button closes it', async ({
   await expect(menu).toHaveCount(0);
 });
 
+test('a double-click on a card menu action acts once', async ({ page }) => {
+  // Here the question scrolls into view after the first click and moves
+  // Choose for tomorrow under the pointer before the second.
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const { more, action } = await openOutfits(page);
+  await more.click();
+  await action('Delete').dblclick();
+  await expect(
+    page.getByRole('group', { name: 'Delete this saved outfit?' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Outfits' }),
+  ).toBeVisible();
+});
+
 test('delete from the card menu asks first, and Cancel returns to the menu button', async ({
   page,
 }) => {

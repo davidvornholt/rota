@@ -70,6 +70,20 @@ const useCloseOutside = (
   }, [open, rootRef, close]);
 };
 
+/** A double-click's second click would act on what the pick moved under it. */
+const ignoreSecondClick = () => {
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (event.detail > 1) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    },
+    { capture: true, once: true },
+  );
+};
+
 const menuGap = 4;
 
 /**
@@ -158,9 +172,13 @@ export const MenuButton = ({
       itemsRef.current[next]?.focus();
     }
   };
-  const pick = (action: MenuAction) => {
+  const pick = (action: MenuAction, clicks: number) => {
     if (action.disabled === true) {
       return;
+    }
+    // Enter and Space click with a count of 0; only a pointer double-clicks.
+    if (clicks > 0) {
+      ignoreSecondClick();
     }
     buttonRef.current?.focus();
     close();
@@ -194,7 +212,7 @@ export const MenuButton = ({
               aria-disabled={action.disabled === true}
               className="flex min-h-11 w-full items-center gap-3 px-4 text-left text-ink text-sm hover:bg-paper-deep focus:bg-paper-deep focus-visible:outline-offset-[-2px] aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
               key={action.label}
-              onClick={() => pick(action)}
+              onClick={(event) => pick(action, event.detail)}
               ref={(item) => {
                 itemsRef.current[index] = item;
               }}
