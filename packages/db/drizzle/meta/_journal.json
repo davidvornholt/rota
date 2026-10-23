@@ -85,6 +85,13 @@
       "when": 1792346202961,
       "tag": "0011_outfit_collections",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792730233736,
+      "tag": "0012_outfit_favourites",
+      "breakpoints": true
     }
   ]
 }

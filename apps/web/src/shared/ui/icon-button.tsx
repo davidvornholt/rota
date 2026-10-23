@@ -6,6 +6,7 @@ import {
   Clock,
   Copy,
   Eye,
+  Heart,
   KeyRound,
   LogOut,
   Minus,
@@ -39,6 +40,7 @@ const icons = {
   eye: Eye,
   arrowLeft: ArrowLeft,
   share: Share,
+  heart: Heart,
 };
 export type ActionIcon = keyof typeof icons;
 
@@ -48,6 +50,8 @@ type IconButtonProps = {
   readonly tooltip?: string;
   readonly disabled?: boolean;
   readonly pending?: boolean;
+  /** Makes the button a toggle; on, it fills its icon. */
+  readonly pressed?: boolean;
   readonly onClick?: () => void;
   readonly linkOptions?: LinkProps;
 };
@@ -85,6 +89,7 @@ export const IconButton = ({
   tooltip = label,
   disabled = false,
   pending = false,
+  pressed,
   onClick,
   linkOptions,
 }: IconButtonProps) => {
@@ -164,7 +169,8 @@ export const IconButton = ({
         aria-describedby={open ? id : undefined}
         aria-disabled={unavailable}
         aria-label={label}
-        className="inline-flex size-11 shrink-0 items-center justify-center text-ink-muted hover:bg-paper-deep hover:text-ink disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 motion-safe:active:scale-95"
+        aria-pressed={pressed}
+        className="inline-flex size-11 shrink-0 items-center justify-center text-ink-muted hover:bg-paper-deep hover:text-ink disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-pressed:text-ink aria-pressed:*:fill-current motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 motion-safe:active:scale-95"
         onBlur={() => setFocused(false)}
         onClick={(event) => {
           if (unavailable) {

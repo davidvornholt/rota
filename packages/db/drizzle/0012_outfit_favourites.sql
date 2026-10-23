@@ -1,0 +1,1 @@
+ALTER TABLE "saved_outfit" ADD COLUMN "favourite" boolean DEFAULT false NOT NULL;

@@ -31,6 +31,7 @@ export const SaveOutfitButton = ({
             name,
             entries,
             collections: [],
+            favourite: false,
           },
         },
         fetch: serverFunctionFetch,

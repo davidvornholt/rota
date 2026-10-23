@@ -30,6 +30,7 @@ export const changeSavedOutfits = (
       action:
         | 'save-outfit'
         | 'delete-outfit'
+        | 'favourite-outfit'
         | 'rename-collection'
         | 'delete-collection';
     }
@@ -38,6 +39,7 @@ export const changeSavedOutfits = (
   switch (change.action) {
     case 'save-outfit': {
       const others = outfits.filter((outfit) => outfit.id !== change.id);
+      const current = outfits.find((outfit) => outfit.id === change.id);
       return [
         ...others,
         {
@@ -48,11 +50,18 @@ export const changeSavedOutfits = (
             change.collections,
             collectionsOf(others).map((collection) => collection.name),
           ),
+          favourite: current?.favourite ?? change.favourite,
         },
       ];
     }
     case 'delete-outfit':
       return outfits.filter((outfit) => outfit.id !== change.id);
+    case 'favourite-outfit':
+      return outfits.map((outfit) =>
+        outfit.id === change.id
+          ? { ...outfit, favourite: change.favourite }
+          : outfit,
+      );
     case 'rename-collection':
       return regroup(
         outfits,

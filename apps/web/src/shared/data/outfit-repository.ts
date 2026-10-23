@@ -27,17 +27,18 @@ export class OutfitRepository extends Context.Service<OutfitRepository>()(
       const sql = yield* SqlClient.SqlClient;
       const owner = yield* WardrobeOwner;
       const list = () =>
-        sql`select id, name, entries, collections from saved_outfit where owner_id = ${owner.id} order by updated_at desc`.pipe(
+        sql`select id, name, entries, collections, favourite from saved_outfit where owner_id = ${owner.id} order by updated_at desc`.pipe(
           Effect.flatMap(
             Schema.decodeUnknownEffect(Schema.Array(SavedOutfitSchema)),
           ),
           Effect.mapError(read),
         );
+      // An edit keeps the outfit's favourite mark: only `setFavourite` changes it.
       const save = (outfit: SavedOutfit) =>
         textArray(outfit.collections).pipe(
           Effect.flatMap(
             (collections) => sql`
-      insert into saved_outfit (owner_id, id, name, entries, collections) values (${owner.id}, ${outfit.id}, ${outfit.name}, ${JSON.stringify(outfit.entries)}::jsonb, ${collections})
+      insert into saved_outfit (owner_id, id, name, entries, collections, favourite) values (${owner.id}, ${outfit.id}, ${outfit.name}, ${JSON.stringify(outfit.entries)}::jsonb, ${collections}, ${outfit.favourite})
       on conflict (id) do update set name = excluded.name, entries = excluded.entries, collections = excluded.collections, updated_at = now() where saved_outfit.owner_id = ${owner.id}
     `,
           ),
@@ -55,6 +56,11 @@ export class OutfitRepository extends Context.Service<OutfitRepository>()(
           Effect.asVoid,
           Effect.mapError(write),
         );
+      // Like regrouping, marking a favourite keeps the outfit's place in the list.
+      const setFavourite = (id: string, favourite: boolean) =>
+        sql`
+      update saved_outfit set favourite = ${favourite} where owner_id = ${owner.id} and id = ${id}
+    `.pipe(Effect.asVoid, Effect.mapError(write));
       // Serializes the owner's saved-outfit changes until the caller's
       // transaction ends; outside a transaction it is released at once.
       const lock = () =>
@@ -93,6 +99,7 @@ export class OutfitRepository extends Context.Service<OutfitRepository>()(
         save,
         remove,
         setCollections,
+        setFavourite,
         plan,
         savePlan,
         setCleanTop,

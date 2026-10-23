@@ -149,6 +149,7 @@ export const TodayPage = ({
             name: '',
             entries,
             collections: [],
+            favourite: false,
           }}
           collections={collectionsOf(view.outfits).map(
             (collection) => collection.name,
