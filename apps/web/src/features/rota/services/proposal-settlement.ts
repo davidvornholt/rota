@@ -29,6 +29,7 @@ import type {
   SlotEmptyError,
 } from '../errors/rota-errors.ts';
 import type { ForecastService, ForecastWindow } from './forecast-service.ts';
+import { hasDistinctEntries, pieceChosenTwice } from './planning-rules.ts';
 import type { GenerateOptions } from './proposal-service.ts';
 
 /** Everything that can stop a proposal being made once the forecast is in hand. */
@@ -65,6 +66,9 @@ export const logOutfit = (
   source: WearSource,
 ) =>
   Effect.gen(function* () {
+    if (!hasDistinctEntries(entries)) {
+      return yield* pieceChosenTwice();
+    }
     yield* wearLog.replaceDay(date, entries, source);
     const latest = yield* proposals.latestForDate(date);
     if (latest?.status === 'pending') {

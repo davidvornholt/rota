@@ -229,6 +229,32 @@ describe('proposal operations', () => {
     expect(recorded.plans).toEqual([draft]);
   });
 
+  it('refuses to log one piece in two slots of the same day', async () => {
+    const { deps, recorded } = depsWith('succeeds');
+    const operations = await Effect.runPromise(makeProposalOperations(deps));
+    const result = await Effect.runPromise(
+      Effect.result(
+        operations.logOutfit(
+          today,
+          [
+            { garmentId: jumperId, slot: 'top' },
+            { garmentId: jumperId, slot: 'over' },
+          ],
+          'edited',
+        ),
+      ),
+    );
+    expect(result).toMatchObject({
+      _tag: 'Failure',
+      failure: {
+        _tag: 'ProposalStateError',
+        message: 'Choose each piece only once.',
+      },
+    });
+    expect(recorded.sources).toEqual([]);
+    expect(recorded.statuses).toEqual([]);
+  });
+
   it('makes concurrent morning requests share the stored proposal', async () => {
     const { deps } = depsWith('succeeds');
     let stored: Proposal | undefined;

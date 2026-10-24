@@ -12,6 +12,7 @@ import {
   decodeLogOutfitInput,
 } from '../schemas/today-input.ts';
 import type { TodayView } from '../schemas/today-view.ts';
+import { hasDistinctEntries, pieceChosenTwice } from './planning-rules.ts';
 import { ProposalService } from './proposal-service.ts';
 import { rotaRuntime } from './rota-runtime.ts';
 import { TodayService } from './today-service.ts';
@@ -98,6 +99,11 @@ export const logDaysFn = createServerFn({ method: 'POST' })
             return yield* new ProposalStateError(
               'A day was sent twice. Reload and try again.',
             );
+          }
+          // Checked for every day before any is written, so a bad day does not
+          // leave the ones before it saved.
+          if (data.days.some((day) => !hasDistinctEntries(day.entries))) {
+            return yield* pieceChosenTwice();
           }
           const proposals = yield* ProposalService;
           yield* Effect.forEach(
