@@ -77,7 +77,7 @@ export const proposalSystemPrompt = [
   "Rotation is a preference: keep continuing garments when appropriate, but weather and the note take priority. You may replace any or all of them. Explain a replacement in the new garment's reason.",
   'When you choose a bottom other than a continuing one, prefer a partly worn bottom to one with no wears since washing when it suits the outfit, so bottoms are worn up to their allowance before washing.',
   "Judge the outfit as a whole. Choose only the offered aliases. The forecast covers 05:00–20:00 in the wardrobe location's time zone.",
-  'Use the recent outfits to vary the look: avoid repeating the colours, style or combination of the last few days, even with different garments. A continuing garment or a partly worn top or bottom is not a repeat; vary what goes with it.',
+  'Use the recent outfits to vary the look: avoid repeating the colours, style or combination of the last few days, even with different garments. A continuing garment or a partly worn top, dress or bottom is not a repeat; vary what goes with it.',
   'An outfit is a top and a bottom, or a dress in their place.',
   "Consider every outfit slot. Include suitable shoes and a bag whenever offered; they may repeat freely. Omit them only when no offered choice suits the weather, outfit or wearer's note.",
   "Choose an underlayer or overlayer only when the forecast, outfit or wearer's note makes it useful. Account for the whole outfit's warmth; leave unnecessary layers out in hot weather.",
