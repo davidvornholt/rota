@@ -246,6 +246,23 @@ for (const mode of ['review', 'detail']) {
   });
 }
 
+test('detail page switches the picture and keeps unsaved edits', async ({
+  page,
+}) => {
+  await page.goto(
+    `${fixtureOrigin}a11y/fixtures/review-card.html?detail&completed`,
+  );
+  const name = page.getByRole('textbox', { name: 'Name', exact: true });
+  await name.fill('My corrected shirt');
+  await page
+    .getByRole('button', { name: 'Show the studio picture', exact: true })
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Show the photo instead', exact: true }),
+  ).toBeVisible();
+  await expect(name).toHaveValue('My corrected shirt');
+});
+
 test('detail page replaces the photo, keeps edits, and recovers from a refusal', async ({
   page,
 }, testInfo) => {

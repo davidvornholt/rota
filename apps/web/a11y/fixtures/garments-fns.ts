@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import type { GarmentEdit } from '#/features/garments/schemas/garment-input.ts';
 import type { TodayView } from '#/features/rota/schemas/today-view.ts';
-import type { Slot } from '#/shared/data/garment-types.ts';
+import type { ImageChoice, Slot } from '#/shared/data/garment-types.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import { localDate } from '#/shared/time/local-date.ts';
@@ -51,7 +51,17 @@ export const retryStudioFn = ({
     }),
   );
 export const updateGarmentFn = () => garmentFn();
-export const setImageChoiceFn = () => garmentFn();
+export const setImageChoiceFn = ({
+  data,
+}: {
+  readonly data: { readonly imageChoice: ImageChoice };
+}) =>
+  Effect.runPromise(
+    Effect.sync(() => {
+      current = { ...current, imageChoice: data.imageChoice };
+      return current;
+    }),
+  );
 export const retireGarmentFn = () => garmentFn();
 export const restoreGarmentFn = () => garmentFn();
 
