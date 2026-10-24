@@ -32,6 +32,12 @@ export const useGarmentDetail = (initial: GarmentView) => {
     setEdit(editOf(next));
     router.invalidate().catch(() => undefined);
   };
+  // Only the picture or care state changed on the server; unsaved edits in the
+  // form stay.
+  const keepEdits = (next: GarmentView) => {
+    setGarment(next);
+    router.invalidate().catch(() => undefined);
+  };
   const { id } = garment;
   const save = useMutation({
     mutationFn: () => updateGarmentFn({ data: { id, edit } }),
@@ -43,15 +49,11 @@ export const useGarmentDetail = (initial: GarmentView) => {
   const choose = useMutation({
     mutationFn: (imageChoice: ImageChoice) =>
       setImageChoiceFn({ data: { id, imageChoice } }),
-    onSuccess: apply,
+    onSuccess: keepEdits,
   });
-  // Only the picture changed on the server; unsaved edits in the form stay.
   const replace = useMutation({
     mutationFn: (file: File) => replacePhoto({ id, file }),
-    onSuccess: (next) => {
-      setGarment(next);
-      router.invalidate().catch(() => undefined);
-    },
+    onSuccess: keepEdits,
   });
   const care = useMutation({
     mutationFn: (action: 'laundry' | 'washed') =>
@@ -59,10 +61,7 @@ export const useGarmentDetail = (initial: GarmentView) => {
         data: { id, care: action },
         fetch: serverFunctionFetch,
       }),
-    onSuccess: (next) => {
-      setGarment(next);
-      router.invalidate().catch(() => undefined);
-    },
+    onSuccess: keepEdits,
   });
   const retire = useMutation({
     mutationFn: () => retireGarmentFn({ data: { id } }),
