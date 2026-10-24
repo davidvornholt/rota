@@ -232,9 +232,10 @@ export const candidatesFor = (
           .map((candidate) => ({ ...candidate, inCooldown: false }))
       : [];
   const pool = new Map(
-    [...(rested.length > 0 ? rested : varied), ...reusable].map(
-      (candidate) => [candidate.garment.id, candidate],
-    ),
+    [...(rested.length > 0 ? rested : varied), ...reusable].map((candidate) => [
+      candidate.garment.id,
+      candidate,
+    ]),
   );
   return [...pool.values()].sort(compareCandidates);
 };

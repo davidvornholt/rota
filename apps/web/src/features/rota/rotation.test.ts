@@ -146,6 +146,37 @@ describe('continuations', () => {
     });
     expect(result).toEqual([]);
   });
+
+  it('keeps partly worn bottoms on offer during cooldown, like tops between clean-top days', () => {
+    for (const [slot, cleanTop] of [
+      ['bottom', true],
+      ['top', false],
+    ] as const) {
+      const result = candidatesFor(
+        {
+          cleanTop,
+          today,
+          log: [
+            worn('2026-09-02', 'partly-worn', slot),
+            worn('2026-09-02', 'washed', slot),
+          ],
+          garments: [
+            garment('rested', [slot]),
+            garment('partly-worn', [slot]),
+            garment('washed', [slot], { washedOn: localDate('2026-09-03') }),
+          ],
+          settings,
+          excluded: new Set(),
+        },
+        slot,
+        new Set(),
+      );
+      expect(result.map((c) => [c.garment.id, c.inCooldown])).toEqual([
+        ['rested', false],
+        ['partly-worn', false],
+      ]);
+    }
+  });
 });
 
 describe('candidates', () => {
@@ -202,37 +233,6 @@ describe('candidates', () => {
     expect(result.map((c) => [c.garment.id, c.inCooldown])).toEqual([
       ['recent', true],
     ]);
-  });
-
-  it('keeps partly worn bottoms, and tops between clean-top days, on offer during cooldown', () => {
-    for (const [slot, cleanTop] of [
-      ['bottom', true],
-      ['top', false],
-    ] as const) {
-      const result = candidatesFor(
-        {
-          cleanTop,
-          today,
-          log: [
-            worn('2026-09-02', 'partly-worn', slot),
-            worn('2026-09-02', 'washed', slot),
-          ],
-          garments: [
-            garment('rested', [slot]),
-            garment('partly-worn', [slot]),
-            garment('washed', [slot], { washedOn: localDate('2026-09-03') }),
-          ],
-          settings,
-          excluded: new Set(),
-        },
-        slot,
-        new Set(),
-      );
-      expect(result.map((c) => [c.garment.id, c.inCooldown])).toEqual([
-        ['rested', false],
-        ['partly-worn', false],
-      ]);
-    }
   });
 
   it('offers every insulation level even when more than eight medium garments are available', () => {
