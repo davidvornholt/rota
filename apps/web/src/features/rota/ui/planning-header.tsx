@@ -27,7 +27,6 @@ export const PlanningNavigation = ({
               tabClass,
               view.day.today === date ? tabActiveClass : '',
             ].join(' ')}
-            aria-label={label}
             disabled={busy || controller.planSave.saving}
             key={label}
             to="/"

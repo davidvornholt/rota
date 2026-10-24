@@ -1,6 +1,7 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
 import { fixtureOrigin } from './fixture-origin.ts';
+import { emptySlot } from './outfit-slots.ts';
 
 const blueShirt = /^Blue Oxford shirt/u;
 const accessories = /White trainers|Tan leather bag/u;
@@ -76,9 +77,7 @@ test('early laundry offers photos before selection, restores focus, and resets a
   await expect(shirt).toHaveCount(0);
   await picker.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('link', { name: 'Planning', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Choose top', exact: true }),
-  ).toBeVisible();
+  await expect(emptySlot(page, 'top')).toBeVisible();
 });
 
 test('the laundry picker explains when no washable pieces remain', async ({
@@ -130,9 +129,7 @@ test('laundry shows photos in both lists and a fallback for garments without pho
   await page
     .getByRole('button', { name: 'Send Navy chinos to laundry', exact: true })
     .click();
-  await expect(
-    page.getByRole('button', { name: 'Choose bottom', exact: true }),
-  ).toBeVisible();
+  await expect(emptySlot(page, 'bottom')).toBeVisible();
   await page.getByRole('link', { name: 'Laundry', exact: true }).click();
   const laundry = page.getByRole('main');
   const returned = laundry.getByRole('region', { name: 'Expected back' });
@@ -188,16 +185,12 @@ test('sending a proposed garment keeps other draft choices and leaves replacemen
   await page
     .getByRole('button', { name: 'Send Navy chinos to laundry', exact: true })
     .click();
-  await expect(
-    page.getByRole('button', { name: 'Choose bottom', exact: true }),
-  ).toBeVisible();
+  await expect(emptySlot(page, 'bottom')).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
   await page.reload();
-  await expect(
-    page.getByRole('button', { name: 'Choose bottom', exact: true }),
-  ).toBeVisible();
+  await expect(emptySlot(page, 'bottom')).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
@@ -274,9 +267,7 @@ test('a failed laundry request preserves the draft, prevents duplicate actions w
     route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
   );
   await send.click();
-  await expect(
-    page.getByRole('button', { name: 'Choose top', exact: true }),
-  ).toBeVisible();
+  await expect(emptySlot(page, 'top')).toBeVisible();
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
 

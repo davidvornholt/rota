@@ -52,14 +52,17 @@ export const CollectionChip = ({
     {!heart && pressed ? <Check aria-hidden="true" className="size-4" /> : null}
     {name}
     {count === undefined ? null : (
-      <span
-        className={[
-          'type-data text-xs',
-          pressed ? 'text-paper' : 'text-ink-muted',
-        ].join(' ')}
-      >
-        {count}
-      </span>
+      <>
+        {' '}
+        <span
+          className={[
+            'type-data text-xs',
+            pressed ? 'text-paper' : 'text-ink-muted',
+          ].join(' ')}
+        >
+          {count}
+        </span>
+      </>
     )}
   </button>
 );

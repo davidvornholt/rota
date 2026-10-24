@@ -85,7 +85,6 @@ export const UploadControl = ({ onIntake }: UploadControlProps) => {
       <button
         aria-busy={reading}
         aria-keyshortcuts={pasteKeys?.aria}
-        aria-label="Paste"
         className={quietButtonClass}
         disabled={reading}
         onClick={paste}
@@ -98,9 +97,11 @@ export const UploadControl = ({ onIntake }: UploadControlProps) => {
         />
         Paste
         {pasteKeys === null ? null : (
-          <kbd className="type-data pointer-fine:inline hidden font-sans text-ink-faint text-xs">
-            {pasteKeys.label}
-          </kbd>
+          <span aria-hidden="true" className="pointer-fine:inline hidden">
+            <kbd className="type-data font-sans text-ink-faint text-xs">
+              {pasteKeys.label}
+            </kbd>
+          </span>
         )}
       </button>
     </div>
