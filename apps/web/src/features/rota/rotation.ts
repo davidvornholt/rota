@@ -175,7 +175,7 @@ const compareCandidates = (left: Candidate, right: Candidate): number => {
   return rightRest - leftRest;
 };
 
-/** Available garments for a slot, rested first; cooldown is a fallback when none are rested. */
+/** Available garments for a slot, rested and partly worn first; cooldown is a fallback when none are rested. */
 export const candidatesFor = (
   input: RotationInput,
   slot: Slot,
@@ -221,22 +221,20 @@ export const candidatesFor = (
     ? all.filter((candidate) => !wornAboveWaist.has(candidate.garment.id))
     : all;
   const rested = varied.filter((candidate) => !candidate.inCooldown);
-  // Between clean-top days, keep partly worn tops and dresses in play even when
-  // the style cooldown prefers a less recent piece. Rest does not mean washing.
+  // Keep partly worn bottoms, and partly worn tops and dresses between
+  // clean-top days, on offer during the style cooldown so they are worn up to
+  // their allowance before washing. Rest does not mean washing, so they are
+  // not marked as a cooldown fallback.
   const reusable =
-    torsoSlots.has(slot) && !input.cleanTop
-      ? varied.filter((candidate) => candidate.wearsSinceWash > 0)
+    slot === 'bottom' || (torsoSlots.has(slot) && !input.cleanTop)
+      ? varied
+          .filter((candidate) => candidate.wearsSinceWash > 0)
+          .map((candidate) => ({ ...candidate, inCooldown: false }))
       : [];
-  const pool =
-    rested.length > 0
-      ? [
-          ...new Map(
-            [...reusable, ...rested].map((candidate) => [
-              candidate.garment.id,
-              candidate,
-            ]),
-          ).values(),
-        ]
-      : varied;
-  return [...pool].sort(compareCandidates);
+  const pool = new Map(
+    [...(rested.length > 0 ? rested : varied), ...reusable].map(
+      (candidate) => [candidate.garment.id, candidate],
+    ),
+  );
+  return [...pool.values()].sort(compareCandidates);
 };
