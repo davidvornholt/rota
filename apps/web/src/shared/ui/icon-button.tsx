@@ -5,7 +5,9 @@ import {
   Check,
   Clock,
   Copy,
+  Ellipsis,
   Eye,
+  Heart,
   KeyRound,
   LogOut,
   Minus,
@@ -18,7 +20,15 @@ import {
   WashingMachine,
   X,
 } from 'lucide-react';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 
 const icons = {
@@ -39,8 +49,16 @@ const icons = {
   eye: Eye,
   arrowLeft: ArrowLeft,
   share: Share,
+  heart: Heart,
+  more: Ellipsis,
 };
 export type ActionIcon = keyof typeof icons;
+
+/** An action's artwork on its own, for a control that also shows a label. */
+export const ActionGlyph = ({ icon }: { readonly icon: ActionIcon }) => {
+  const Icon = icons[icon];
+  return <Icon aria-hidden="true" className="size-4" strokeWidth={1.5} />;
+};
 
 type IconButtonProps = {
   readonly icon: ActionIcon;
@@ -48,9 +66,37 @@ type IconButtonProps = {
   readonly tooltip?: string;
   readonly disabled?: boolean;
   readonly pending?: boolean;
+  /** Makes the button a toggle; on, it fills its icon. */
+  readonly pressed?: boolean;
+  /** Makes the button open the menu with this id. */
+  readonly menu?: {
+    readonly id: string;
+    readonly expanded: boolean;
+    readonly onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
+  };
+  readonly ref?: RefObject<HTMLElement | null>;
   readonly onClick?: () => void;
   readonly linkOptions?: LinkProps;
 };
+
+/** Says the button opens a menu, and whether it is showing. */
+const menuAttributes = (menu: IconButtonProps['menu']) =>
+  menu === undefined
+    ? {}
+    : {
+        'aria-controls': menu.expanded ? menu.id : undefined,
+        'aria-expanded': menu.expanded,
+        'aria-haspopup': 'menu' as const,
+        onKeyDown: menu.onKeyDown,
+      };
+
+/** Reaches the control whether it renders as a button or as a link. */
+const refTo = (ref: RefObject<HTMLElement | null> | undefined) =>
+  ref === undefined
+    ? undefined
+    : (element: HTMLElement | null) => {
+        ref.current = element;
+      };
 
 const viewportInset = 8;
 const tooltipLeaveDelay = 100;
@@ -85,10 +131,12 @@ export const IconButton = ({
   tooltip = label,
   disabled = false,
   pending = false,
+  pressed,
+  menu,
+  ref,
   onClick,
   linkOptions,
 }: IconButtonProps) => {
-  const Icon = icons[icon];
   const Control = linkOptions ? Link : 'button';
   const id = useId();
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -112,7 +160,8 @@ export const IconButton = ({
   const [focused, setFocused] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [position, setPosition] = useState({ left: 0, top: 0 });
-  const open = (hovered || focused) && !dismissed;
+  // An open menu sits where the tooltip would.
+  const open = (hovered || focused) && !dismissed && menu?.expanded !== true;
   const unavailable = disabled || pending;
 
   useLayoutEffect(() => {
@@ -160,11 +209,13 @@ export const IconButton = ({
     >
       <Control
         {...linkOptions}
+        {...menuAttributes(menu)}
         aria-busy={pending}
         aria-describedby={open ? id : undefined}
         aria-disabled={unavailable}
         aria-label={label}
-        className="inline-flex size-11 shrink-0 items-center justify-center text-ink-muted hover:bg-paper-deep hover:text-ink disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 motion-safe:active:scale-95"
+        aria-pressed={pressed}
+        className="inline-flex size-11 shrink-0 items-center justify-center text-ink-muted hover:bg-paper-deep hover:text-ink disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-pressed:text-ink aria-pressed:*:fill-current motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 motion-safe:active:scale-95"
         onBlur={() => setFocused(false)}
         onClick={(event) => {
           if (unavailable) {
@@ -183,9 +234,10 @@ export const IconButton = ({
             setDismissed(false);
           }
         }}
+        ref={refTo(ref)}
         type={linkOptions ? undefined : 'button'}
       >
-        <Icon aria-hidden="true" className="size-4" strokeWidth={1.5} />
+        <ActionGlyph icon={icon} />
       </Control>
       {open && anchorRef.current
         ? createPortal(

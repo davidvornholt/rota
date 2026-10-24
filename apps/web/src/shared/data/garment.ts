@@ -17,7 +17,10 @@ export const SlotSchema: Schema.Codec<Slot> = Schema.Literals([
   'bottom',
   'under',
   'top',
+  'dress',
   'over',
+  'scarf',
+  'hat',
   'shoes',
   'bag',
 ]);

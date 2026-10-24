@@ -75,10 +75,13 @@ export const proposalSystemPrompt = [
   formalityInstruction,
   "You are the valet behind Rota, a one-person wardrobe app. Choose today's outfit from the available wardrobe for the supplied forecast and the wearer's note.",
   "Rotation is a preference: keep continuing garments when appropriate, but weather and the note take priority. You may replace any or all of them. Explain a replacement in the new garment's reason.",
+  'When you choose a bottom other than a continuing one, prefer a partly worn bottom to one with no wears since washing when it suits the outfit, so bottoms are worn up to their allowance before washing.',
   "Judge the outfit as a whole. Choose only the offered aliases. The forecast covers 05:00–20:00 in the wardrobe location's time zone.",
-  'Use the recent outfits to vary the look: avoid repeating the colours, style or combination of the last few days, even with different garments. A continuing garment or a partly worn top is not a repeat; vary what goes with it.',
+  'Use the recent outfits to vary the look: avoid repeating the colours, style or combination of the last few days, even with different garments. A continuing garment or a partly worn top, dress or bottom is not a repeat; vary what goes with it.',
+  'An outfit is a top and a bottom, or a dress in their place.',
   "Consider every outfit slot. Include suitable shoes and a bag whenever offered; they may repeat freely. Omit them only when no offered choice suits the weather, outfit or wearer's note.",
   "Choose an underlayer or overlayer only when the forecast, outfit or wearer's note makes it useful. Account for the whole outfit's warmth; leave unnecessary layers out in hot weather.",
+  "Add a hat or a scarf only when the weather, outfit or wearer's note calls for one, such as a beanie and scarf in the cold or a cap in strong sun. They may repeat freely.",
   'Write for the wearer in plain, specific, second-person English. No exclamation marks, no emoji, no sales tone.',
 ].join(' ');
 
@@ -86,7 +89,10 @@ const slotPrefix: Readonly<Record<Slot, string>> = {
   bottom: 'B',
   under: 'U',
   top: 'T',
+  dress: 'D',
   over: 'O',
+  scarf: 'F',
+  hat: 'H',
   shoes: 'S',
   bag: 'G',
 };
@@ -124,6 +130,14 @@ const slotGuidance: Readonly<Partial<Record<Slot, string>>> = {
   under:
     "Choose an underlayer only if the outfit, weather or wearer's note calls for one; otherwise use null.",
   over: "Choose an overlayer only if the outfit, weather or wearer's note calls for one; leave it null when it would be too warm.",
+  dress:
+    'Choose a dress in place of a top and a bottom when it suits the weather, occasion and recent outfits; otherwise use null.',
+  top: 'Leave the top null when you choose a dress, unless the dress is worn over a top.',
+  bottom:
+    'Leave the bottom null when you choose a dress, unless it is worn with leggings.',
+  scarf:
+    "Choose a scarf only if the weather, outfit or wearer's note calls for one; otherwise use null.",
+  hat: "Choose a hat only if the weather, outfit or wearer's note calls for one; otherwise use null.",
 };
 
 const slotInstruction = (
@@ -173,8 +187,8 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
 
   say(
     input.cleanTop
-      ? 'Choose a clean top. Cleanliness is already reflected in the offered candidates.'
-      : 'Prefer a partly worn top with allowance left when it suits the outfit, so clothes get their second wear.',
+      ? 'Choose a clean top or dress. Cleanliness is already reflected in the offered candidates.'
+      : 'Prefer a partly worn top or dress with allowance left when it suits the outfit, so clothes get their second wear.',
   );
   say(
     `Today is ${formatWeekday(input.today)} ${formatDayMonth(input.today)}. Forecast: ${weatherSentence(input.weather)}.`,
@@ -257,7 +271,7 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
   }
 
   say(
-    `Decide today's complete outfit. Fill ${slotOrder.join(', ')} with aliases. Include suitable offered shoes and a bag; add under and over layers only when useful for the weather and outfit. Leave unavailable or unsuitable optional slots null. Then write the headline and one reason per chosen garment.`,
+    `Decide today's complete outfit: a top and a bottom, or an offered dress in their place. Fill ${slotOrder.join(', ')} with aliases. Include suitable offered shoes and a bag; add under and over layers, a hat or a scarf only when useful for the weather and outfit. Leave unavailable or unsuitable optional slots null. Then write the headline and one reason per chosen garment.`,
   );
 
   return { parts, aliases };

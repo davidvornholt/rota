@@ -1,5 +1,6 @@
 import { Effect } from 'effect';
 import type { Garment } from '#/shared/data/garment.ts';
+import { isCompleteOutfit } from '#/shared/data/garment-types.ts';
 import type { DayPlan, ForecastSnapshot } from '#/shared/data/outfit.ts';
 import type {
   OutfitEntry,
@@ -26,9 +27,9 @@ export const validateEntries = (
   ) {
     return Effect.fail(new ProposalStateError('Choose each piece only once.'));
   }
-  if (complete && !(slots.has('top') && slots.has('bottom'))) {
+  if (complete && !isCompleteOutfit(slots)) {
     return Effect.fail(
-      new ProposalStateError('Choose a top and a bottom first.'),
+      new ProposalStateError('Choose a top and a bottom, or a dress, first.'),
     );
   }
   const invalid = entries.find(

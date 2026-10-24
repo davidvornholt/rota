@@ -2,7 +2,6 @@ import { useMutation } from '@tanstack/react-query';
 import { Link, useRouter } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useState } from 'react';
 
-import { slotOrder } from '#/shared/data/garment-types.ts';
 import {
   addDays,
   formatDayMonth,
@@ -21,7 +20,9 @@ import {
   type Choice,
   type DayEntries,
   entriesOf,
+  isExpected,
   sameChoice,
+  slotsToLog,
 } from './day-choice.ts';
 import { SlotPicker } from './slot-picker.tsx';
 import { weatherLine } from './weather-line.ts';
@@ -133,10 +134,11 @@ export const DayPage = ({ view, save, renderSaveOutfit }: DayPageProps) => {
             }}
           >
             <ul className="border-rule border-b">
-              {slotOrder.map((slot) => (
+              {slotsToLog(view.choices, choice).map((slot) => (
                 <SlotPicker
                   candidates={view.choices[slot]}
                   day={view.date}
+                  expected={isExpected(choice, slot)}
                   chosen={view.choices[slot].find(
                     (garment) => garment.id === choice[slot],
                   )}

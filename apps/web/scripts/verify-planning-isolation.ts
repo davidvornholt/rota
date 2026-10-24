@@ -44,6 +44,8 @@ export const verifyPlanningIsolation = async (
     id: crypto.randomUUID(),
     name: 'First wardrobe outfit',
     entries: [{ garmentId, slot: 'top' as const }],
+    collections: ['Work'],
+    favourite: false,
   };
   const firstPlan = {
     entries: outfit.entries,
@@ -69,6 +71,8 @@ export const verifyPlanningIsolation = async (
         assert.deepEqual(yield* outfits.list(), []);
         assert.equal((yield* outfits.plan(date)).entries, null);
         yield* outfits.save({ ...outfit, name: 'Attempted overwrite' });
+        yield* outfits.setCollections(outfit.id, ['Attempted regroup']);
+        yield* outfits.setFavourite(outfit.id, true);
         yield* outfits.remove(outfit.id);
         yield* outfits.savePlan(date, {
           entries: [],

@@ -30,6 +30,8 @@ export const SaveOutfitButton = ({
             id,
             name,
             entries,
+            collections: [],
+            favourite: false,
           },
         },
         fetch: serverFunctionFetch,
@@ -44,7 +46,7 @@ export const SaveOutfitButton = ({
         tooltip={
           completeOutfit(entries)
             ? 'Save as a reusable outfit'
-            : 'Choose a top and bottom to save an outfit'
+            : 'Choose a top and bottom, or a dress, to save an outfit'
         }
         disabled={!completeOutfit(entries)}
         onClick={() => {

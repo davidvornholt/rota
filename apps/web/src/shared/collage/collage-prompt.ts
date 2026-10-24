@@ -4,13 +4,22 @@ import { upperBodySlots } from '#/shared/data/garment-types.ts';
 const roles: Readonly<Record<Slot, string>> = {
   under: 'the base layer',
   top: 'the top',
+  dress: 'the dress',
   over: 'the outer layer',
   bottom: 'the bottom',
+  scarf: 'the scarf',
+  hat: 'the hat',
   shoes: 'the shoes',
   bag: 'the bag',
 };
 
 const besideTheClothes: ReadonlySet<Slot> = new Set(['shoes', 'bag']);
+
+/** Where a worn accessory goes, so the flat lay reads as worn rather than as a pile. */
+const placement: Readonly<Partial<Record<Slot, string>>> = {
+  scarf: 'Drape the scarf across the neckline, as worn.',
+  hat: 'Place the hat above the neckline, where it is worn.',
+};
 
 /**
  * Asks for one styled flat lay of exactly the garments in the input images,
@@ -33,6 +42,7 @@ export const collagePrompt = (
   return [
     `An editorial flat-lay photograph of one outfit, seen from directly above, made from exactly the garments in the input images (${list}).`,
     `Arrange the pieces the way a stylist lays out this outfit for a fashion flat lay, so it reads as one look${layered ? ': the upper-body layers overlap as worn, from the base layer underneath to the outer layer on top,' : ''} with relaxed, natural folds.`,
+    ...pieces.flatMap((piece) => placement[piece.slot] ?? []),
     ...(beside.length === 0
       ? []
       : [`Place ${beside.join(' and ')} beside the clothes.`]),

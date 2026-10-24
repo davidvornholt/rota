@@ -5,8 +5,9 @@ import {
 } from '#/shared/data/garment-scales.ts';
 import {
   categoryDefaults,
+  categoryGroups,
+  categoryLabel,
   type GarmentCategory,
-  garmentCategories,
   hasWearBudget,
   longestWearBudget,
   type Slot,
@@ -65,10 +66,14 @@ const IdentityFields = ({
           }
           value={value.category}
         >
-          {garmentCategories.map((category) => (
-            <option key={category} value={category}>
-              {category}
-            </option>
+          {categoryGroups.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.categories.map((category) => (
+                <option key={category} value={category}>
+                  {categoryLabel[category]}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>

@@ -10,6 +10,8 @@ import { Swatches } from '#/shared/ui/swatches.tsx';
 type SlotPickerProps = {
   readonly day: LocalDate;
   readonly slot: Slot;
+  /** Whether an empty slot means the piece was not recorded, rather than not worn. */
+  readonly expected: boolean;
   readonly chosen: GarmentView | undefined;
   readonly candidates: ReadonlyArray<GarmentView>;
   /** The picked garment's id, or the empty string for nothing. */
@@ -23,13 +25,13 @@ type SlotPickerProps = {
 export const SlotPicker = ({
   day,
   slot,
+  expected,
   chosen,
   candidates,
   onChange,
 }: SlotPickerProps) => {
   const [open, setOpen] = useState(false);
-  const required = slot === 'bottom' || slot === 'top';
-  const emptyLabel = required ? 'Not logged' : 'None';
+  const emptyLabel = expected ? 'Not logged' : 'None';
   return (
     <li className="border-rule border-t">
       <button

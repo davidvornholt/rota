@@ -1,6 +1,7 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
 import { fixtureOrigin } from './fixture-origin.ts';
+import { chooseOutfitAction } from './outfit-actions.ts';
 
 const chinos = /^Navy chinos/u;
 const whiteShirt = /^White cotton shirt/u;
@@ -155,7 +156,7 @@ test('saved outfits can be created, chosen, edited independently and deleted exp
     .getByRole('button', { name: whiteShirt })
     .click();
   await page.getByRole('link', { name: 'Outfits', exact: true }).click();
-  await page.getByRole('button', { name: 'Edit Office favourite' }).click();
+  await chooseOutfitAction(page, 'Office favourite', 'Edit');
   dialog = page.getByRole('dialog', { name: 'Edit Office favourite' });
   await expect(
     dialog.getByRole('button', { name: 'Change Blue Oxford shirt' }),
@@ -170,9 +171,7 @@ test('saved outfits can be created, chosen, edited independently and deleted exp
     page.getByText('Saved Office blue.', { exact: true }),
   ).toBeVisible();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
-  await page
-    .getByRole('button', { name: 'Delete Office blue', exact: true })
-    .click();
+  await chooseOutfitAction(page, 'Office blue', 'Delete');
   await expect(
     page.getByRole('heading', { name: 'Office blue' }),
   ).toBeVisible();
@@ -338,11 +337,13 @@ test('clean-top cadence can be set and cleared without accessory wash budgets', 
   await page.getByRole('button', { name: 'Save rotation settings' }).click();
   await expect(start).toHaveValue('2026-09-19');
   await expect(
-    page.getByRole('spinbutton', { name: 'shoes', exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole('spinbutton', { name: 'handbag', exact: true }),
-  ).toHaveCount(0);
+    page.getByRole('spinbutton', { name: 'Trousers', exact: true }),
+  ).toBeVisible();
+  for (const accessory of ['Shoes', 'Handbag', 'Cap', 'Scarf']) {
+    await expect(
+      page.getByRole('spinbutton', { name: accessory, exact: true }),
+    ).toHaveCount(0);
+  }
   expect(await scanWcag22AaViolations(page)).toEqual([]);
   await start.fill('');
   await page.getByRole('button', { name: 'Save rotation settings' }).click();
