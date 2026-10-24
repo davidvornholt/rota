@@ -146,22 +146,54 @@ describe('continuations', () => {
     });
     expect(result).toEqual([]);
   });
+
+  it('keeps partly worn bottoms on offer during cooldown, like tops between clean-top days', () => {
+    for (const [slot, cleanTop] of [
+      ['bottom', true],
+      ['top', false],
+    ] as const) {
+      const result = candidatesFor(
+        {
+          cleanTop,
+          today,
+          log: [
+            worn('2026-09-02', 'partly-worn', slot),
+            worn('2026-09-02', 'washed', slot),
+          ],
+          garments: [
+            garment('rested', [slot]),
+            garment('partly-worn', [slot]),
+            garment('washed', [slot], { washedOn: localDate('2026-09-03') }),
+          ],
+          settings,
+          excluded: new Set(),
+        },
+        slot,
+        new Set(),
+      );
+      expect(result.map((c) => [c.garment.id, c.inCooldown])).toEqual([
+        ['rested', false],
+        ['partly-worn', false],
+      ]);
+    }
+  });
 });
 
 describe('candidates', () => {
   const settings = { laundryDays: 4, cooldownDays: 7, categoryBudgets: {} };
+  // Over layers have no partly worn exception, so the cooldown applies to them in full.
   const wardrobe = [
-    garment('rested', ['top']),
-    garment('recent', ['top']),
-    garment('never', ['top']),
-    garment('hot-only', ['top'], { warmth: 1 }),
-    garment('suede', ['top'], { rainOk: false }),
-    garment('retired', ['top'], { status: 'retired' }),
+    garment('rested', ['over']),
+    garment('recent', ['over']),
+    garment('never', ['over']),
+    garment('hot-only', ['over'], { warmth: 1 }),
+    garment('suede', ['over'], { rainOk: false }),
+    garment('retired', ['over'], { status: 'retired' }),
     garment('trousers', ['bottom']),
   ];
   const log = [
-    worn('2026-08-20', 'rested', 'top'),
-    worn('2026-09-02', 'recent', 'top'),
+    worn('2026-08-20', 'rested', 'over'),
+    worn('2026-09-02', 'recent', 'over'),
   ];
 
   it('offers available rested garments for the slot, never-worn first', () => {
@@ -174,7 +206,7 @@ describe('candidates', () => {
         settings,
         excluded: new Set(),
       },
-      'top',
+      'over',
       new Set(),
     );
     expect(result.map((c) => c.garment.id)).toEqual([
@@ -182,11 +214,7 @@ describe('candidates', () => {
       'hot-only',
       'suede',
       'rested',
-      'recent',
     ]);
-    expect(result.filter((c) => c.inCooldown).map((c) => c.garment.id)).toEqual(
-      ['recent'],
-    );
   });
 
   it('falls back to cooldown garments when none are rested', () => {
@@ -195,11 +223,11 @@ describe('candidates', () => {
         cleanTop: false,
         today,
         log,
-        garments: [garment('recent', ['top'])],
+        garments: [garment('recent', ['over'])],
         settings,
         excluded: new Set(),
       },
-      'top',
+      'over',
       new Set(),
     );
     expect(result.map((c) => [c.garment.id, c.inCooldown])).toEqual([
