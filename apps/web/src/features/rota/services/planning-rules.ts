@@ -15,18 +15,26 @@ export const dateClock = (clock: WardrobeClock, date: LocalDate) =>
     ? Effect.fail(new ProposalStateError('Choose today or tomorrow.'))
     : Effect.succeed({ ...clock, today: date });
 
+/**
+ * Each slot holds one piece and each piece fills one slot. A logged day needs
+ * this as much as a plan does: the same garment twice would count as two wears.
+ */
+export const hasDistinctEntries = (entries: ReadonlyArray<OutfitEntry>) =>
+  new Set(entries.map((entry) => entry.slot)).size === entries.length &&
+  new Set(entries.map((entry) => entry.garmentId)).size === entries.length;
+
+export const pieceChosenTwice = () =>
+  new ProposalStateError('Choose each piece only once.');
+
 export const validateEntries = (
   entries: ReadonlyArray<OutfitEntry>,
   all: ReadonlyArray<Garment>,
   complete: boolean,
 ) => {
-  const slots = new Set(entries.map((entry) => entry.slot));
-  if (
-    slots.size !== entries.length ||
-    new Set(entries.map((entry) => entry.garmentId)).size !== entries.length
-  ) {
-    return Effect.fail(new ProposalStateError('Choose each piece only once.'));
+  if (!hasDistinctEntries(entries)) {
+    return Effect.fail(pieceChosenTwice());
   }
+  const slots = new Set(entries.map((entry) => entry.slot));
   if (complete && !isCompleteOutfit(slots)) {
     return Effect.fail(
       new ProposalStateError('Choose a top and a bottom, or a dress, first.'),
