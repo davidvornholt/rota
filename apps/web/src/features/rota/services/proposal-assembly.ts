@@ -8,7 +8,9 @@ import type { Garment } from '#/shared/data/garment.ts';
 import { garmentCare } from '#/shared/data/garment-care.ts';
 import {
   effectiveWearBudget,
+  isCompleteOutfit,
   type Slot,
+  separateSlots,
   slotOrder,
 } from '#/shared/data/garment-types.ts';
 import type { ProposalItem } from '#/shared/data/proposal-repository.ts';
@@ -31,22 +33,50 @@ import type {
   SlotChoices,
 } from './proposal-prompt.ts';
 
-export const requiredSlots: ReadonlySet<Slot> = new Set(['bottom', 'top']);
 const recentDays = 14;
 
 /**
- * Alternatives for every slot, including those with a rotation preference. A required
- * slot that only today's turned-down garments could fill gets them back rather
- * than failing: the wearer asked for another suggestion, and the rest of the
- * outfit can still change around the one garment there is no alternative to.
+ * Alternatives for every slot, including those with a rotation preference. A
+ * top and a bottom are required unless a dress is offered to take their place.
+ * A required slot that only today's turned-down garments could fill gets them
+ * back rather than failing: the wearer asked for another suggestion, and the
+ * rest of the outfit can still change around the one garment there is no
+ * alternative to. When no other dress is available and the top and bottom
+ * cannot both be filled, even by turned-down, continuing or pinned garments,
+ * today's turned-down dresses come back instead as the required piece.
  */
 export const slotChoicesFor = (
   input: RotationInput,
   continuing: ReadonlyArray<Continuation>,
+  pinned: ReadonlyArray<OutfitEntry>,
 ): ReadonlyArray<SlotChoices> => {
   const chosen = new Set(continuing.map((c) => c.garment.id));
+  const withTurnedDown = (slot: Slot) =>
+    candidatesFor({ ...input, excluded: new Set() }, slot, chosen);
+  const freshDress = candidatesFor(input, 'dress', chosen).length > 0;
+  // A garment kept for another slot cannot also fill this one.
+  const pinnedIds = new Set(pinned.map((pin) => pin.garmentId));
+  const separatesFit = separateSlots.every(
+    (slot) =>
+      continuing.some((c) => c.slot === slot) ||
+      pinned.some((pin) => pin.slot === slot) ||
+      withTurnedDown(slot).some(
+        (candidate) => !pinnedIds.has(candidate.garment.id),
+      ),
+  );
+  const turnedDownDresses =
+    freshDress || separatesFit ? [] : withTurnedDown('dress');
+  const dressOffered = freshDress || turnedDownDresses.length > 0;
   return slotOrder.map((slot) => {
-    const required = requiredSlots.has(slot);
+    if (slot === 'dress' && turnedDownDresses.length > 0) {
+      return {
+        slot,
+        required: true,
+        candidates: turnedDownDresses,
+        turnedDownOnly: true,
+      };
+    }
+    const required = !dressOffered && separateSlots.includes(slot);
     const candidates = candidatesFor(input, slot, chosen);
     if (
       candidates.length > 0 ||
@@ -56,11 +86,7 @@ export const slotChoicesFor = (
     ) {
       return { slot, required, candidates, turnedDownOnly: false };
     }
-    const turnedDown = candidatesFor(
-      { ...input, excluded: new Set() },
-      slot,
-      chosen,
-    );
+    const turnedDown = withTurnedDown(slot);
     return {
       slot,
       required,
@@ -120,9 +146,9 @@ const itemFor = (
 });
 
 /**
- * Resolves the model's aliases to garments, one per slot in worn order. A
- * required slot left empty, an alias the prompt never offered, or a garment
- * named twice all make the answer unusable.
+ * Resolves the model's aliases to garments, one per slot in worn order. An
+ * alias the prompt never offered, a garment named twice, or an outfit without
+ * a top and a bottom or a dress all make the answer unusable.
  */
 export const answerToItems = (
   answer: ProposalAnswer,
@@ -137,9 +163,7 @@ export const answerToItems = (
     (slot): Result.Result<ProposalItem | undefined, string> => {
       const alias = answer.outfit[slot];
       if (alias === null) {
-        return requiredSlots.has(slot)
-          ? Result.fail(`No garment for ${slot}.`)
-          : Result.succeed(undefined);
+        return Result.succeed(undefined);
       }
       const aliased = aliases.get(alias);
       if (
@@ -159,10 +183,15 @@ export const answerToItems = (
     },
   );
   return Result.all(resolved).pipe(
-    Result.mapError((problem) => new ProposalAnswerError(problem)),
     Result.map((items) =>
       items.filter((item): item is ProposalItem => item !== undefined),
     ),
+    Result.flatMap((items) =>
+      isCompleteOutfit(items.map((item) => item.slot))
+        ? Result.succeed(items)
+        : Result.fail('No top and bottom, and no dress.'),
+    ),
+    Result.mapError((problem) => new ProposalAnswerError(problem)),
     Result.match({ onFailure: Effect.fail, onSuccess: Effect.succeed }),
   );
 };
@@ -173,11 +202,14 @@ export const choicesWithPins = (
   pinned: ReadonlyArray<OutfitEntry>,
 ): ReadonlyArray<SlotChoices> => {
   const pinnedIds = new Set(pinned.map((pin) => pin.garmentId));
-  return slotChoicesFor(input, continuing).map((choice) => {
+  // A kept dress already completes the outfit.
+  const dressPinned = pinned.some((pin) => pin.slot === 'dress');
+  return slotChoicesFor(input, continuing, pinned).map((choice) => {
     const pin = pinned.find((entry) => entry.slot === choice.slot);
     return pin === undefined
       ? {
           ...choice,
+          required: choice.required && !dressPinned,
           candidates: choice.candidates.filter(
             (candidate) => !pinnedIds.has(candidate.garment.id),
           ),

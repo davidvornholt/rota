@@ -3,7 +3,9 @@ import { useRouter } from '@tanstack/react-router';
 import { useEffect, useId, useState } from 'react';
 import {
   categoryDefaults,
+  categoryLabel,
   garmentCategories,
+  hasWearBudget,
 } from '#/shared/data/garment-types.ts';
 import type { Settings } from '#/shared/data/settings.ts';
 import { localDate } from '#/shared/time/local-date.ts';
@@ -304,15 +306,13 @@ const RotationSection = ({
           </p>
           <ul className="mt-3 grid max-w-2xl grid-cols-2 gap-x-6 sm:grid-cols-3 lg:grid-cols-5">
             {garmentCategories
-              .filter(
-                (category) => category !== 'shoes' && category !== 'handbag',
-              )
+              .filter((category) => hasWearBudget({ category }))
               .map((category) => {
                 const id = `budget-${category}`;
                 return (
                   <li className="border-rule border-t py-2" key={category}>
                     <label className="text-ink text-sm" htmlFor={id}>
-                      {category}
+                      {categoryLabel[category]}
                     </label>
                     <input
                       className={[fieldClass, 'type-data mt-1'].join(' ')}

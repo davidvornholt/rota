@@ -1,0 +1,1 @@
+ALTER TABLE "saved_outfit" ADD COLUMN "collections" text[] DEFAULT '{}' NOT NULL;

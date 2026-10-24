@@ -68,7 +68,10 @@ const threeDays: CatchUpView = {
     bottom: [chinos, jeans],
     under: [],
     top: [shirt, tee],
+    dress: [],
     over: [coat],
+    scarf: [],
+    hat: [],
   },
 };
 

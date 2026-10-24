@@ -117,7 +117,7 @@ const Actions = ({
  * The outfit as one picture to send or keep: the collage, and the same
  * picture behind the Share and Download buttons once it has been made.
  */
-const ShareOutfitDialog = ({
+export const ShareOutfitDialog = ({
   entries: shownEntries,
   title,
   onClose,

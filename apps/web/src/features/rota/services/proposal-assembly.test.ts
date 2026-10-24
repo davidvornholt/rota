@@ -6,7 +6,10 @@ import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import { continuations, type RotationInput } from '../rotation.ts';
-import { proposalAnswerJsonSchema } from '../schemas/proposal-answer.ts';
+import {
+  type ProposalAnswer,
+  proposalAnswerJsonSchema,
+} from '../schemas/proposal-answer.ts';
 import {
   answerToItems,
   recentSummary,
@@ -81,6 +84,26 @@ const input = (
 const slotNamed = (slots: ReadonlyArray<SlotChoices>, slot: Slot) =>
   slots.find((open) => open.slot === slot);
 
+const answer = (
+  outfit: Partial<ProposalAnswer['outfit']>,
+  headline = '',
+): ProposalAnswer => ({
+  outfit: {
+    bottom: null,
+    under: null,
+    top: null,
+    dress: null,
+    over: null,
+    scarf: null,
+    hat: null,
+    shoes: null,
+    bag: null,
+    ...outfit,
+  },
+  headline,
+  reasons: [],
+});
+
 describe('slotChoicesFor', () => {
   it('allows the whole outfit to change after a cool rainy turn despite remaining rotation days', async () => {
     const polo = { ...tee, category: 'polo', wearBudget: 2 };
@@ -106,7 +129,7 @@ describe('slotChoicesFor', () => {
       forecastStale: false,
       occasion: 'Meeting today',
       continuations: continuing,
-      slotChoices: slotChoicesFor(rotation, continuing),
+      slotChoices: slotChoicesFor(rotation, continuing, []),
       recent: [],
       imageFor: () => undefined,
     });
@@ -122,18 +145,10 @@ describe('slotChoicesFor', () => {
     );
     const items = await Effect.runPromise(
       answerToItems(
-        {
-          outfit: {
-            bottom: 'B1',
-            top: 'T1',
-            under: null,
-            shoes: null,
-            bag: null,
-            over: null,
-          },
-          headline: 'Chinos and a shirt for the cooler meeting.',
-          reasons: [],
-        },
+        answer(
+          { bottom: 'B1', top: 'T1' },
+          'Chinos and a shirt for the cooler meeting.',
+        ),
         prompt.aliases,
         rotation,
       ),
@@ -143,18 +158,7 @@ describe('slotChoicesFor', () => {
     const invalid = await Effect.runPromise(
       Effect.result(
         answerToItems(
-          {
-            outfit: {
-              bottom: 'T1',
-              top: 'B1',
-              under: null,
-              shoes: null,
-              bag: null,
-              over: null,
-            },
-            headline: '',
-            reasons: [],
-          },
+          answer({ bottom: 'T1', top: 'B1' }),
           prompt.aliases,
           rotation,
         ),
@@ -182,7 +186,7 @@ describe('slotChoicesFor', () => {
       forecastStale: false,
       occasion: null,
       continuations: continuing,
-      slotChoices: slotChoicesFor(rotation, continuing),
+      slotChoices: slotChoicesFor(rotation, continuing, []),
       recent: [],
       imageFor: () => undefined,
     });
@@ -202,6 +206,7 @@ describe('rejected alternatives', () => {
     const open = slotChoicesFor(
       input([shorts, linen, tee], ['shorts', 'linen']),
       [],
+      [],
     );
 
     const bottom = slotNamed(open, 'bottom');
@@ -214,7 +219,7 @@ describe('rejected alternatives', () => {
   });
 
   it('keeps a required slot empty when the wardrobe has nothing for it at all', () => {
-    const open = slotChoicesFor(input([linen, tee], ['linen']), []);
+    const open = slotChoicesFor(input([linen, tee], ['linen']), [], []);
 
     const bottom = slotNamed(open, 'bottom');
     expect(bottom?.turnedDownOnly).toBeFalse();
@@ -225,6 +230,7 @@ describe('rejected alternatives', () => {
     const cardigan = garment('cardigan', ['over']);
     const open = slotChoicesFor(
       input([shorts, tee, cardigan], ['cardigan']),
+      [],
       [],
     );
 
@@ -263,7 +269,7 @@ it('describes each recent day with every piece’s role in worn order', () => {
     forecastStale: false,
     occasion: null,
     continuations: [],
-    slotChoices: slotChoicesFor(rotation, []),
+    slotChoices: slotChoicesFor(rotation, [], []),
     recent,
     imageFor: () => undefined,
   });
@@ -291,7 +297,7 @@ it('shows an original image once while offering the garment in each eligible slo
     forecastStale: false,
     occasion: null,
     continuations: [],
-    slotChoices: slotChoicesFor(rotation, []),
+    slotChoices: slotChoicesFor(rotation, [], []),
     recent: [],
     imageFor: (g) => (g.id === shirt.id ? image : undefined),
   });
@@ -324,7 +330,7 @@ describe('complete outfit suggestions', () => {
       forecastStale: false,
       occasion: null,
       continuations: [],
-      slotChoices: slotChoicesFor(rotation, []),
+      slotChoices: slotChoicesFor(rotation, [], []),
       recent: [],
       imageFor: () => undefined,
     });
@@ -347,18 +353,10 @@ describe('complete outfit suggestions', () => {
     expect(schema.properties.outfit.properties.over.enum).toEqual(['O1', null]);
     const items = await Effect.runPromise(
       answerToItems(
-        {
-          outfit: {
-            bottom: 'B1',
-            top: 'T1',
-            under: null,
-            over: null,
-            shoes: 'S1',
-            bag: 'G1',
-          },
-          headline: 'Light pieces for a hot day.',
-          reasons: [],
-        },
+        answer(
+          { bottom: 'B1', top: 'T1', shoes: 'S1', bag: 'G1' },
+          'Light pieces for a hot day.',
+        ),
         prompt.aliases,
         rotation,
       ),
@@ -388,7 +386,7 @@ describe('complete outfit suggestions', () => {
       ],
       [shoes.id, bag.id],
     );
-    const choices = slotChoicesFor(rotation, []);
+    const choices = slotChoicesFor(rotation, [], []);
     for (const slot of ['shoes', 'bag'] as const) {
       expect(slotNamed(choices, slot)?.candidates).toEqual([]);
       expect(slotNamed(choices, slot)?.turnedDownOnly).toBeFalse();

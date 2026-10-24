@@ -20,11 +20,20 @@ import { WaitingQueue } from './waiting-queue.tsx';
 
 type Filter = 'all' | Slot;
 
-const filters: ReadonlyArray<{ readonly key: Filter; readonly label: string }> =
-  [
-    { key: 'all', label: 'All' },
-    ...slotOrder.map((slot) => ({ key: slot, label: slotLabel[slot] })),
-  ];
+/** All, then the positions the wardrobe fills, so pieces nobody owns do not crowd the row. */
+const filtersFor = (
+  garments: ReadonlyArray<GarmentView>,
+  current: Filter,
+): ReadonlyArray<{ readonly key: Filter; readonly label: string }> => [
+  { key: 'all', label: 'All' },
+  ...slotOrder
+    .filter(
+      (slot) =>
+        slot === current ||
+        garments.some((garment) => garment.slots.includes(slot)),
+    )
+    .map((slot) => ({ key: slot, label: slotLabel[slot] })),
+];
 
 const wearWords = (garment: GarmentView): string => {
   if (garment.wears === 0) {
@@ -153,21 +162,23 @@ export const WardrobePage = ({
       <section aria-labelledby={headingId} className="mt-8">
         <div className="flex flex-wrap items-center justify-between gap-4 border-rule border-b">
           <div className="flex flex-wrap gap-5" role="tablist">
-            {filters.map((entry) => (
-              <button
-                aria-selected={filter === entry.key}
-                className={[
-                  tabClass,
-                  filter === entry.key ? tabActiveClass : '',
-                ].join(' ')}
-                key={entry.key}
-                onClick={() => setFilter(entry.key)}
-                role="tab"
-                type="button"
-              >
-                {entry.label}
-              </button>
-            ))}
+            {filtersFor([...view.active, ...view.retired], filter).map(
+              (entry) => (
+                <button
+                  aria-selected={filter === entry.key}
+                  className={[
+                    tabClass,
+                    filter === entry.key ? tabActiveClass : '',
+                  ].join(' ')}
+                  key={entry.key}
+                  onClick={() => setFilter(entry.key)}
+                  role="tab"
+                  type="button"
+                >
+                  {entry.label}
+                </button>
+              ),
+            )}
           </div>
           {view.retired.length > 0 ? (
             <label className="inline-flex min-h-11 items-center gap-2 text-ink-muted text-sm">

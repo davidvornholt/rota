@@ -19,10 +19,12 @@ import {
 } from 'drizzle-orm/pg-core';
 
 /**
- * The four places a garment can sit on the body, in the order they are worn.
- * `under` is a layer beneath the top (an undershirt); `over` is a layer above
- * it (a jumper, a cardigan, an overshirt). A garment may be eligible for more
- * than one slot: a shirt is a `top` on its own and an `over` above a tee.
+ * The places a garment can sit on the body. `under` is a layer beneath the top
+ * (an undershirt); `over` is a layer above it (a jumper, a cardigan, an
+ * overshirt). A `dress` takes the place of a top and a bottom. `shoes`, `bag`,
+ * `hat` and `scarf` are accessories. A garment may be eligible for more than
+ * one slot: a shirt is a `top` on its own and an `over` above a tee. The app
+ * owns the worn order, so new values are appended here.
  */
 export const garmentSlot = pgEnum('garment_slot', [
   'bottom',
@@ -31,6 +33,9 @@ export const garmentSlot = pgEnum('garment_slot', [
   'over',
   'shoes',
   'bag',
+  'dress',
+  'hat',
+  'scarf',
 ]);
 
 /**
@@ -307,12 +312,19 @@ export const settings = pgTable(
   ],
 );
 
-/** A reusable combination; edits to a day's outfit never mutate this record. */
+/**
+ * A reusable combination; edits to a day's outfit never mutate this record.
+ * `collections` are the wearer's own groups, such as an occasion or a season;
+ * an outfit can be in several, and a collection exists while an outfit is in it.
+ * `favourite` is the wearer's own mark, separate from collections.
+ */
 export const savedOutfit = pgTable('saved_outfit', {
   ownerId: text('owner_id').notNull(),
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   entries: jsonb('entries').notNull(),
+  collections: text('collections').array().notNull().default([]),
+  favourite: boolean('favourite').notNull().default(false),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

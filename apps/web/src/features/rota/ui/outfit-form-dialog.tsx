@@ -8,12 +8,18 @@ import {
 } from '#/shared/ui/classes.ts';
 import { Dialog } from '#/shared/ui/dialog.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
+import {
+  collectionsPerOutfit,
+  resolveCollections,
+} from '../outfit-collections.ts';
+import { CollectionPicker } from './collection-picker.tsx';
 import { OutfitEditor } from './outfit-editor.tsx';
 
 /** Names and edits a saved outfit; `onSave` stores it and `onClose` follows. */
 export const OutfitFormDialog = ({
   title,
   outfit,
+  collections,
   wardrobe,
   busy,
   onSave,
@@ -21,17 +27,29 @@ export const OutfitFormDialog = ({
 }: {
   readonly title: string;
   readonly outfit: SavedOutfit;
+  /** Every collection the wearer has, to choose from. */
+  readonly collections: ReadonlyArray<string>;
   readonly wardrobe: ReadonlyArray<GarmentView>;
   readonly busy: boolean;
   readonly onSave: (outfit: SavedOutfit) => Promise<unknown>;
   readonly onClose: () => void;
 }) => {
   const [editing, setEditing] = useState(outfit);
+  const [newCollection, setNewCollection] = useState('');
   const [error, setError] = useState('');
   const save = async () => {
     setError('');
     try {
-      await onSave(editing);
+      await onSave({
+        ...editing,
+        // A name typed but not added still counts, as long as there is room.
+        collections: resolveCollections(
+          editing.collections.length < collectionsPerOutfit
+            ? [...editing.collections, newCollection]
+            : editing.collections,
+          [...collections, ...editing.collections],
+        ),
+      });
       onClose();
     } catch (failure) {
       setError(
@@ -72,6 +90,16 @@ export const OutfitFormDialog = ({
             required={true}
           />
         </label>
+        <CollectionPicker
+          chosen={editing.collections}
+          existing={collections}
+          draft={newCollection}
+          disabled={busy}
+          onChange={(chosen) =>
+            setEditing((current) => ({ ...current, collections: chosen }))
+          }
+          onDraft={setNewCollection}
+        />
         <OutfitEditor
           entries={editing.entries}
           wardrobe={wardrobe}

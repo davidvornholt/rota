@@ -6,6 +6,7 @@ import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { IconLink } from '#/shared/ui/icon-link.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { ShareOutfitButton } from '#/shared/ui/share-outfit-dialog.tsx';
+import { collectionsOf } from '../outfit-collections.ts';
 import type { PlanningView } from '../schemas/planning-view.ts';
 import { backfillFn } from '../services/today-fns.ts';
 import { BackfillPrompt } from './backfill-prompt.tsx';
@@ -143,7 +144,16 @@ export const TodayPage = ({
       {saving ? (
         <OutfitFormDialog
           title="Save a reusable outfit"
-          outfit={{ id: crypto.randomUUID(), name: '', entries }}
+          outfit={{
+            id: crypto.randomUUID(),
+            name: '',
+            entries,
+            collections: [],
+            favourite: false,
+          }}
+          collections={collectionsOf(view.outfits).map(
+            (collection) => collection.name,
+          )}
           wardrobe={view.wardrobe}
           busy={busy}
           onSave={(outfit) =>

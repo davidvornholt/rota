@@ -4,6 +4,7 @@ import { fixtureOrigin } from './fixture-origin.ts';
 
 const whiteShirt = /^White cotton shirt/u;
 const blueShirt = /^Blue Oxford shirt/u;
+const greenDress = /^Green linen dress/u;
 const badGateway = 502;
 const success = 200;
 
@@ -285,5 +286,47 @@ test('failed autosaves preserve edits, explain the failure, and persist after re
   await page.reload();
   await expect(
     page.getByRole('button', { name: 'Change White cotton shirt' }),
+  ).toBeVisible();
+});
+
+test('a dress takes the place of the top and bottom and saves as a whole outfit', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
+  await page.getByRole('button', { name: 'Wear a dress' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(
+    dialog.getByRole('heading', { name: 'Choose dress' }),
+  ).toBeFocused();
+  await dialog.getByRole('button', { name: greenDress }).click();
+  await expect(
+    page.getByRole('button', { name: 'Change Green linen dress' }),
+  ).toBeFocused();
+  for (const slot of ['Top', 'Bottom']) {
+    await expect(
+      page.getByRole('region', { name: slot, exact: true }),
+    ).toHaveCount(0);
+  }
+  await expect(page.getByRole('button', { name: 'Add top' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add bottom' })).toBeVisible();
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+  await page.getByRole('button', { name: 'Save as a reusable outfit' }).click();
+  await dialog
+    .getByRole('textbox', { name: 'Outfit name' })
+    .fill('Linen dress day');
+  await dialog
+    .getByRole('button', { name: 'Save outfit', exact: true })
+    .click();
+  await expect(
+    page.getByText('Saved to your outfits.', { exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Remove dress', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('button', { name: 'Choose bottom' }),
+  ).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Choose top' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Wear a dress' }),
   ).toBeVisible();
 });
