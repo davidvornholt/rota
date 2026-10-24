@@ -57,9 +57,7 @@ const OutfitPiece = ({
         ref={(node) => buttonRef(slot, node)}
         type="button"
         aria-label={
-          garment === undefined
-            ? `Choose ${slotLabel[slot].toLowerCase()}`
-            : `Change ${garment.name}`
+          garment === undefined ? undefined : `Change ${garment.name}`
         }
       >
         {garment === undefined ? (

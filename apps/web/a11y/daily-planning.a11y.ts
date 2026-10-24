@@ -1,6 +1,7 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
 import { fixtureOrigin } from './fixture-origin.ts';
+import { emptySlot } from './outfit-slots.ts';
 
 const whiteShirt = /^White cotton shirt/u;
 const blueShirt = /^Blue Oxford shirt/u;
@@ -57,7 +58,7 @@ test('navigation waits for early laundry, retains failures, and cannot restore a
   await expect(send).toBeDisabled();
   await planning.click();
   release?.();
-  const top = page.getByRole('button', { name: 'Choose top', exact: true });
+  const top = emptySlot(page, 'top');
   await expect(top).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Change Navy chinos' }),
@@ -70,9 +71,7 @@ test('navigation waits for early laundry, retains failures, and cannot restore a
   );
   await page.reload();
   await expect(top).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Choose bottom', exact: true }),
-  ).toBeVisible();
+  await expect(emptySlot(page, 'bottom')).toBeVisible();
 });
 
 test('manual tomorrow choices save independently of reusable outfits and never record wear', async ({
@@ -122,9 +121,7 @@ test('incomplete and empty daily plans survive reload without resurrecting the p
     'Saved for',
   );
   await page.reload();
-  await expect(
-    page.getByRole('button', { name: 'Choose top', exact: true }),
-  ).toBeVisible();
+  await expect(emptySlot(page, 'top')).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Change Navy chinos' }),
   ).toBeVisible();
@@ -135,12 +132,8 @@ test('incomplete and empty daily plans survive reload without resurrecting the p
     'Saved for',
   );
   await page.reload();
-  await expect(
-    page.getByRole('button', { name: 'Choose top', exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Choose bottom', exact: true }),
-  ).toBeVisible();
+  await expect(emptySlot(page, 'top')).toBeVisible();
+  await expect(emptySlot(page, 'bottom')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Wear this' })).toHaveCount(0);
   await expect(page.getByText('Worn today', { exact: true })).toHaveCount(0);
   expect(await scanWcag22AaViolations(page)).toEqual([]);
@@ -221,9 +214,7 @@ test('slow autosaves keep selection responsive and persist the latest edit in or
   await page
     .getByRole('button', { name: 'Remove bottom', exact: true })
     .click();
-  await expect(
-    page.getByRole('button', { name: 'Choose bottom', exact: true }),
-  ).toBeVisible();
+  await expect(emptySlot(page, 'bottom')).toBeVisible();
   await expect(
     page.getByRole('link', { name: 'Today', exact: true }),
   ).toHaveAttribute('aria-current', 'page');
@@ -233,12 +224,8 @@ test('slow autosaves keep selection responsive and persist the latest edit in or
   );
   expect(requests).toBe(2);
   await page.reload();
-  await expect(
-    page.getByRole('button', { name: 'Choose top', exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Choose bottom', exact: true }),
-  ).toBeVisible();
+  await expect(emptySlot(page, 'top')).toBeVisible();
+  await expect(emptySlot(page, 'bottom')).toBeVisible();
 });
 
 test('failed autosaves preserve edits, explain the failure, and persist after retry', async ({
@@ -322,10 +309,8 @@ test('a dress takes the place of the top and bottom and saves as a whole outfit'
   ).toBeVisible();
   await page.getByRole('button', { name: 'Remove dress', exact: true }).focus();
   await page.keyboard.press('Enter');
-  await expect(
-    page.getByRole('button', { name: 'Choose bottom' }),
-  ).toBeFocused();
-  await expect(page.getByRole('button', { name: 'Choose top' })).toBeVisible();
+  await expect(emptySlot(page, 'bottom')).toBeFocused();
+  await expect(emptySlot(page, 'top')).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Wear a dress' }),
   ).toBeVisible();

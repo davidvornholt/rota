@@ -2,6 +2,7 @@ import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
 import { fixtureOrigin } from './fixture-origin.ts';
 import { chooseOutfitAction } from './outfit-actions.ts';
+import { emptySlot } from './outfit-slots.ts';
 
 const whiteShirt = /^White cotton shirt/u;
 const chinos = /^Navy chinos/u;
@@ -24,14 +25,12 @@ test('the outfits page creates an outfit and chooses it for today', async ({
   await create.click();
   const dialog = page.getByRole('dialog', { name: 'Create outfit' });
   await dialog.getByRole('textbox', { name: 'Outfit name' }).fill('Weekend');
-  await dialog.getByRole('button', { name: 'Choose top', exact: true }).click();
+  await emptySlot(dialog, 'top').click();
   await page
     .getByRole('dialog', { name: 'Choose top' })
     .getByRole('button', { name: whiteShirt })
     .click();
-  await dialog
-    .getByRole('button', { name: 'Choose bottom', exact: true })
-    .click();
+  await emptySlot(dialog, 'bottom').click();
   await page
     .getByRole('dialog', { name: 'Choose bottom' })
     .getByRole('button', { name: chinos })
@@ -117,14 +116,12 @@ test('outfits go into collections and the filter shows those in every chosen one
   await dialog.getByRole('button', { name: 'Summer', exact: true }).click();
   await dialog.getByRole('textbox', { name: 'New collection' }).fill('weekend');
   await dialog.getByRole('button', { name: 'Add', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Choose top', exact: true }).click();
+  await emptySlot(dialog, 'top').click();
   await page
     .getByRole('dialog', { name: 'Choose top' })
     .getByRole('button', { name: whiteShirt })
     .click();
-  await dialog
-    .getByRole('button', { name: 'Choose bottom', exact: true })
-    .click();
+  await emptySlot(dialog, 'bottom').click();
   await page
     .getByRole('dialog', { name: 'Choose bottom' })
     .getByRole('button', { name: chinos })
@@ -184,14 +181,12 @@ test('favourites are marked with a heart and filtered alone or with collections'
   await dialog.getByRole('textbox', { name: 'Outfit name' }).fill('Weekend');
   await dialog.getByRole('textbox', { name: 'New collection' }).fill('Weekend');
   await dialog.getByRole('button', { name: 'Add', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Choose top', exact: true }).click();
+  await emptySlot(dialog, 'top').click();
   await page
     .getByRole('dialog', { name: 'Choose top' })
     .getByRole('button', { name: whiteShirt })
     .click();
-  await dialog
-    .getByRole('button', { name: 'Choose bottom', exact: true })
-    .click();
+  await emptySlot(dialog, 'bottom').click();
   await page
     .getByRole('dialog', { name: 'Choose bottom' })
     .getByRole('button', { name: chinos })
@@ -341,14 +336,12 @@ test('focus stays on the page when a collection action removes or disables the f
   await page.getByRole('button', { name: 'Create outfit' }).click();
   dialog = page.getByRole('dialog', { name: 'Create outfit' });
   await dialog.getByRole('textbox', { name: 'Outfit name' }).fill('Weekend');
-  await dialog.getByRole('button', { name: 'Choose top', exact: true }).click();
+  await emptySlot(dialog, 'top').click();
   await page
     .getByRole('dialog', { name: 'Choose top' })
     .getByRole('button', { name: whiteShirt })
     .click();
-  await dialog
-    .getByRole('button', { name: 'Choose bottom', exact: true })
-    .click();
+  await emptySlot(dialog, 'bottom').click();
   await page
     .getByRole('dialog', { name: 'Choose bottom' })
     .getByRole('button', { name: chinos })

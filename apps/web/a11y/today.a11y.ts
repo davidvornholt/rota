@@ -2,6 +2,7 @@ import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
 import { fixtureOrigin } from './fixture-origin.ts';
 import { chooseOutfitAction } from './outfit-actions.ts';
+import { emptySlot } from './outfit-slots.ts';
 
 const chinos = /^Navy chinos/u;
 const whiteShirt = /^White cotton shirt/u;
@@ -256,9 +257,7 @@ test('laundry shows return dates and handles early washing and late returns', as
     0,
   );
   await page.getByRole('link', { name: 'Planning', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Choose bottom', exact: true })
-    .click();
+  await emptySlot(page, 'bottom').click();
   await page.getByRole('dialog').getByRole('button', { name: chinos }).click();
   await expect(page.getByRole('button', { name: 'Wear this' })).toBeEnabled();
 });
