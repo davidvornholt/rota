@@ -119,6 +119,28 @@ describe('forecast cache', () => {
   });
 });
 
+describe('a changed location', () => {
+  const madrid = { ...day, locationLabel: 'Madrid' };
+
+  it('fetches a forecast for the new place instead of reusing the old one', async () => {
+    const { result, forecast, store } = setup([madrid]);
+    const window = await Effect.runPromise(result);
+    expect(forecast).toHaveBeenCalledTimes(1);
+    expect(store).toHaveBeenCalledTimes(1);
+    expect(window.today.locationLabel).toBe('Berlin');
+    expect(window.stale).toBeFalse();
+  });
+
+  it('reports an unavailable forecast rather than the old place’s when fetching fails', async () => {
+    const { result } = setup([madrid], Effect.fail(unavailable));
+    const outcome = await Effect.runPromise(Effect.result(result));
+    expect(outcome).toMatchObject({
+      _tag: 'Failure',
+      failure: { _tag: 'ForecastUnavailableError' },
+    });
+  });
+});
+
 it('treats tomorrow’s forecast as fresh when issued today', async () => {
   const tomorrow = localDate('2026-09-06');
   const { result, forecast } = setup(

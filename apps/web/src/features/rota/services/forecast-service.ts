@@ -67,10 +67,16 @@ export class ForecastService extends Context.Service<ForecastService>()(
         };
       };
 
+      // A forecast stored for another place says nothing about this one, so it
+      // is neither reused nor used as a fallback after the location changes.
+      const isForPlace = (window: ForecastWindow, settings: Settings) =>
+        settings.location === null ||
+        window.today.locationLabel === locationLabel(settings.location);
+
       /**
        * Today's forecast, fresh if it can be. A fetch is attempted when nothing
-       * fresh is stored; a failed fetch falls back to whatever is stored and
-       * fails only when there is nothing at all.
+       * fresh is stored for the current place; a failed fetch falls back to an
+       * older forecast for that place and fails only when there is none.
        */
       const ensure = (
         settings: Settings,
@@ -78,7 +84,11 @@ export class ForecastService extends Context.Service<ForecastService>()(
         issuedOn: LocalDate,
       ) =>
         Effect.gen(function* () {
-          const existing = windowOf(yield* stored(today), today, issuedOn);
+          const window = windowOf(yield* stored(today), today, issuedOn);
+          const existing =
+            window !== undefined && isForPlace(window, settings)
+              ? window
+              : undefined;
           if (existing !== undefined && !existing.stale) {
             return existing;
           }
