@@ -74,10 +74,11 @@ export const proposalSystemPrompt = [
   warmthInstruction,
   formalityInstruction,
   "You are the valet behind Rota, a one-person wardrobe app. Choose today's outfit from the available wardrobe for the supplied forecast and the wearer's note.",
-  "Rotation is a preference: keep continuing garments when appropriate, but weather and the note take priority. You may replace any or all of them. Explain a replacement in the new garment's reason.",
-  'When you choose a bottom other than a continuing one, prefer a partly worn bottom to one with no wears since washing when it suits the outfit, so bottoms are worn up to their allowance before washing.',
+  'Each garment with a wear allowance says how many times it has been worn since washing and how many wears it has left. A garment with a wear left is clean enough to wear today.',
+  "Rotation is a preference, but weather and the note take priority. Keep a continuing garment while it has a wear left unless the weather or the note rules it out; do not replace it for variety. You may replace any or all of them for those reasons. Explain a replacement in the new garment's reason.",
+  'When you choose a bottom other than a continuing one, prefer a partly worn bottom with a wear left to a freshly washed one, and among those the one worn most recently, when it suits the weather and the note, so bottoms are worn up to their allowance before washing. Finishing a bottom comes before varying the colours of recent days.',
   "Judge the outfit as a whole. Choose only the offered aliases. The forecast covers 05:00–20:00 in the wardrobe location's time zone.",
-  'Use the recent outfits to vary the look: avoid repeating the colours, style or combination of the last few days, even with different garments. A continuing garment or a partly worn top, dress or bottom is not a repeat; vary what goes with it.',
+  'Use the recent outfits to vary the look: avoid repeating the colours, style or combination of the last few days, even with different garments. A continuing garment or a partly worn top, dress or bottom is not a repeat, even if it was worn on recent days; vary what goes with it.',
   'An outfit is a top and a bottom, or a dress in their place.',
   "Consider every outfit slot. Include suitable shoes and a bag whenever offered; they may repeat freely. Omit them only when no offered choice suits the weather, outfit or wearer's note.",
   "Choose an underlayer or overlayer only when the forecast, outfit or wearer's note makes it useful. Account for the whole outfit's warmth; leave unnecessary layers out in hot weather.",
@@ -101,6 +102,12 @@ const restWords = (days: number | null): string =>
   days === null
     ? 'never worn yet'
     : `last worn ${days} day${days === 1 ? '' : 's'} ago`;
+
+/** Wears used and left, so the model need not work out whether a piece is at its limit. */
+const wearWords = (worn: number, budget: number): string => {
+  const left = budget - worn;
+  return `worn ${worn} of ${budget} times since washing, ${left} wear${left === 1 ? '' : 's'} left`;
+};
 
 const describeRecentDay = (day: RecentDay): string =>
   `${formatWeekday(day.date, 'short')} ${formatDayMonth(day.date)}: ${day.pieces
@@ -233,7 +240,7 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
         continuation,
       });
       say(
-        `${alias} (${slotLabel[continuation.slot].toLowerCase()}) — ${continuation.garment.name}: ${describeGarment(continuation.garment)}; day ${continuation.dayOfBudget} of ${continuation.budget}.`,
+        `${alias} (${slotLabel[continuation.slot].toLowerCase()}) — ${continuation.garment.name}: ${describeGarment(continuation.garment)}; ${wearWords(continuation.dayOfBudget - 1, continuation.budget)}.`,
       );
       show(alias, continuation.garment);
     });
@@ -261,7 +268,7 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
         continuation: undefined,
       });
       say(
-        `${alias} (${label}) — ${candidate.garment.name}: ${describeGarment(candidate.garment)}; ${restWords(candidate.daysSinceWorn)}${hasWearBudget(candidate.garment) ? `; ${candidate.wearsSinceWash} wears since washing` : ''}${candidate.inCooldown ? '; worn recently, only if nothing else works' : ''}.`,
+        `${alias} (${label}) — ${candidate.garment.name}: ${describeGarment(candidate.garment)}; ${restWords(candidate.daysSinceWorn)}${hasWearBudget(candidate.garment) ? `; ${wearWords(candidate.wearsSinceWash, candidate.budget)}` : ''}${candidate.inCooldown ? '; worn recently, only if nothing else works' : ''}.`,
       );
       show(alias, candidate.garment);
     });

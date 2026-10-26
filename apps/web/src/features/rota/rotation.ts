@@ -161,6 +161,8 @@ export const continuations = (
 export type Candidate = {
   readonly garment: Garment;
   readonly wearsSinceWash: number;
+  /** Wears allowed between washes. */
+  readonly budget: number;
   readonly daysSinceWorn: number | null;
   /** Worn more recently than the cooldown allows; offered only when nothing else is. */
   readonly inCooldown: boolean;
@@ -204,6 +206,7 @@ export const candidatesFor = (
           input.today,
           input.settings,
         ).wearsSinceWash,
+        budget: effectiveWearBudget(garment, input.settings.categoryBudgets),
         daysSinceWorn: rest,
         inCooldown:
           hasWearBudget(garment) &&
