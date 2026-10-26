@@ -6,6 +6,7 @@ import type { WearEntry } from '#/shared/data/wear-log-repository.ts';
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import {
+  type Continuation,
   candidatesFor,
   continuations,
   type RotationInput,
@@ -22,6 +23,7 @@ import {
 } from './services/proposal-assembly.ts';
 import {
   buildProposalPrompt,
+  proposalSystemPrompt,
   type SlotChoices,
 } from './services/proposal-prompt.ts';
 
@@ -101,7 +103,10 @@ const cold: WeatherDay = {
   weatherCode: 3,
 };
 
-const promptFor = (choices: ReadonlyArray<SlotChoices>) =>
+const promptFor = (
+  choices: ReadonlyArray<SlotChoices>,
+  continuing: ReadonlyArray<Continuation> = [],
+) =>
   buildProposalPrompt({
     cleanTop: false,
     today,
@@ -110,14 +115,17 @@ const promptFor = (choices: ReadonlyArray<SlotChoices>) =>
     upcoming: [],
     forecastStale: false,
     occasion: null,
-    continuations: [],
+    continuations: continuing,
     slotChoices: choices,
     recent: [],
     imageFor: () => undefined,
   });
 
-const promptText = (choices: ReadonlyArray<SlotChoices>) =>
-  promptFor(choices)
+const promptText = (
+  choices: ReadonlyArray<SlotChoices>,
+  continuing: ReadonlyArray<Continuation> = [],
+) =>
+  promptFor(choices, continuing)
     .parts.flatMap((part) => ('text' in part ? [part.text] : []))
     .join('\n');
 
@@ -227,6 +235,32 @@ describe('a dress in place of a top and a bottom', () => {
     };
     expect(candidatesFor(clean, 'dress', new Set())).toEqual([]);
     expect(continuations(rotation([dress], log))).toEqual([]);
+  });
+});
+
+describe('a dress with a continuing bottom', () => {
+  it('lets a dress replace a continuing bottom', () => {
+    // Daily variety rules out yesterday's blouse, so the dress is the only
+    // complete outfit even though the skirt has wears left.
+    const input = rotation(
+      [skirt, blouse, dress],
+      [worn(skirt.id, 'bottom'), worn(blouse.id, 'top')],
+    );
+    const continuing = continuations(input);
+    expect(continuing.map((c) => c.garment.id)).toEqual([skirt.id]);
+    const choices = slotChoicesFor(input, continuing, []);
+    const outfit = proposalAnswerJsonSchema(
+      promptFor(choices, continuing).aliases,
+    ).properties.outfit.properties;
+    expect(outfit.bottom.enum).toEqual(['C1', null]);
+    expect(outfit.top.enum).toEqual([null]);
+    expect(outfit.dress.enum).toEqual(['D1', null]);
+    expect(promptText(choices, continuing)).toContain(
+      'Bottom: no replacement available; use the continuing alias or null.',
+    );
+    expect(proposalSystemPrompt).toContain(
+      'You may also leave out a continuing bottom when you choose a dress in place of the top and bottom.',
+    );
   });
 });
 

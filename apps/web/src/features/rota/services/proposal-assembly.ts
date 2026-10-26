@@ -232,6 +232,10 @@ export const choicesWithPins = (
                 input.today,
                 input.settings,
               ).wearsSinceWash,
+              budget: effectiveWearBudget(
+                garment,
+                input.settings.categoryBudgets,
+              ),
               daysSinceWorn: null,
               inCooldown: false,
             })),
