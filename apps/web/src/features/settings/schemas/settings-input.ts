@@ -5,6 +5,7 @@ import {
   longestWearBudget,
 } from '#/shared/data/garment-types.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
+import { isTimeZone } from '#/shared/time/time-zone.ts';
 import { LocationSchema } from '#/shared/weather/open-meteo.ts';
 
 const shortestQuery = 2;
@@ -21,7 +22,13 @@ export const LocationQuerySchema = Schema.Struct({
 });
 
 export const SaveLocationInputSchema = Schema.Struct({
-  location: LocationSchema,
+  // Every clock read resolves this zone, so one the runtime cannot resolve
+  // would break the wardrobe's pages until another place is saved.
+  location: LocationSchema.check(
+    Schema.makeFilter((location) => isTimeZone(location.timezone), {
+      expected: 'a location whose time zone the server can resolve',
+    }),
+  ),
 });
 
 const budgetDay = Schema.Int.check(
