@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { Schema } from 'effect';
-import { DaySchema, OutfitEntriesSchema } from './wardrobe.ts';
+import { DayRefSchema, DaySchema, OutfitEntriesSchema } from './wardrobe.ts';
 
 const isDay = Schema.is(DaySchema);
+const isDayRef = Schema.is(DayRefSchema);
 const isEntries = Schema.is(OutfitEntriesSchema);
 const garmentId = '0f8fad5b-d9cb-469f-a165-70867728950e';
 
@@ -16,6 +17,14 @@ describe('the wire contract', () => {
     expect(isDay('2026-02-30')).toBe(false);
     expect(isDay('2026-13-01')).toBe(false);
     expect(isDay('31.10.2026')).toBe(false);
+  });
+
+  it('lets a client name today or tomorrow instead of a date', () => {
+    expect(isDayRef('today')).toBe(true);
+    expect(isDayRef('tomorrow')).toBe(true);
+    expect(isDayRef('2026-10-31')).toBe(true);
+    expect(isDayRef('yesterday')).toBe(false);
+    expect(isDayRef('2026-02-30')).toBe(false);
   });
 
   it('takes at most one entry per slot', () => {

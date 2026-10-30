@@ -1,12 +1,15 @@
 import { RotaApi } from '@rota/api/api';
-import type { DayView } from '@rota/api/wardrobe';
+import type { DayRef, DayView } from '@rota/api/wardrobe';
 import { Effect } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
 import { asMember } from '#/shared/api/member-runtime.ts';
 import { outfitItems, toApiWeather } from '#/shared/api/wire.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
-import { localDate } from '#/shared/time/local-date.ts';
-import { readWardrobeClock } from '#/shared/time/wardrobe-clock.ts';
+import { addDays, localDate } from '#/shared/time/local-date.ts';
+import {
+  readWardrobeClock,
+  type WardrobeClock,
+} from '#/shared/time/wardrobe-clock.ts';
 import type { PlanningChange } from '../schemas/planning-input.ts';
 import type { PlanningView } from '../schemas/planning-view.ts';
 import { ForecastService } from '../services/forecast-service.ts';
@@ -75,17 +78,26 @@ const garmentNames = Effect.gen(function* () {
   return new Map(all.map((garment) => [garment.id, garment.name]));
 });
 
+const resolveDay = (clock: WardrobeClock, day: DayRef) => {
+  switch (day) {
+    case 'today':
+      return clock.actualToday;
+    case 'tomorrow':
+      return addDays(clock.actualToday, 1);
+    default:
+      return localDate(day);
+  }
+};
+
 const dayView = (
-  date: string,
+  day: DayRef,
   change: Exclude<PlanningChange, { action: 'suggest' }> | null,
 ) =>
   asMember(() =>
     rotaRuntime.run(
       Effect.gen(function* () {
-        const clock = yield* dateClock(
-          yield* readWardrobeClock(),
-          localDate(date),
-        );
+        const wardrobe = yield* readWardrobeClock();
+        const clock = yield* dateClock(wardrobe, resolveDay(wardrobe, day));
         const view = yield* change === null
           ? planningView(clock)
           : changePlanning(clock, change);

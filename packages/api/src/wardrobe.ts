@@ -33,6 +33,13 @@ export const DaySchema = Schema.String.check(
   ),
 );
 
+/** A day as a client names it. The server resolves `today` and `tomorrow` in the wardrobe's time zone. */
+export const DayRefSchema = Schema.Union([
+  Schema.Literals(['today', 'tomorrow']),
+  DaySchema,
+]);
+export type DayRef = typeof DayRefSchema.Type;
+
 export const IdSchema = Schema.String.check(Schema.isGUID());
 
 /** A stored picture. `url` is a path on the Rota server that accepts `?w=320`, `640`, or `1280`. */

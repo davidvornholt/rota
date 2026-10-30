@@ -31,5 +31,8 @@
   },
   "patchedDependencies": {
     "drizzle-kit@0.31.11": "patches/drizzle-kit@0.31.11.patch"
+  },
+  "overrides": {
+    "@effect/platform-node-shared": "4.0.1"
   }
 }
