@@ -7,8 +7,6 @@ import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { forecastHoursLabel } from '#/shared/weather/forecast-window.ts';
 import { weatherWords } from '#/shared/weather/weather-words.ts';
 
-/** The app's views mapped onto the API's wire shapes. */
-
 const picture = (image: GarmentImageView | undefined) =>
   image === undefined
     ? null

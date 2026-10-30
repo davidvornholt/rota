@@ -14,7 +14,6 @@ import { IngestService } from './ingest.ts';
 // functions that use these for their RPC stubs, and a top-level Effect would
 // drag the server runtime along.
 
-/** Every garment of the wardrobe as the app shows it. */
 export const garmentViews = () =>
   Effect.gen(function* () {
     const garments = yield* GarmentRepository;
