@@ -3,7 +3,10 @@ import { Deferred, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
 import { runSessionRequired } from '#/shared/auth/session-required.ts';
 import type { DayPlan } from '#/shared/data/outfit.ts';
-import type { Proposal } from '#/shared/data/proposal-repository.ts';
+import type {
+  Proposal,
+  ScheduledFailures,
+} from '#/shared/data/proposal-repository.ts';
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
@@ -95,6 +98,7 @@ type Recorded = {
   readonly notes: Array<string>;
   readonly statuses: Array<readonly [string, string]>;
   readonly generated: Array<GenerateOptions>;
+  backoff: ScheduledFailures | undefined;
 };
 
 const depsWith = (
@@ -106,6 +110,7 @@ const depsWith = (
     generated: [],
     notes: [],
     sources: [],
+    backoff: undefined,
   };
   const deps = {
     outfits: {
@@ -125,6 +130,15 @@ const depsWith = (
         recorded.statuses.push([id, status]);
         return Effect.void;
       },
+      scheduledFailures: () => Effect.sync(() => recorded.backoff),
+      saveScheduledFailures: (state: ScheduledFailures) =>
+        Effect.sync(() => {
+          recorded.backoff = state;
+        }),
+      clearScheduledFailures: () =>
+        Effect.sync(() => {
+          recorded.backoff = undefined;
+        }),
     },
     notes: {
       save: (_date: string, note: string) =>
@@ -280,12 +294,12 @@ describe('proposal operations', () => {
       yield* Deferred.succeed(finish, undefined);
       return yield* Effect.all([Fiber.join(first), Fiber.join(second)]);
     });
-    expect(await Effect.runPromise(result)).toEqual([pending, pending]);
+    expect(await Effect.runPromise(result)).toEqual(['proposed', 'proposed']);
     expect(generated).toBe(1);
   });
 
-  it('bounds stuck generation, interrupts it and releases the gate for retry', async () => {
-    const { deps } = depsWith('succeeds');
+  it('bounds stuck generation, interrupts it, counts it and releases the gate for retry', async () => {
+    const { deps, recorded } = depsWith('succeeds');
     deps.proposals.latestForDate = () => Effect.succeed(undefined);
     let interrupted = false;
     let stuck = true;
@@ -313,11 +327,44 @@ describe('proposal operations', () => {
       const outcome = yield* Fiber.join(first);
       expect(outcome._tag).toBe('Failure');
       expect(interrupted).toBeTrue();
+      expect(recorded.backoff?.failures).toBe(1);
       stuck = false;
+      yield* TestClock.adjust('10 minutes');
       return yield* operations.ensure(clock);
     }).pipe(Effect.provide(TestClock.layer()));
-    expect(await Effect.runPromise(result)).toEqual(pending);
+    expect(await Effect.runPromise(result)).toBe('proposed');
+    expect(recorded.backoff).toBeUndefined();
   });
+});
+
+it('releases the gate soon after a stuck attempt cannot be counted', async () => {
+  const { deps } = depsWith('succeeds');
+  deps.proposals.latestForDate = () => Effect.succeed(undefined);
+  deps.proposals.saveScheduledFailures = () => Effect.never;
+  let stuck = true;
+  const result = Effect.gen(function* () {
+    const started = yield* Deferred.make<void>();
+    const operations = yield* makeProposalOperations({
+      ...deps,
+      generate: () =>
+        stuck
+          ? Deferred.succeed(started, undefined).pipe(
+              Effect.andThen(Effect.never),
+            )
+          : Effect.succeed(pending),
+    });
+    const first = yield* Effect.forkChild(operations.ensure(clock));
+    yield* Deferred.await(started);
+    yield* TestClock.adjust('360 seconds');
+    stuck = false;
+    const next = yield* Effect.forkChild(operations.complete(clock, []));
+    yield* TestClock.adjust('360 seconds');
+    yield* Fiber.join(next);
+    return yield* Effect.flip(Fiber.join(first));
+  }).pipe(Effect.provide(TestClock.layer()));
+  expect(await Effect.runPromise(result)).toBeInstanceOf(
+    ProposalGenerationError,
+  );
 });
 
 it('returns a safe timeout through authentication while retaining the previous proposal', async () => {

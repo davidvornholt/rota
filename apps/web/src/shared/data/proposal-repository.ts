@@ -56,8 +56,26 @@ export const ProposalFromRow = Schema.Struct({
 );
 export type Proposal = Schema.Schema.Type<typeof ProposalFromRow>;
 
+/** The scheduler's failed attempts at the proposal for `forDate`. */
+const ScheduledFailuresFromRow = Schema.Struct({
+  forDate: LocalDateSchema,
+  failures: Schema.Number,
+  lastFailedAt: Schema.Date,
+}).pipe(
+  Schema.encodeKeys({
+    forDate: 'for_date',
+    lastFailedAt: 'last_failed_at',
+  }),
+);
+export type ScheduledFailures = Schema.Schema.Type<
+  typeof ScheduledFailuresFromRow
+>;
+
 const decodeProposals = Schema.decodeUnknownEffect(
   Schema.Array(ProposalFromRow),
+);
+const decodeScheduledFailures = Schema.decodeUnknownEffect(
+  Schema.Array(ScheduledFailuresFromRow),
 );
 const readProposal = readError('The proposal');
 const writeProposal = writeError('The proposal');
@@ -148,7 +166,43 @@ export class ProposalRepository extends Context.Service<ProposalRepository>()(
           order by for_date desc, created_at desc
         `.pipe(Effect.flatMap(decodeProposals), Effect.mapError(readProposal));
 
-      return { listForDate, latestForDate, byId, insert, setStatus, history };
+      /** The wardrobe's one backoff row, for whichever day the scheduler last failed on. */
+      const scheduledFailures = () =>
+        sql`
+          select for_date, failures, last_failed_at
+          from proposal_backoff where owner_id = ${owner.id}
+        `.pipe(
+          Effect.flatMap(decodeScheduledFailures),
+          Effect.map((rows): ScheduledFailures | undefined => rows[0]),
+          Effect.mapError(readProposal),
+        );
+
+      const saveScheduledFailures = (state: ScheduledFailures) =>
+        sql`
+          insert into proposal_backoff (owner_id, for_date, failures, last_failed_at)
+          values (${owner.id}, ${state.forDate}, ${state.failures}, ${state.lastFailedAt})
+          on conflict (owner_id) do update set
+            for_date = excluded.for_date,
+            failures = excluded.failures,
+            last_failed_at = excluded.last_failed_at
+        `.pipe(Effect.asVoid, Effect.mapError(writeProposal));
+
+      const clearScheduledFailures = (date: LocalDate) =>
+        sql`
+          delete from proposal_backoff where owner_id = ${owner.id} and for_date = ${date}
+        `.pipe(Effect.asVoid, Effect.mapError(writeProposal));
+
+      return {
+        listForDate,
+        latestForDate,
+        byId,
+        insert,
+        setStatus,
+        history,
+        scheduledFailures,
+        saveScheduledFailures,
+        clearScheduledFailures,
+      };
     }),
   },
 ) {

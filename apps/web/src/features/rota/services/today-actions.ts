@@ -19,7 +19,8 @@ export type TickDeps = {
  * The clock's question. Once the proposal hour has passed and the day has
  * no proposal, one is made; a day already decided or already proposed is
  * left alone, and so is a wardrobe with nothing active to propose. Failures
- * are logged, never thrown: the next tick tries again.
+ * are logged, never thrown; `proposal-backoff.ts` decides when a later tick
+ * tries again.
  */
 export const tick = (
   { garments, wearLog, proposalService }: TickDeps,
@@ -40,8 +41,7 @@ export const tick = (
     if (!all.some((garment) => garment.status === 'active')) {
       return 'skipped' as const;
     }
-    yield* proposalService.ensure(clock);
-    return 'proposed' as const;
+    return yield* proposalService.ensure(clock);
   }).pipe(
     Effect.catch((error) =>
       Effect.logWarning(

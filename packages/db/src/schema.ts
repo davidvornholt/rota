@@ -235,6 +235,18 @@ export const proposal = pgTable(
   ],
 );
 
+/**
+ * The scheduler's failed attempts at a wardrobe's proposal for `for_date`. It
+ * is stored because a restart would otherwise let the scheduler ask a failing
+ * model again at once.
+ */
+export const proposalBackoff = pgTable('proposal_backoff', {
+  ownerId: text('owner_id').primaryKey(),
+  forDate: date('for_date').notNull(),
+  failures: integer('failures').notNull(),
+  lastFailedAt: timestamp('last_failed_at', { withTimezone: true }).notNull(),
+});
+
 /** The free-text occasion note for a day, when there is one. */
 export const dayNote = pgTable(
   'day_note',
