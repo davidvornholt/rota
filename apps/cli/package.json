@@ -1,0 +1,21 @@
+{
+  "name": "@rota/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build --compile src/app/cli.ts --outfile dist/rota",
+    "check-types": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@effect/platform-bun": "4.0.1",
+    "@rota/api": "workspace:*",
+    "effect": "^4.0.1"
+  },
+  "devDependencies": {
+    "@davidvornholt/typescript-config": "workspace:*",
+    "@types/bun": "^1.4.3",
+    "typescript": "7.0.2"
+  }
+}

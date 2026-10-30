@@ -3,6 +3,7 @@ import { HttpApi, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import { Authorization } from './authorization.ts';
 import { failures } from './errors/api-errors.ts';
 import {
+  DayRefSchema,
   DaySchema,
   DayViewSchema,
   ForecastSchema,
@@ -19,8 +20,40 @@ export const occasionLength = 280;
 export const collectionNameLength = 40;
 export const collectionsPerOutfit = 12;
 
-const dayParams = { date: DaySchema };
+const dayParams = { date: DayRefSchema };
 const idParams = { id: IdSchema };
+
+const CollectionNameSchema = Schema.String.check(
+  Schema.isMaxLength(collectionNameLength),
+);
+
+// The request bodies are exported so a client can check its input before
+// sending it; the server answers a body that fails them with an empty 400.
+
+export const PlanPayloadSchema = Schema.Struct({
+  items: OutfitEntriesSchema,
+  basedOn: Schema.NullOr(
+    Schema.String.check(Schema.isMaxLength(outfitNameLength)),
+  ),
+});
+
+export const OccasionPayloadSchema = Schema.Struct({
+  text: Schema.String.check(Schema.isMaxLength(occasionLength)),
+});
+
+export const WearPayloadSchema = Schema.Struct({ items: OutfitEntriesSchema });
+
+export const SaveOutfitPayloadSchema = Schema.Struct({
+  name: Schema.String.check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(outfitNameLength),
+  ),
+  items: OutfitEntriesSchema,
+  collections: Schema.Array(CollectionNameSchema).check(
+    Schema.isMaxLength(collectionsPerOutfit),
+  ),
+  favourite: Schema.Boolean,
+});
 
 export const AccountApi = HttpApiGroup.make('account').add(
   HttpApiEndpoint.get('me', '/me', { success: MemberSchema, error: failures }),
@@ -49,27 +82,20 @@ export const DaysApi = HttpApiGroup.make('days').add(
   }),
   HttpApiEndpoint.put('plan', '/days/:date/plan', {
     params: dayParams,
-    payload: Schema.Struct({
-      items: OutfitEntriesSchema,
-      basedOn: Schema.NullOr(
-        Schema.String.check(Schema.isMaxLength(outfitNameLength)),
-      ),
-    }),
+    payload: PlanPayloadSchema,
     success: DayViewSchema,
     error: failures,
   }),
   HttpApiEndpoint.put('occasion', '/days/:date/occasion', {
     params: dayParams,
-    payload: Schema.Struct({
-      text: Schema.String.check(Schema.isMaxLength(occasionLength)),
-    }),
+    payload: OccasionPayloadSchema,
     success: DayViewSchema,
     error: failures,
   }),
   /** Records what was actually worn; only today can be recorded. */
   HttpApiEndpoint.put('wear', '/days/:date/worn', {
     params: dayParams,
-    payload: Schema.Struct({ items: OutfitEntriesSchema }),
+    payload: WearPayloadSchema,
     success: DayViewSchema,
     error: failures,
   }),
@@ -77,10 +103,6 @@ export const DaysApi = HttpApiGroup.make('days').add(
     success: ForecastSchema,
     error: failures,
   }),
-);
-
-const CollectionNameSchema = Schema.String.check(
-  Schema.isMaxLength(collectionNameLength),
 );
 
 export const OutfitsApi = HttpApiGroup.make('outfits')
@@ -92,17 +114,7 @@ export const OutfitsApi = HttpApiGroup.make('outfits')
     /** Creates the outfit with this id, or replaces it. A replaced outfit keeps its favourite mark. */
     HttpApiEndpoint.put('save', '/:id', {
       params: idParams,
-      payload: Schema.Struct({
-        name: Schema.String.check(
-          Schema.isMinLength(1),
-          Schema.isMaxLength(outfitNameLength),
-        ),
-        items: OutfitEntriesSchema,
-        collections: Schema.Array(CollectionNameSchema).check(
-          Schema.isMaxLength(collectionsPerOutfit),
-        ),
-        favourite: Schema.Boolean,
-      }),
+      payload: SaveOutfitPayloadSchema,
       success: OutfitSchema,
       error: failures,
     }),

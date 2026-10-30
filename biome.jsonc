@@ -175,6 +175,34 @@
       }
     },
     {
+      // The rota CLI is compiled into a single Bun binary and never runs in a
+      // browser or on an edge runtime, which is what noNodejsModules
+      // protects; the `Bun` global comes from that runtime.
+      "includes": ["apps/cli/**"],
+      "javascript": {
+        "globals": ["Bun"]
+      },
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noNodejsModules": "off"
+          }
+        }
+      }
+    },
+    {
+      // The device sign-in fixtures are RFC 8628 wire bodies, whose field
+      // names are snake_case.
+      "includes": ["apps/cli/src/features/login/device-login.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
       // noImgElement is a Next.js rule about its <Image> component. This is a
       // Vite app; the garment figure, its enlarged view and the outfit
       // collage render a plain <img> with explicit dimensions and async
