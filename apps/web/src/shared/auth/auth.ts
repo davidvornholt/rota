@@ -1,5 +1,6 @@
 import {
   account,
+  deviceCode,
   passkey,
   session,
   user,
@@ -15,7 +16,7 @@ import { createAuthOptions } from './auth-options.ts';
 import { familyPasskeys } from './passkeys.ts';
 import { clearCacheOnSignOut } from './sign-out-cache.ts';
 
-const schema = { account, passkey, session, user, verification };
+const schema = { account, deviceCode, passkey, session, user, verification };
 const db = drizzle(authPool, { schema });
 
 const options = createAuthOptions({

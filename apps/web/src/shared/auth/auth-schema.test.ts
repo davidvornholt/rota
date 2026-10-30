@@ -1,6 +1,7 @@
 import { expect, it } from 'bun:test';
 import {
   account,
+  deviceCode,
   passkey,
   session,
   user,
@@ -24,7 +25,7 @@ it('the real auth adapter accepts the production account schema before serving r
     }),
     database: drizzleAdapter(
       drizzle.mock({
-        schema: { account, passkey, session, user, verification },
+        schema: { account, deviceCode, passkey, session, user, verification },
       }),
       { provider: 'pg' },
     ),

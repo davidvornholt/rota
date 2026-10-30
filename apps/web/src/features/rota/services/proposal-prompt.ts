@@ -24,8 +24,8 @@ import {
   formatWeekday,
   type LocalDate,
 } from '#/shared/time/local-date.ts';
+import { weatherSentence } from '#/shared/weather/weather-words.ts';
 import type { Candidate, Continuation } from '../rotation.ts';
-import { weatherSentence } from '../weather-words.ts';
 
 export type SlotChoices = {
   readonly slot: Slot;

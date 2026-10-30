@@ -99,6 +99,13 @@
       "when": 1793358908401,
       "tag": "0013_proposal_backoff",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793392771306,
+      "tag": "0014_device_login",
+      "breakpoints": true
     }
   ]
 }

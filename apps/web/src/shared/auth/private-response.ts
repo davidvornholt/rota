@@ -41,7 +41,9 @@ const maximumClientError = 499;
  * for the browser: those are the expected, user-correctable failures. Anything
  * else is an operational detail and stays on the server.
  */
-const taggedSafeFailure = (failure: unknown): SafeFailure | undefined => {
+export const taggedSafeFailure = (
+  failure: unknown,
+): SafeFailure | undefined => {
   if (
     typeof failure !== 'object' ||
     failure === null ||

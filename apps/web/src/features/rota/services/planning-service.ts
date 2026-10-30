@@ -200,7 +200,7 @@ const rewriteOutfits = (
       );
   });
 
-const applyOutfitChange = (
+export const applyOutfitChange = (
   change: Extract<
     PlanningChange,
     {

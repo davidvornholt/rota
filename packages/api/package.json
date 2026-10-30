@@ -1,0 +1,26 @@
+{
+  "name": "@rota/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./api": "./src/api.ts",
+    "./authorization": "./src/authorization.ts",
+    "./current-member": "./src/current-member.ts",
+    "./device-login": "./src/device-login.ts",
+    "./errors": "./src/errors/api-errors.ts",
+    "./wardrobe": "./src/wardrobe.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "effect": "^4.0.1"
+  },
+  "devDependencies": {
+    "@davidvornholt/typescript-config": "workspace:*",
+    "@types/bun": "^1.4.2",
+    "typescript": "7.0.2"
+  }
+}

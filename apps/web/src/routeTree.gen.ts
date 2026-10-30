@@ -14,6 +14,7 @@ import { Route as JoinRouteImport } from './routes/join'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppDeviceRouteImport } from './routes/_app/device'
 import { Route as AppLaundryRouteImport } from './routes/_app/laundry'
 import { Route as AppOutfitsRouteImport } from './routes/_app/outfits'
 import { Route as AppPeopleRouteImport } from './routes/_app/people'
@@ -27,6 +28,7 @@ import { Route as AppPeopleMemberIdRouteImport } from './routes/_app/people.$mem
 import { Route as AppWardrobeIndexRouteImport } from './routes/_app/wardrobe.index'
 import { Route as AppWardrobeGarmentIdRouteImport } from './routes/_app/wardrobe.$garmentId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiCliSplatRouteImport } from './routes/api/cli/$'
 import { Route as ApiGarmentsUploadRouteImport } from './routes/api/garments/upload'
 import { Route as ApiInternalTickRouteImport } from './routes/api/internal/tick'
 import { Route as ApiMediaSplatRouteImport } from './routes/api/media/$'
@@ -54,6 +56,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAccountRoute = AppAccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDeviceRoute = AppDeviceRouteImport.update({
+  id: '/device',
+  path: '/device',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLaundryRoute = AppLaundryRouteImport.update({
@@ -121,6 +128,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCliSplatRoute = ApiCliSplatRouteImport.update({
+  id: '/api/cli/$',
+  path: '/api/cli/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGarmentsUploadRoute = ApiGarmentsUploadRouteImport.update({
   id: '/api/garments/upload',
   path: '/api/garments/upload',
@@ -148,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/account': typeof AppAccountRoute
+  '/device': typeof AppDeviceRoute
   '/laundry': typeof AppLaundryRoute
   '/outfits': typeof AppOutfitsRoute
   '/people': typeof AppPeopleRouteWithChildren
@@ -158,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/people/$memberId': typeof AppPeopleMemberIdRoute
   '/wardrobe/$garmentId': typeof AppWardrobeGarmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cli/$': typeof ApiCliSplatRoute
   '/api/garments/upload': typeof ApiGarmentsUploadRoute
   '/api/internal/tick': typeof ApiInternalTickRoute
   '/api/media/$': typeof ApiMediaSplatRoute
@@ -170,6 +184,7 @@ export interface FileRoutesByTo {
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/account': typeof AppAccountRoute
+  '/device': typeof AppDeviceRoute
   '/laundry': typeof AppLaundryRoute
   '/outfits': typeof AppOutfitsRoute
   '/settings': typeof AppSettingsRoute
@@ -180,6 +195,7 @@ export interface FileRoutesByTo {
   '/people/$memberId': typeof AppPeopleMemberIdRoute
   '/wardrobe/$garmentId': typeof AppWardrobeGarmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cli/$': typeof ApiCliSplatRoute
   '/api/garments/upload': typeof ApiGarmentsUploadRoute
   '/api/internal/tick': typeof ApiInternalTickRoute
   '/api/media/$': typeof ApiMediaSplatRoute
@@ -194,6 +210,7 @@ export interface FileRoutesById {
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/device': typeof AppDeviceRoute
   '/_app/laundry': typeof AppLaundryRoute
   '/_app/outfits': typeof AppOutfitsRoute
   '/_app/people': typeof AppPeopleRouteWithChildren
@@ -205,6 +222,7 @@ export interface FileRoutesById {
   '/_app/people/$memberId': typeof AppPeopleMemberIdRoute
   '/_app/wardrobe/$garmentId': typeof AppWardrobeGarmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cli/$': typeof ApiCliSplatRoute
   '/api/garments/upload': typeof ApiGarmentsUploadRoute
   '/api/internal/tick': typeof ApiInternalTickRoute
   '/api/media/$': typeof ApiMediaSplatRoute
@@ -220,6 +238,7 @@ export interface FileRouteTypes {
     | '/join'
     | '/login'
     | '/account'
+    | '/device'
     | '/laundry'
     | '/outfits'
     | '/people'
@@ -230,6 +249,7 @@ export interface FileRouteTypes {
     | '/people/$memberId'
     | '/wardrobe/$garmentId'
     | '/api/auth/$'
+    | '/api/cli/$'
     | '/api/garments/upload'
     | '/api/internal/tick'
     | '/api/media/$'
@@ -242,6 +262,7 @@ export interface FileRouteTypes {
     | '/join'
     | '/login'
     | '/account'
+    | '/device'
     | '/laundry'
     | '/outfits'
     | '/settings'
@@ -252,6 +273,7 @@ export interface FileRouteTypes {
     | '/people/$memberId'
     | '/wardrobe/$garmentId'
     | '/api/auth/$'
+    | '/api/cli/$'
     | '/api/garments/upload'
     | '/api/internal/tick'
     | '/api/media/$'
@@ -265,6 +287,7 @@ export interface FileRouteTypes {
     | '/join'
     | '/login'
     | '/_app/account'
+    | '/_app/device'
     | '/_app/laundry'
     | '/_app/outfits'
     | '/_app/people'
@@ -276,6 +299,7 @@ export interface FileRouteTypes {
     | '/_app/people/$memberId'
     | '/_app/wardrobe/$garmentId'
     | '/api/auth/$'
+    | '/api/cli/$'
     | '/api/garments/upload'
     | '/api/internal/tick'
     | '/api/media/$'
@@ -291,6 +315,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiHealthzRoute: typeof ApiHealthzRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiCliSplatRoute: typeof ApiCliSplatRoute
   ApiGarmentsUploadRoute: typeof ApiGarmentsUploadRoute
   ApiInternalTickRoute: typeof ApiInternalTickRoute
   ApiMediaSplatRoute: typeof ApiMediaSplatRoute
@@ -332,6 +357,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AppAccountRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/device': {
+      id: '/_app/device'
+      path: '/device'
+      fullPath: '/device'
+      preLoaderRoute: typeof AppDeviceRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/laundry': {
@@ -425,6 +457,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cli/$': {
+      id: '/api/cli/$'
+      path: '/api/cli/$'
+      fullPath: '/api/cli/$'
+      preLoaderRoute: typeof ApiCliSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/garments/upload': {
       id: '/api/garments/upload'
       path: '/api/garments/upload'
@@ -472,6 +511,7 @@ const AppPeopleRouteWithChildren = AppPeopleRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppDeviceRoute: typeof AppDeviceRoute
   AppLaundryRoute: typeof AppLaundryRoute
   AppOutfitsRoute: typeof AppOutfitsRoute
   AppPeopleRoute: typeof AppPeopleRouteWithChildren
@@ -486,6 +526,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppDeviceRoute: AppDeviceRoute,
   AppLaundryRoute: AppLaundryRoute,
   AppOutfitsRoute: AppOutfitsRoute,
   AppPeopleRoute: AppPeopleRouteWithChildren,
@@ -506,6 +547,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiHealthzRoute: ApiHealthzRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiCliSplatRoute: ApiCliSplatRoute,
   ApiGarmentsUploadRoute: ApiGarmentsUploadRoute,
   ApiInternalTickRoute: ApiInternalTickRoute,
   ApiMediaSplatRoute: ApiMediaSplatRoute,
