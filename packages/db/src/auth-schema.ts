@@ -85,6 +85,20 @@ export const passkey = pgTable('passkey', {
   aaguid: text('aaguid'),
 });
 
+/** Better Auth's device authorization grant, which signs the `rota` CLI in. */
+export const deviceCode = pgTable('device_code', {
+  id: text('id').primaryKey(),
+  deviceCode: text('device_code').notNull().unique(),
+  userCode: text('user_code').notNull().unique(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at').notNull(),
+  status: text('status').notNull(),
+  lastPolledAt: timestamp('last_polled_at'),
+  pollingInterval: integer('polling_interval'),
+  clientId: text('client_id'),
+  scope: text('scope'),
+});
+
 export const member = pgTable('member', {
   id: text('id').primaryKey(),
   userId: text('user_id')

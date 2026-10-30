@@ -3,13 +3,7 @@ import { Effect } from 'effect';
 
 import { sessionRequired } from '#/shared/auth/auth-middleware.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
-import {
-  type GarmentView,
-  toGarmentView,
-  wearFactsByGarment,
-} from '#/shared/data/garment-view.ts';
-import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
-import { MediaStore } from '#/shared/media/media-store.ts';
+import type { GarmentView } from '#/shared/data/garment-view.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { readWardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import {
@@ -20,6 +14,7 @@ import {
   decodeRetryStudioInput,
   decodeUpdateGarmentInput,
 } from '../schemas/garment-input.ts';
+import { garmentView, garmentViews } from './garment-views.ts';
 import { garmentsRuntime } from './garments-runtime.ts';
 import { IngestService } from './ingest.ts';
 
@@ -30,46 +25,6 @@ export type WardrobeView = {
   readonly active: ReadonlyArray<GarmentView>;
   readonly retired: ReadonlyArray<GarmentView>;
 };
-
-// A function, not a module-level Effect: the browser imports this module for
-// its RPC stubs, and a top-level Effect would drag the server runtime along.
-const garmentViews = () =>
-  Effect.gen(function* () {
-    const garments = yield* GarmentRepository;
-    const wearLog = yield* WearLogRepository;
-    const media = yield* MediaStore;
-    const clock = yield* readWardrobeClock();
-    const ingest = yield* IngestService;
-    const studioProgress = ingest.studioProgress();
-    const [rows, log] = yield* Effect.all([garments.list(), wearLog.history()]);
-    const facts = wearFactsByGarment(log, clock.today);
-    return {
-      today: clock.today,
-      views: rows.map((row) =>
-        toGarmentView({
-          garment: row,
-          facts: facts.get(row.id),
-          categoryBudgets: clock.settings.categoryBudgets,
-          laundryDays: clock.settings.laundryDays,
-          today: clock.today,
-          urlFor: media.urlFor,
-          studioProgress: studioProgress.get(row.id),
-        }),
-      ),
-    };
-  });
-
-const garmentView = (id: string) =>
-  Effect.gen(function* () {
-    const { views } = yield* garmentViews();
-    const view = views.find((candidate) => candidate.id === id);
-    if (view === undefined) {
-      // byId fails with the typed not-found the browser can hear.
-      yield* Effect.flatMap(GarmentRepository, (garments) => garments.byId(id));
-      return yield* Effect.die('The garment vanished between two reads.');
-    }
-    return view;
-  });
 
 export const wardrobeFn = createServerFn({ method: 'GET' })
   .middleware([sessionRequired])

@@ -7,7 +7,7 @@ import {
   type LocalDate,
 } from '#/shared/time/local-date.ts';
 import { forecastHoursLabel } from '#/shared/weather/forecast-window.ts';
-import { weatherWords } from '../weather-words.ts';
+import { weatherWords } from '#/shared/weather/weather-words.ts';
 
 type WeatherStripProps = {
   readonly today: LocalDate;

@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
-import { Effect, Layer, Schema } from 'effect';
+import { Effect, Schema } from 'effect';
 
 import { sessionRequired } from '#/shared/auth/auth-middleware.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
@@ -21,7 +21,6 @@ import {
   WeatherRepository,
 } from '#/shared/data/weather-repository.ts';
 import { MediaStore } from '#/shared/media/media-store.ts';
-import { featureRuntime } from '#/shared/runtime/infrastructure.ts';
 import { type LocalDate, yearOf } from '#/shared/time/local-date.ts';
 import { LocalDateSchema } from '#/shared/time/local-date-schema.ts';
 import { readWardrobeClock } from '#/shared/time/wardrobe-clock.ts';
@@ -37,8 +36,7 @@ import {
   type TemperatureRow,
   temperatureByGarment,
 } from '../stats.ts';
-
-const runtime = featureRuntime('history', () => Layer.empty);
+import { historyRuntime } from './history-runtime.ts';
 
 export type CalendarDay = {
   readonly date: LocalDate;
@@ -126,7 +124,7 @@ export const historyFn = createServerFn({ method: 'GET' })
   .validator((input: unknown) => decodeHistoryQuery(input ?? {}))
   .handler(
     ({ data }): Promise<HistoryView> =>
-      runtime.run(
+      historyRuntime.run(
         Effect.map(
           loadAll(),
           ({ clock, log, weather, proposals, views, byId }) => {
@@ -229,7 +227,7 @@ export const dayFn = createServerFn({ method: 'GET' })
   .validator((input: unknown) => decodeDayQuery(input))
   .handler(
     ({ data }): Promise<DayView> =>
-      runtime.run(
+      historyRuntime.run(
         Effect.gen(function* () {
           const { clock, log, weather, proposals, views, byId } =
             yield* loadAll();
@@ -289,7 +287,7 @@ export const catchUpFn = createServerFn({ method: 'GET' })
   .middleware([sessionRequired])
   .handler(
     (): Promise<CatchUpView> =>
-      runtime.run(
+      historyRuntime.run(
         Effect.gen(function* () {
           const { clock, log, weather, views, byId } = yield* loadAll();
           const lastDate = lastLoggedDayBefore(log, clock.today);

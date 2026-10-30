@@ -1,4 +1,6 @@
+import { deviceClientId } from '@rota/api/device-login';
 import type { BetterAuthOptions } from 'better-auth';
+import { bearer, deviceAuthorization } from 'better-auth/plugins';
 import { tanstackStartCookies } from 'better-auth/tanstack-start';
 
 import { createGitHubAccountGate } from './authorization.ts';
@@ -33,5 +35,16 @@ export const createAuthOptions = ({
     user: { validateUserInfo: createGitHubAccountGate(allowedGitHubAccountId) },
     /** Provider access tokens are encrypted with `secret` before they are stored. */
     account: { encryptOAuthTokens: true, accountLinking: { enabled: false } },
-    plugins: [tanstackStartCookies()],
+    plugins: [
+      // `rota login` asks for a device code, the member approves it at
+      // /device, and the CLI then sends the session token as a bearer token.
+      deviceAuthorization({
+        expiresIn: '15m',
+        validateClient: (clientId) => clientId === deviceClientId,
+        verificationUri: '/device',
+      }),
+      bearer(),
+      // Better Auth requires this one to come last.
+      tanstackStartCookies(),
+    ],
   }) satisfies BetterAuthOptions;
