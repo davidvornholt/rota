@@ -12,8 +12,9 @@ const lastJsonContainer = (text: string): string | undefined => {
   if (isJson(trimmed)) {
     return trimmed;
   }
-  // A key quote or empty-object close distinguishes an object from a stray prose brace.
-  const openings = /\{(?=\s*["}])|\[/gu;
+  // A key quote or empty-object close distinguishes an object from a stray prose
+  // brace, and a value start or empty-array close does the same for a bracket.
+  const openings = /\{(?=\s*["}])|\[(?=\s*(?:[-\d"{[\]]|true|false|null))/gu;
   let last: string | undefined;
   for (
     let opening = openings.exec(trimmed);
