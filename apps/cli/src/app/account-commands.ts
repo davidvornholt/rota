@@ -5,12 +5,12 @@ import {
   requestDeviceCode,
 } from '../features/login/device-login.ts';
 import { endSession } from '../features/login/sign-out.ts';
-import { callRota, rotaLayer } from '../shared/rota-api.ts';
+import { callRota, httpLayer, rotaLayer } from '../shared/rota-api.ts';
 import { forgetToken, readToken, saveToken } from '../shared/session-store.ts';
 import { flag } from './command-inputs.ts';
 import { openBrowser } from './open-browser.ts';
 import { emit, tell } from './output.ts';
-import { currentOrigin, httpLayer } from './root.ts';
+import { currentOrigin } from './root.ts';
 
 const whoAmI = (origin: string) =>
   callRota((client) => client.account.me()).pipe(

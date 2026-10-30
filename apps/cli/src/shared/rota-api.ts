@@ -1,7 +1,11 @@
 import { RotaApi } from '@rota/api/api';
 import { Authorization } from '@rota/api/authorization';
 import { Context, Effect, Layer, Option, type Schema } from 'effect';
-import { type HttpClientError, HttpClientRequest } from 'effect/http';
+import {
+  FetchHttpClient,
+  type HttpClientError,
+  HttpClientRequest,
+} from 'effect/http';
 import { HttpApiClient, HttpApiMiddleware } from 'effect/http-api';
 import {
   NotSignedIn,
@@ -9,6 +13,17 @@ import {
   UnexpectedResponse,
 } from './errors/errors.ts';
 import { readToken } from './session-store.ts';
+
+/**
+ * HTTP for every request. A redirect comes back as its own answer instead of
+ * being followed, because a request may carry the session token or a device
+ * code, which only the Rota server may see.
+ */
+export const httpLayer = FetchHttpClient.layer.pipe(
+  Layer.provide(
+    Layer.succeed(FetchHttpClient.RequestInit, { redirect: 'manual' }),
+  ),
+);
 
 const makeClient = (origin: string, token: string) =>
   HttpApiClient.make(RotaApi, { baseUrl: origin }).pipe(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { Effect } from 'effect';
 import { FetchHttpClient, type HttpClient } from 'effect/http';
+import { httpLayer } from '../../shared/rota-api.ts';
 import { awaitApproval, requestDeviceCode } from './device-login.ts';
 
 const origin = 'https://rota.example.com';
@@ -13,9 +14,11 @@ const fakeRota = (
   replies: ReadonlyArray<{ status: number; body: unknown }>,
 ) => {
   const sent: Array<Sent> = [];
+  const redirects: Array<RequestRedirect | undefined> = [];
   let next = 0;
   const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init);
+    redirects.push(init?.redirect);
     sent.push({
       path: new URL(request.url).pathname,
       body: await request.json(),
@@ -24,7 +27,7 @@ const fakeRota = (
     next += 1;
     return Response.json(reply?.body, { status: reply?.status ?? 500 });
   }) as typeof globalThis.fetch;
-  return { sent, fetch };
+  return { sent, redirects, fetch };
 };
 
 const run = <A, E>(
@@ -33,7 +36,7 @@ const run = <A, E>(
 ) =>
   Effect.runPromise(
     effect.pipe(
-      Effect.provide(FetchHttpClient.layer),
+      Effect.provide(httpLayer),
       Effect.provideService(FetchHttpClient.Fetch, fetch),
     ),
   );
@@ -74,6 +77,32 @@ describe('device login', () => {
     ]);
   });
 
+  it.each([
+    'file:///tmp/review',
+    'vscode://rota/device?user_code=ABCD1234',
+    'https://rota.example.org/device?user_code=ABCD1234',
+    'https://someone@rota.example.com/device?user_code=ABCD1234',
+  ])('refuses the sign-in link %s', async (link) => {
+    const rota = fakeRota([
+      {
+        status: 200,
+        body: {
+          device_code: 'device-1',
+          user_code: 'ABCD1234',
+          verification_uri: `${origin}/device`,
+          verification_uri_complete: link,
+          expires_in: 900,
+          interval: 5,
+        },
+      },
+    ]);
+    const failure = await run(
+      requestDeviceCode(origin).pipe(Effect.flip),
+      rota.fetch,
+    );
+    expect(failure._tag).toBe('UnexpectedResponse');
+  });
+
   it('polls until the code is approved and returns the session token', async () => {
     const rota = fakeRota([
       { status: 400, body: { error: 'authorization_pending' } },
@@ -112,6 +141,12 @@ describe('device login', () => {
     const failure = await refusal(rota.fetch);
     expect(failure._tag).toBe('UnexpectedResponse');
     expect(failure.message).toContain('Unknown code');
+  });
+
+  it('never follows a redirect, which would carry the device code along', async () => {
+    const rota = fakeRota([{ status: 307, body: null }]);
+    expect((await refusal(rota.fetch))._tag).toBe('UnexpectedResponse');
+    expect(rota.redirects).toEqual(['manual']);
   });
 
   it('gives up once the code has run out without asking again', async () => {

@@ -80,6 +80,22 @@ const post = <S extends Schema.Top>(
     return yield* http.execute(request);
   });
 
+/**
+ * The browser opens the sign-in link, so it has to lead to the server itself.
+ * An answer could otherwise point at a local file, another application, or
+ * another site.
+ */
+const onServer = (origin: string) => (code: DeviceCode) => {
+  const link = URL.parse(code.verificationUriComplete);
+  return link?.origin === origin && link.username === '' && link.password === ''
+    ? Effect.succeed(code)
+    : Effect.fail(
+        new UnexpectedResponse({
+          message: `${origin} sent a sign-in link that leads somewhere else, so rota did not show or open it.`,
+        }),
+      );
+};
+
 export const requestDeviceCode = (origin: string) =>
   post(origin, deviceCodePath, CodeRequestSchema, {
     clientId: deviceClientId,
@@ -90,6 +106,7 @@ export const requestDeviceCode = (origin: string) =>
         '2xx': (response) =>
           HttpClientResponse.schemaBodyJson(DeviceCodeSchema)(response).pipe(
             Effect.mapError(explainHttpFailure(origin)),
+            Effect.flatMap(onServer(origin)),
           ),
         orElse: (response) =>
           Effect.fail(

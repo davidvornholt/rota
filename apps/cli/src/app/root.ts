@@ -1,7 +1,6 @@
 import { Config, Effect, Layer, Option } from 'effect';
 import { Command, Flag } from 'effect/cli';
-import { FetchHttpClient } from 'effect/http';
-import { rotaLayer } from '../shared/rota-api.ts';
+import { httpLayer, rotaLayer } from '../shared/rota-api.ts';
 import { defaultServer, serverOrigin } from '../shared/server.ts';
 import { emit } from './output.ts';
 
@@ -24,9 +23,6 @@ export const root = Command.make('rota').pipe(
 export const currentOrigin = Effect.flatMap(root, ({ server: chosen }) =>
   serverOrigin(Option.getOrElse(chosen, () => defaultServer)),
 );
-
-/** HTTP for every request; the session, when there is one, comes from `rotaLayer`. */
-export const httpLayer = FetchHttpClient.layer;
 
 export const signedInLayer = (origin: string) =>
   rotaLayer(origin).pipe(Layer.provideMerge(httpLayer));

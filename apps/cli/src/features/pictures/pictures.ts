@@ -1,12 +1,7 @@
 import { NotFound } from '@rota/api/errors';
 import type { Garment } from '@rota/api/wardrobe';
 import { Effect, FileSystem, Path } from 'effect';
-import {
-  FetchHttpClient,
-  HttpClient,
-  HttpClientRequest,
-  HttpClientResponse,
-} from 'effect/http';
+import { HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http';
 import {
   PictureNotSaved,
   UnexpectedResponse,
@@ -41,7 +36,6 @@ const picturesDirectory = Effect.gen(function* () {
 const notSaved = (file: string) => (error: { readonly message: string }) =>
   new PictureNotSaved({ message: `Could not save ${file}: ${error.message}` });
 
-/** Downloads a stored picture with the session, without following a redirect. */
 const download = (source: URL) =>
   Effect.gen(function* () {
     const { origin, token } = yield* Rota;
@@ -52,12 +46,7 @@ const download = (source: URL) =>
           HttpClientRequest.bearerToken(token),
         ),
       )
-      .pipe(
-        Effect.provideService(FetchHttpClient.RequestInit, {
-          redirect: 'manual',
-        }),
-        Effect.mapError(explainHttpFailure(origin)),
-      );
+      .pipe(Effect.mapError(explainHttpFailure(origin)));
     return yield* HttpClientResponse.matchStatus(response, {
       '2xx': (found) =>
         found.arrayBuffer.pipe(Effect.mapError(explainHttpFailure(origin))),
