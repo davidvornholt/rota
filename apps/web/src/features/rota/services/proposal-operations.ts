@@ -82,7 +82,9 @@ const countFailure = (
 ) =>
   Effect.gen(function* () {
     const next = afterFailure(state, today, yield* now);
-    yield* deps.proposals.saveScheduledFailures(next);
+    yield* deps.proposals
+      .saveScheduledFailures(next)
+      .pipe(Effect.timeout('5 seconds'));
     if (next.failures >= scheduledAttemptsPerDay) {
       yield* Effect.logWarning(
         'The scheduled proposal failed too often today; it waits for the wearer to ask.',
@@ -101,7 +103,9 @@ const countFailure = (
  * One scheduled attempt at the day's proposal, unless today's earlier
  * failures hold it back (see `proposal-backoff.ts`). A failure is counted
  * inside the gate, so an attempt queued behind this one sees it, and is
- * counted too when the gate's timeout cuts the attempt off.
+ * counted too when the gate's timeout cuts the attempt off. The count runs
+ * uninterruptibly, so the gate's timeout waits for it; its own deadline keeps
+ * a stalled write from holding the gate.
  */
 const scheduledGeneration = (
   deps: SettlementDeps,

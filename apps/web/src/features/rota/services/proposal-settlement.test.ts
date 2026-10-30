@@ -337,6 +337,36 @@ describe('proposal operations', () => {
   });
 });
 
+it('releases the gate soon after a stuck attempt cannot be counted', async () => {
+  const { deps } = depsWith('succeeds');
+  deps.proposals.latestForDate = () => Effect.succeed(undefined);
+  deps.proposals.saveScheduledFailures = () => Effect.never;
+  let stuck = true;
+  const result = Effect.gen(function* () {
+    const started = yield* Deferred.make<void>();
+    const operations = yield* makeProposalOperations({
+      ...deps,
+      generate: () =>
+        stuck
+          ? Deferred.succeed(started, undefined).pipe(
+              Effect.andThen(Effect.never),
+            )
+          : Effect.succeed(pending),
+    });
+    const first = yield* Effect.forkChild(operations.ensure(clock));
+    yield* Deferred.await(started);
+    yield* TestClock.adjust('360 seconds');
+    stuck = false;
+    const next = yield* Effect.forkChild(operations.complete(clock, []));
+    yield* TestClock.adjust('360 seconds');
+    yield* Fiber.join(next);
+    return yield* Effect.flip(Fiber.join(first));
+  }).pipe(Effect.provide(TestClock.layer()));
+  expect(await Effect.runPromise(result)).toBeInstanceOf(
+    ProposalGenerationError,
+  );
+});
+
 it('returns a safe timeout through authentication while retaining the previous proposal', async () => {
   const { deps, recorded } = depsWith('succeeds');
   const failingDeps = {
