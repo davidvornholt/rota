@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test';
 import { Effect } from 'effect';
 import type { Garment } from '#/shared/data/garment.ts';
 import type { GarmentStatus } from '#/shared/data/garment-types.ts';
-import type { Proposal } from '#/shared/data/proposal-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import type { WardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import { tick } from './today-actions.ts';
@@ -63,23 +62,6 @@ const garment = (status: GarmentStatus): Garment => ({
   images: {},
 });
 
-const proposal: Proposal = {
-  id: 'a0000000-0000-4000-8000-000000000000',
-  forDate: today,
-  status: 'pending',
-  payload: {
-    items: [],
-    headline: '',
-    excludedGarmentIds: [],
-    forecastStale: false,
-    occasion: null,
-  },
-  reason: '',
-  model: 'test',
-  createdAt: new Date('2026-10-18T05:00:00Z'),
-  decidedAt: null,
-};
-
 describe('the scheduled tick', () => {
   it.each([
     ['an empty wardrobe', [], 'skipped', 0],
@@ -101,7 +83,7 @@ describe('the scheduled tick', () => {
             ensure: () =>
               Effect.sync(() => {
                 ensured += 1;
-                return proposal;
+                return 'proposed' as const;
               }),
           },
         },
@@ -110,5 +92,19 @@ describe('the scheduled tick', () => {
     );
     expect(result).toBe(outcome);
     expect(ensured).toBe(proposals);
+  });
+
+  it('reports an attempt held back after earlier failures as waiting', async () => {
+    const result = await Effect.runPromise(
+      tick(
+        {
+          garments: { list: () => Effect.succeed([garment('active')]) },
+          wearLog: { readDay: () => Effect.succeed([]) },
+          proposalService: { ensure: () => Effect.succeed('waiting' as const) },
+        },
+        clock,
+      ),
+    );
+    expect(result).toBe('waiting');
   });
 });

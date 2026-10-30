@@ -29,6 +29,7 @@ import { verifyCare, verifyDailyDrafts } from './verify-daily-drafts.ts';
 import { verifyDirectLaundry } from './verify-direct-laundry.ts';
 import { verifyFavourites } from './verify-favourites.ts';
 import { verifyPlanningIsolation } from './verify-planning-isolation.ts';
+import { verifyScheduledRetry } from './verify-scheduled-retry.ts';
 import { verifySuggestionRollback } from './verify-suggestion-rollback.ts';
 
 const owner = {
@@ -317,6 +318,9 @@ const verify = Effect.gen(function* () {
   yield* verifyDirectLaundry(clock, entries);
   yield* changePlanning(clock, { action: 'delete-outfit', id: outfitId });
   assert.equal((yield* outfits.list()).length, 0);
+  yield* verifyScheduledRetry(clock, (failing) => {
+    failGeneration = failing;
+  });
 });
 
 const databaseUrl = new URL(process.env.DATABASE_URL ?? '');
@@ -356,7 +360,7 @@ try {
   await verifyPlanningIsolation(pool, databaseUrl.href);
   await Effect.runPromise(
     Effect.logInfo(
-      'Planning integration passed: migrations, suggestions, pinned garments, saved outfits, collections, favourites, plans, wear, weather changes and laundry.',
+      'Planning integration passed: migrations, suggestions, pinned garments, saved outfits, collections, favourites, plans, wear, weather changes, laundry and scheduled retries.',
     ),
   );
 } finally {

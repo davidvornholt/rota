@@ -235,6 +235,20 @@ export const proposal = pgTable(
   ],
 );
 
+/**
+ * The scheduler's failed attempts at a wardrobe's proposal for `for_date`, so
+ * it can wait longer after each one and stop for the day after a few. It is
+ * stored because a restart would otherwise let the scheduler ask a failing
+ * model again at once. One row per wardrobe: a row for an earlier day counts
+ * as no failures, and a proposal made for the day deletes it.
+ */
+export const proposalBackoff = pgTable('proposal_backoff', {
+  ownerId: text('owner_id').primaryKey(),
+  forDate: date('for_date').notNull(),
+  failures: integer('failures').notNull(),
+  lastFailedAt: timestamp('last_failed_at', { withTimezone: true }).notNull(),
+});
+
 /** The free-text occasion note for a day, when there is one. */
 export const dayNote = pgTable(
   'day_note',

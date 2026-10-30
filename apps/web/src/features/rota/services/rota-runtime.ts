@@ -20,7 +20,9 @@ export const rotaRuntime = featureRuntime('rota', () =>
 );
 
 /** The scheduler's entry: called by the server process through the tick route, never by a browser. */
-const tickOne = (): Promise<'skipped' | 'decided' | 'proposed' | 'failed'> =>
+const tickOne = (): Promise<
+  'skipped' | 'decided' | 'proposed' | 'waiting' | 'failed'
+> =>
   rotaRuntime.run(
     Effect.gen(function* () {
       const clock = yield* readWardrobeClock();

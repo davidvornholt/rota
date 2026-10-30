@@ -10,7 +10,7 @@ Expected returns are estimates. Changing the turnaround or editing wear history 
 
 For a clean top every other day, choose the starting date in Settings. The day’s “Clean top” checkbox overrides that schedule for that date.
 
-Run `bun run test:planning-db` after generating the development environment and starting the local database. It creates and removes its own disposable database, applies the generated migrations, and checks planning, saved outfits, garment selection, forecast changes, and laundry with deterministic model and weather responses. It only accepts a localhost database connection.
+Run `bun run test:planning-db` after generating the development environment and starting the local database. It creates and removes its own disposable database, applies the generated migrations, and checks planning, saved outfits, garment selection, forecast changes, laundry, and the stored backoff after a failed scheduled suggestion with deterministic model and weather responses. It only accepts a localhost database connection.
 
 ## Family accounts
 
