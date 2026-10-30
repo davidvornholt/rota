@@ -28,6 +28,11 @@ it.each([
     '{"rotationClockwise":0}',
   ],
   [
+    'a bracketed word before the JSON',
+    'The neckline [left] needs a quarter turn.\n{"rotationClockwise":90}',
+    '{"rotationClockwise":90}',
+  ],
+  [
     'a nested object after an earlier object',
     'Draft: {"a":1}. Final: {"outer":{"inner":[1,2]},"text":"a } and a {"}',
     '{"outer":{"inner":[1,2]},"text":"a } and a {"}',
