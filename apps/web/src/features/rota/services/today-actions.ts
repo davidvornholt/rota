@@ -19,10 +19,8 @@ export type TickDeps = {
  * The clock's question. Once the proposal hour has passed and the day has
  * no proposal, one is made; a day already decided or already proposed is
  * left alone, and so is a wardrobe with nothing active to propose. Failures
- * are logged, never thrown. After a failure the proposal service holds back
- * further scheduled attempts, waiting longer each time and stopping for the
- * day after a few; the tick then reports `waiting` rather than paying a
- * failing model every minute.
+ * are logged, never thrown; `proposal-backoff.ts` decides when a later tick
+ * tries again.
  */
 export const tick = (
   { garments, wearLog, proposalService }: TickDeps,

@@ -15,7 +15,7 @@ export const firstRetryDelay = Duration.minutes(10);
 /** Scheduled attempts per wardrobe and day, the first one included. */
 export const scheduledAttemptsPerDay = 5;
 
-/** The wait after `failures` failed attempts: 10, 20, 40, then 80 minutes. */
+/** The wait after `failures` failed attempts. */
 export const retryDelay = (failures: number): Duration.Duration =>
   Duration.times(firstRetryDelay, 2 ** (failures - 1));
 
