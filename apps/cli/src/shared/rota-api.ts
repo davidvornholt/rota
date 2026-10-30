@@ -107,7 +107,6 @@ const explain = (origin: string) => (error: ApiFailure) => {
   }
 };
 
-/** Sends requests to the signed-in server. */
 export const callRota = <A>(
   request: (client: RotaClient) => Effect.Effect<A, ApiFailure>,
 ) =>

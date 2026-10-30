@@ -3,8 +3,6 @@ import { Effect, Option, Schema } from 'effect';
 import { Argument, Flag } from 'effect/cli';
 import { InvalidInput } from '../shared/errors/errors.ts';
 
-// Arguments, flags, and input checks that several commands share.
-
 // Like `Flag.optional`, but a repeated flag is an error: the parser would keep
 // the first value, so `--top a --top b` would silently mean the first one.
 export const once = <A>(self: Flag.Flag<A>): Flag.Flag<Option.Option<A>> =>
@@ -43,7 +41,6 @@ export const idArgument = (description: string) =>
 
 export const validId = validate(IdSchema, 'id');
 
-/** A day a planning command acts on, `today` unless given. */
 export const dayArgument = Argument.String('day').pipe(
   Argument.withDescription('today, tomorrow, or YYYY-MM-DD (default: today)'),
   Argument.withDefault('today'),
@@ -59,7 +56,6 @@ export const validDay = (value: string) =>
     ),
   );
 
-/** One `--<slot> <garment id>` flag per outfit slot. */
 export const slotFlags = Object.fromEntries(
   slots.map((slot) => [
     slot,
@@ -67,7 +63,6 @@ export const slotFlags = Object.fromEntries(
   ]),
 ) as Record<Slot, Flag.Flag<Option.Option<string>>>;
 
-/** The outfit the slot flags describe, in slot order. */
 export const slotEntries = (chosen: Record<Slot, Option.Option<string>>) =>
   Effect.forEach(slots, (slot) =>
     Option.match(chosen[slot], {
