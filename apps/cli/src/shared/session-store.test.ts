@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { BunServices } from '@effect/platform-bun';
@@ -54,6 +54,21 @@ describe('the session store', () => {
     );
     expect(await run(readToken('http://localhost:3000'))).toEqual(
       Option.some('local'),
+    );
+    expect(permissions(await stat(sessionsFile()))).toBe('600');
+    expect(permissions(await stat(join(home, 'config', 'rota')))).toBe('700');
+  });
+
+  it("takes other users' access away from an existing sessions file", async () => {
+    await mkdir(join(home, 'config', 'rota'), { recursive: true });
+    await chmod(join(home, 'config', 'rota'), 0o777);
+    await Bun.write(
+      sessionsFile(),
+      JSON.stringify({ 'https://rota.example.com': { token: 'remote' } }),
+    );
+    await chmod(sessionsFile(), 0o644);
+    expect(await run(readToken('https://rota.example.com'))).toEqual(
+      Option.some('remote'),
     );
     expect(permissions(await stat(sessionsFile()))).toBe('600');
     expect(permissions(await stat(join(home, 'config', 'rota')))).toBe('700');

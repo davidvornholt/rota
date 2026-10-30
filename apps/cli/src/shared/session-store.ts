@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { Effect, FileSystem, Option, Path, Schema } from 'effect';
 import { SessionStoreFailed } from './errors/errors.ts';
 import { xdgDirectory } from './xdg.ts';
@@ -25,9 +26,43 @@ const storeFailed = (path: string) => (error: { readonly message: string }) =>
     message: `Could not use ${path}: ${error.message}`,
   });
 
+/** Only the signed-in user may read the tokens. */
+const ownerOnlyFile = 0o600;
+const ownerOnlyDirectory = 0o700;
+/** A mode modulo this leaves its last three octal digits, the permissions. */
+const permissionDigits = 0o1000;
+
+/**
+ * Refuses a directory or file that another user owns, since they chose what
+ * is in it, and takes other users' access away from one that grants it.
+ */
+const keepPrivate = (target: string, mode: number) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const info = yield* fs.stat(target).pipe(
+      Effect.map(Option.some),
+      Effect.catchReason('PlatformError', 'NotFound', () => Effect.succeedNone),
+      Effect.mapError(storeFailed(target)),
+    );
+    if (Option.isNone(info)) {
+      return;
+    }
+    if (Option.getOrUndefined(info.value.uid) !== process.getuid?.()) {
+      return yield* new SessionStoreFailed({
+        message: `${target} belongs to another user. Remove it, then run \`rota login\` again.`,
+      });
+    }
+    if (info.value.mode % permissionDigits !== mode) {
+      yield* fs.chmod(target, mode).pipe(Effect.mapError(storeFailed(target)));
+    }
+  });
+
 const readSessions = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
+  const pathService = yield* Path.Path;
   const path = yield* sessionsFile;
+  yield* keepPrivate(pathService.dirname(path), ownerOnlyDirectory);
+  yield* keepPrivate(path, ownerOnlyFile);
   const text = yield* fs.readFileString(path).pipe(
     Effect.map(Option.some),
     Effect.catchReason('PlatformError', 'NotFound', () => Effect.succeedNone),
@@ -40,10 +75,6 @@ const readSessions = Effect.gen(function* () {
     Effect.mapError(storeFailed(path)),
   );
 });
-
-/** Only the signed-in user may read the tokens. */
-const ownerOnlyFile = 0o600;
-const ownerOnlyDirectory = 0o700;
 
 const writeSessions = (sessions: Sessions) =>
   Effect.gen(function* () {
