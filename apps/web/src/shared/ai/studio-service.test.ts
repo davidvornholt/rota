@@ -9,7 +9,7 @@ const permanentStatuses = {
   badRequest: 400,
   unauthorized: 401,
   forbidden: 403,
-  serverError: 500,
+  notImplemented: 501,
 };
 const connection = {
   endpoint: 'http://image.invalid',
@@ -88,6 +88,34 @@ describe('studio image requests', () => {
     for (const body of bodies) {
       expect((body as FormData).get('prompt')).toContain(input.instructions);
     }
+  });
+
+  it('retries an HTTP 500 with the same transparent attempt', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('failed', { status: 500 }));
+    fetchSpy.mockResolvedValueOnce(success());
+    const result = await run(
+      Effect.gen(function* () {
+        const waiting = yield* Deferred.make<void>();
+        const studio = yield* makeStudioRenderer(connection);
+        const job = yield* studio
+          .render(Effect.succeed(input), (state) =>
+            state.status === 'waiting'
+              ? Deferred.succeed(waiting, undefined).pipe(Effect.asVoid)
+              : Effect.void,
+          )
+          .pipe(Effect.forkChild);
+        yield* Deferred.await(waiting);
+        yield* TestClock.adjust('4 seconds');
+        return yield* Fiber.join(job);
+      }),
+    );
+    expect(result.transparent).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const bodies = fetchSpy.mock.calls.map((call) => call[1]?.body as FormData);
+    expect(bodies.map((body) => body.get('background'))).toEqual([
+      'transparent',
+      'transparent',
+    ]);
   });
 
   it.each(Object.values(permanentStatuses))(
