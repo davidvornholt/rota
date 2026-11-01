@@ -38,6 +38,33 @@ const get = Command.make('get', { id: idArgument('Garment id') }, ({ id }) =>
   ),
 ).pipe(Command.withDescription('Show one garment'));
 
+const setRetired = (name: string, retired: boolean, description: string) =>
+  Command.make(name, { id: idArgument('Garment id') }, ({ id }) =>
+    runApi(validId(id), (valid) =>
+      callRota((client) =>
+        client.garments.retire({
+          params: { id: valid },
+          payload: { retired },
+        }),
+      ),
+    ),
+  ).pipe(Command.withDescription(description));
+
+const remove = Command.make(
+  'delete',
+  { id: idArgument('Garment id') },
+  ({ id }) =>
+    runApi(validId(id), (valid) =>
+      callRota((client) =>
+        client.garments.remove({ params: { id: valid } }),
+      ).pipe(Effect.as({ deleted: valid })),
+    ),
+).pipe(
+  Command.withDescription(
+    'Delete a garment for good. A garment that has been worn can only be retired.',
+  ),
+);
+
 /** Few enough that a handful of pictures arrive together without crowding the server. */
 const downloads = 4;
 
@@ -80,6 +107,23 @@ const picture = Command.make(
 );
 
 export const garments = Command.make('garments').pipe(
-  Command.withDescription('Read the garments in the wardrobe'),
-  Command.withSubcommands([list, get, picture]),
+  Command.withDescription(
+    'Read the garments in the wardrobe and retire or delete them',
+  ),
+  Command.withSubcommands([
+    list,
+    get,
+    picture,
+    setRetired(
+      'retire',
+      true,
+      'Take a garment out of rotation. It keeps its history and can be restored. Prints the garment.',
+    ),
+    setRetired(
+      'restore',
+      false,
+      'Bring a retired garment back into rotation. Prints the garment.',
+    ),
+    remove,
+  ]),
 );

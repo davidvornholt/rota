@@ -70,6 +70,18 @@ export const GarmentsApi = HttpApiGroup.make('garments')
       success: GarmentSchema,
       error: failures,
     }),
+    /** Moves a garment out of rotation or back. A garment still being added is accepted or deleted instead. */
+    HttpApiEndpoint.put('retire', '/:id/retired', {
+      params: idParams,
+      payload: Schema.Struct({ retired: Schema.Boolean }),
+      success: GarmentSchema,
+      error: failures,
+    }),
+    /** A garment with wear history can only be retired, so the history keeps it. */
+    HttpApiEndpoint.delete('remove', '/:id', {
+      params: idParams,
+      error: failures,
+    }),
   )
   .prefix('/garments');
 

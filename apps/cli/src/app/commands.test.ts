@@ -5,11 +5,18 @@ import { join } from 'node:path';
 import process from 'node:process';
 import { BunServices } from '@effect/platform-bun';
 import { signOutPath } from '@rota/api/device-login';
-import type { DayView, Garment } from '@rota/api/wardrobe';
+import type { Garment } from '@rota/api/wardrobe';
 import { ConfigProvider, Effect, FileSystem, PlatformError } from 'effect';
 import { Command } from 'effect/cli';
 import { FetchHttpClient } from 'effect/http';
 import { logout, status } from './account-commands.ts';
+import {
+  dayView,
+  garment,
+  jeans,
+  pictureKey,
+  shirt,
+} from './command-fixtures.ts';
 import { days } from './day-commands.ts';
 import { garments } from './garment-commands.ts';
 import { history } from './history-command.ts';
@@ -18,9 +25,6 @@ import { root } from './root.ts';
 
 const origin = 'https://rota.example.com';
 const token = 'session-token';
-const shirt = '11111111-1111-4111-8111-111111111111';
-const jeans = '22222222-2222-4222-8222-222222222222';
-const pictureKey = `${'a'.repeat(64)}.jpg`;
 const outfitPath = /^\/api\/cli\/outfits\/[0-9a-f-]{36}$/u;
 
 type Sent = {
@@ -48,51 +52,6 @@ const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   });
   return answer(`${url.pathname}${url.search}`);
 }) as typeof globalThis.fetch;
-
-const dayView: DayView = {
-  date: '2026-10-31',
-  today: '2026-10-30',
-  weather: null,
-  forecastStale: false,
-  occasion: null,
-  proposal: null,
-  worn: null,
-  plan: null,
-  laundry: [],
-  problem: null,
-  warnings: [],
-};
-
-const garment = (id: string, state: Garment['status']): Garment => ({
-  id,
-  name: `Garment ${id.slice(0, 2)}`,
-  status: state,
-  category: 'shirt',
-  subcategory: '',
-  slots: ['top'],
-  colors: [],
-  pattern: '',
-  material: '',
-  fit: '',
-  sleeve: '',
-  brand: '',
-  notes: '',
-  warmth: 2,
-  formality: 2,
-  rainOk: true,
-  wears: 0,
-  lastWornOn: null,
-  wearBudget: 2,
-  wearsSinceWash: 0,
-  inLaundry: false,
-  readyOn: null,
-  price: null,
-  purchasedOn: null,
-  costPerWear: null,
-  picture: { url: `/api/media/${pictureKey}`, width: 800, height: 1000 },
-  photo: null,
-  studio: null,
-});
 
 const rota = root.pipe(
   Command.withSubcommands([logout, status, garments, days, outfits, history]),
@@ -302,6 +261,30 @@ describe('rota garments', () => {
     const failure = await failureOf('garments', 'picture', shirt, 'jeans');
     expect(failure._tag).toBe('InvalidInput');
     expect(sent).toEqual([]);
+  });
+
+  it('retires, restores, and deletes a garment', async () => {
+    answer = () => Response.json(garment(shirt, 'retired'));
+    await runOk('garments', 'retire', shirt);
+    await runOk('garments', 'restore', shirt);
+    answer = () => new Response(null, { status: 204 });
+    await runOk('garments', 'delete', shirt);
+    expect(
+      sent.map(({ method, path, body }) => ({ method, path, body })),
+    ).toEqual([
+      {
+        method: 'PUT',
+        path: `/api/cli/garments/${shirt}/retired`,
+        body: { retired: true },
+      },
+      {
+        method: 'PUT',
+        path: `/api/cli/garments/${shirt}/retired`,
+        body: { retired: false },
+      },
+      { method: 'DELETE', path: `/api/cli/garments/${shirt}`, body: undefined },
+    ]);
+    expect(printed()).toEqual({ deleted: shirt });
   });
 
   it('refuses a picture the server names outside its media route', async () => {
