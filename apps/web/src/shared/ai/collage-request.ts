@@ -1,9 +1,16 @@
 import { Duration, Effect } from 'effect';
 import { extensionByMime } from '#/shared/media/media-keys.ts';
-import { CollageError, StudioRateLimit } from './errors/ai-errors.ts';
 import {
+  CollageError,
+  type StudioRateLimit,
+  type StudioTransientFailure,
+} from './errors/ai-errors.ts';
+import {
+  answerBody,
   editedImage,
   imageEditsUrl,
+  lostConnection,
+  retryableAnswer,
   type StudioConnection,
 } from './studio-request.ts';
 
@@ -27,7 +34,6 @@ export const collageFailure = 'Rota could not make this picture.';
 /** Sunburst took 63 to 95 seconds for three garments at high and extra-high quality. */
 const requestTimeoutMinutes = 5;
 const requestTimeout = Duration.minutes(requestTimeoutMinutes);
-const tooManyRequests = 429;
 const errorBodyLimit = 500;
 
 const failed = (cause: unknown) =>
@@ -37,7 +43,10 @@ const failed = (cause: unknown) =>
 export const requestCollage = (
   connection: StudioConnection,
   input: CollageInput,
-): Effect.Effect<Uint8Array, CollageError | StudioRateLimit> =>
+): Effect.Effect<
+  Uint8Array,
+  CollageError | StudioRateLimit | StudioTransientFailure
+> =>
   Effect.tryPromise({
     try: async (signal) => {
       const form = new FormData();
@@ -63,14 +72,10 @@ export const requestCollage = (
           body: form,
         },
       );
-      const body = await response.text();
-      if (response.status === tooManyRequests) {
-        return new StudioRateLimit({
-          message: collageFailure,
-          retryAfter: response.headers.get('retry-after-ms'),
-          retryAfterSeconds: response.headers.get('retry-after'),
-          cause: body.slice(0, errorBodyLimit),
-        });
+      const body = await answerBody(response);
+      const retry = retryableAnswer(response, body, collageFailure);
+      if (retry !== undefined) {
+        return retry;
       }
       if (!response.ok) {
         return failed(
@@ -82,7 +87,7 @@ export const requestCollage = (
         ? failed('Foundry returned no picture.')
         : new Uint8Array(Buffer.from(encoded, 'base64'));
     },
-    catch: failed,
+    catch: (cause) => lostConnection(cause, collageFailure) ?? failed(cause),
   }).pipe(
     Effect.flatMap((result) =>
       result instanceof Uint8Array
