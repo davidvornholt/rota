@@ -6,6 +6,7 @@ import {
   type StudioTransientFailure,
 } from './errors/ai-errors.ts';
 import {
+  answerBody,
   editedImage,
   imageEditsUrl,
   lostConnection,
@@ -71,7 +72,7 @@ export const requestCollage = (
           body: form,
         },
       );
-      const body = await response.text();
+      const body = await answerBody(response);
       const retry = retryableAnswer(response, body, collageFailure);
       if (retry !== undefined) {
         return retry;

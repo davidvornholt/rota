@@ -43,10 +43,6 @@ afterAll(() => {
 const run = <A, E>(effect: Effect.Effect<A, E, never>) =>
   Effect.runPromise(effect.pipe(Effect.provide(TestClock.layer())));
 
-/**
- * Renders once, lets the backoff pass when the collage reports a wait, and
- * records the progress and how many requests went out before the wait ended.
- */
 const renderThroughWait = (progress: Array<StudioProgress>) =>
   run(
     Effect.gen(function* () {
@@ -91,7 +87,6 @@ describe('collage provider failures', () => {
       expect(new TextDecoder().decode(bytes)).toBe('picture');
       expect(requestsBeforeRetry).toBe(1);
       expect(fetchSpy).toHaveBeenCalledTimes(2);
-      // The picture shows the wait, then goes back to rendering for the retry.
       expect(progress).toContainEqual(
         expect.objectContaining({ status: 'waiting' }),
       );
@@ -105,6 +100,23 @@ describe('collage provider failures', () => {
     const { bytes, requestsBeforeRetry } = await renderThroughWait([]);
     expect(new TextDecoder().decode(bytes)).toBe('picture');
     expect(requestsBeforeRetry).toBe(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('asks again after a 503 whose body breaks off', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        new ReadableStream({
+          pull: (controller) => {
+            controller.error(new TypeError('socket hang up'));
+          },
+        }),
+        { status: 503 },
+      ),
+    );
+    fetchSpy.mockResolvedValueOnce(success());
+    const { bytes } = await renderThroughWait([]);
+    expect(new TextDecoder().decode(bytes)).toBe('picture');
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 

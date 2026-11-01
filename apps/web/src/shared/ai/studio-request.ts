@@ -131,6 +131,14 @@ export const retryableAnswer = (
     : undefined;
 };
 
+/**
+ * A failure answer still counts by its status when its body breaks off, so a
+ * 503 that loses its connection mid-body is retried. A successful answer whose
+ * body breaks off fails instead, because Foundry has already made that picture.
+ */
+export const answerBody = (response: Response): Promise<string> =>
+  response.ok ? response.text() : response.text().catch(() => '');
+
 /** A request that never got an answer is retried like a transient server failure. */
 export const lostConnection = (
   cause: unknown,
@@ -188,7 +196,7 @@ export const requestEdit = (
           body: form,
         },
       );
-      const body = await response.text();
+      const body = await answerBody(response);
       const retry = retryableAnswer(
         response,
         body,
