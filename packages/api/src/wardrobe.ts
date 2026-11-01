@@ -148,6 +148,8 @@ export const DayViewSchema = Schema.Struct({
   proposal: Schema.NullOr(ProposalSchema),
   worn: Schema.NullOr(Schema.Array(OutfitItemSchema)),
   plan: Schema.NullOr(PlanSchema),
+  /** On a clean-top day the top or dress should be one not worn since its last wash. On other days a partly worn one gets its next wear. */
+  cleanTop: Schema.Boolean,
   /** Active garments that are in the laundry on this day, so a plan should leave them out. */
   laundry: Schema.Array(
     Schema.Struct({

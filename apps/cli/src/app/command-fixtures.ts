@@ -14,6 +14,7 @@ export const dayView: DayView = {
   proposal: null,
   worn: null,
   plan: null,
+  cleanTop: false,
   laundry: [],
   problem: null,
   warnings: [],
