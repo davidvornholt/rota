@@ -1,7 +1,7 @@
 import process from 'node:process';
 import { BunServices } from '@effect/platform-bun';
 import { Console, Effect } from 'effect';
-import { CliOutput, Command } from 'effect/cli';
+import { CliError, CliOutput, Command } from 'effect/cli';
 import packageJson from '../../package.json' with { type: 'json' };
 import { login, logout, status } from './account-commands.ts';
 import { days, forecast } from './day-commands.ts';
@@ -72,7 +72,7 @@ const program = Effect.gen(function* () {
 }).pipe(
   Effect.catch((error) =>
     report(
-      error._tag === 'UserError'
+      CliError.isCliError(error)
         ? { _tag: 'UsageError', message: error.message }
         : error,
     ),

@@ -41,7 +41,7 @@ const rota = async (...args: ReadonlyArray<string>) => {
 };
 
 describe('rota on the command line', () => {
-  it.each(['--bogus', 'garments get'])(
+  it.each(['--bogus', 'garments get', '--log-level invalid'])(
     'reports `rota %s` as one JSON error and prints no help',
     async (command) => {
       const result = await rota(...command.split(' '));
