@@ -293,6 +293,30 @@ describe('rota garments', () => {
     expect(await readdir(join(home, 'cache')).catch(() => [])).toEqual([]);
   });
 
+  it('retires, restores, and deletes a garment', async () => {
+    answer = () => Response.json(garment(shirt, 'retired'));
+    await runOk('garments', 'retire', shirt);
+    await runOk('garments', 'restore', shirt);
+    answer = () => new Response(null, { status: 204 });
+    await runOk('garments', 'delete', shirt);
+    expect(
+      sent.map(({ method, path, body }) => ({ method, path, body })),
+    ).toEqual([
+      {
+        method: 'PUT',
+        path: `/api/cli/garments/${shirt}/retired`,
+        body: { retired: true },
+      },
+      {
+        method: 'PUT',
+        path: `/api/cli/garments/${shirt}/retired`,
+        body: { retired: false },
+      },
+      { method: 'DELETE', path: `/api/cli/garments/${shirt}`, body: undefined },
+    ]);
+    expect(printed()).toEqual({ deleted: shirt });
+  });
+
   it('refuses a picture the server names outside its media route', async () => {
     answer = () =>
       Response.json({

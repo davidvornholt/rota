@@ -14,6 +14,7 @@ import {
   decodeRetryStudioInput,
   decodeUpdateGarmentInput,
 } from '../schemas/garment-input.ts';
+import { deleteGarment, setRetired } from './garment-lifecycle.ts';
 import { garmentView, garmentViews } from './garment-views.ts';
 import { garmentsRuntime } from './garments-runtime.ts';
 import { IngestService } from './ingest.ts';
@@ -94,14 +95,6 @@ export const setImageChoiceFn = createServerFn({ method: 'POST' })
       ),
   );
 
-const setStatus = (id: string, status: 'active' | 'retired') =>
-  Effect.gen(function* () {
-    const garments = yield* GarmentRepository;
-    yield* garments.byId(id);
-    yield* garments.setStatus(id, status);
-    return yield* garmentView(id);
-  });
-
 // Written out twice rather than made by a helper: the compiler only finds a
 // server function's handler when the `createServerFn` chain is in plain sight.
 export const retireGarmentFn = createServerFn({ method: 'POST' })
@@ -109,7 +102,7 @@ export const retireGarmentFn = createServerFn({ method: 'POST' })
   .validator((input: unknown) => decodeGarmentId(input))
   .handler(
     ({ data }): Promise<GarmentView> =>
-      garmentsRuntime.run(setStatus(data.id, 'retired')),
+      garmentsRuntime.run(setRetired(data.id, true)),
   );
 
 export const restoreGarmentFn = createServerFn({ method: 'POST' })
@@ -117,19 +110,14 @@ export const restoreGarmentFn = createServerFn({ method: 'POST' })
   .validator((input: unknown) => decodeGarmentId(input))
   .handler(
     ({ data }): Promise<GarmentView> =>
-      garmentsRuntime.run(setStatus(data.id, 'active')),
+      garmentsRuntime.run(setRetired(data.id, false)),
   );
 
 export const deleteGarmentFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
   .validator((input: unknown) => decodeGarmentId(input))
   .handler(
-    ({ data }): Promise<void> =>
-      garmentsRuntime.run(
-        Effect.flatMap(GarmentRepository, (garments) =>
-          garments.remove(data.id),
-        ),
-      ),
+    ({ data }): Promise<void> => garmentsRuntime.run(deleteGarment(data.id)),
   );
 
 export const retryStudioFn = createServerFn({ method: 'POST' })

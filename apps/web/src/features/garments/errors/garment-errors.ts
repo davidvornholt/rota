@@ -12,3 +12,13 @@ export class UploadError extends Schema.TaggedError<UploadError>()(
     httpStatus: Schema.Literals([badRequest, conflict, contentTooLarge]),
   },
 ) {}
+
+/** A retire, restore, or delete the garment's state doesn't allow; the message says what to do instead. */
+export class GarmentLifecycleError extends Schema.TaggedError<GarmentLifecycleError>()(
+  'GarmentLifecycleError',
+  { message: Schema.String, httpStatus: Schema.Literal(conflict) },
+) {
+  constructor(message: string) {
+    super({ message, httpStatus: conflict });
+  }
+}
