@@ -4,11 +4,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
 import { BunServices } from '@effect/platform-bun';
-import type { DayView, Garment } from '@rota/api/wardrobe';
-import { ConfigProvider, Effect } from 'effect';
+import { signOutPath } from '@rota/api/device-login';
+import type { Garment } from '@rota/api/wardrobe';
+import { ConfigProvider, Effect, FileSystem, PlatformError } from 'effect';
 import { Command } from 'effect/cli';
 import { FetchHttpClient } from 'effect/http';
-import { status } from './account-commands.ts';
+import { logout, status } from './account-commands.ts';
+import {
+  dayView,
+  garment,
+  jeans,
+  pictureKey,
+  shirt,
+} from './command-fixtures.ts';
 import { days } from './day-commands.ts';
 import { garments } from './garment-commands.ts';
 import { history } from './history-command.ts';
@@ -17,9 +25,6 @@ import { root } from './root.ts';
 
 const origin = 'https://rota.example.com';
 const token = 'session-token';
-const shirt = '11111111-1111-4111-8111-111111111111';
-const jeans = '22222222-2222-4222-8222-222222222222';
-const pictureKey = `${'a'.repeat(64)}.jpg`;
 const outfitPath = /^\/api\/cli\/outfits\/[0-9a-f-]{36}$/u;
 
 type Sent = {
@@ -33,6 +38,7 @@ type Sent = {
 // `answer`, so no test reaches a real server.
 let sent: Array<Sent> = [];
 let answer: (path: string) => Response = () => Response.json({});
+let fileSystem = (real: FileSystem.FileSystem) => real;
 
 const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   const request = new Request(input, init);
@@ -47,54 +53,8 @@ const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   return answer(`${url.pathname}${url.search}`);
 }) as typeof globalThis.fetch;
 
-const dayView: DayView = {
-  date: '2026-10-31',
-  today: '2026-10-30',
-  weather: null,
-  forecastStale: false,
-  occasion: null,
-  proposal: null,
-  worn: null,
-  plan: null,
-  cleanTop: false,
-  laundry: [],
-  problem: null,
-  warnings: [],
-};
-
-const garment = (id: string, state: Garment['status']): Garment => ({
-  id,
-  name: `Garment ${id.slice(0, 2)}`,
-  status: state,
-  category: 'shirt',
-  subcategory: '',
-  slots: ['top'],
-  colors: [],
-  pattern: '',
-  material: '',
-  fit: '',
-  sleeve: '',
-  brand: '',
-  notes: '',
-  warmth: 2,
-  formality: 2,
-  rainOk: true,
-  wears: 0,
-  lastWornOn: null,
-  wearBudget: 2,
-  wearsSinceWash: 0,
-  inLaundry: false,
-  readyOn: null,
-  price: null,
-  purchasedOn: null,
-  costPerWear: null,
-  picture: { url: `/api/media/${pictureKey}`, width: 800, height: 1000 },
-  photo: null,
-  studio: null,
-});
-
 const rota = root.pipe(
-  Command.withSubcommands([status, garments, days, outfits, history]),
+  Command.withSubcommands([logout, status, garments, days, outfits, history]),
 );
 
 let home = '';
@@ -106,6 +66,7 @@ const printed = () =>
 const run = (...args: ReadonlyArray<string>) =>
   Effect.runPromise(
     Command.runWith(rota, { version: 'test' })(args).pipe(
+      Effect.updateService(FileSystem.FileSystem, (real) => fileSystem(real)),
       Effect.provide(BunServices.layer),
       Effect.provide(
         ConfigProvider.layer(
@@ -141,6 +102,7 @@ const failureOf = async (...args: ReadonlyArray<string>) => {
 beforeEach(async () => {
   sent = [];
   answer = () => Response.json(dayView);
+  fileSystem = (real) => real;
   home = await mkdtemp(join(tmpdir(), 'rota-cli-'));
   await Bun.write(
     join(home, 'config', 'rota', 'sessions.json'),
@@ -184,7 +146,8 @@ describe('rota day', () => {
     expect(printed()).toEqual(dayView);
   });
 
-  it('rejects a garment id before asking the server', async () => {
+  it('rejects a garment id before reading the session or asking the server', async () => {
+    await rm(join(home, 'config'), { recursive: true });
     const failure = await failureOf('day', 'plan', '--top', 'shirt');
     expect(failure._tag).toBe('InvalidInput');
     expect(sent).toEqual([]);
@@ -294,6 +257,12 @@ describe('rota garments', () => {
     expect(await readdir(join(home, 'cache')).catch(() => [])).toEqual([]);
   });
 
+  it('checks every id before fetching any garment', async () => {
+    const failure = await failureOf('garments', 'picture', shirt, 'jeans');
+    expect(failure._tag).toBe('InvalidInput');
+    expect(sent).toEqual([]);
+  });
+
   it('retires, restores, and deletes a garment', async () => {
     answer = () => Response.json(garment(shirt, 'retired'));
     await runOk('garments', 'retire', shirt);
@@ -330,12 +299,67 @@ describe('rota garments', () => {
 });
 
 describe('rota history', () => {
-  it('asks for the last 30 days by default', async () => {
+  it("leaves a missing end to the server, which knows the wardrobe's date", async () => {
     answer = () => Response.json([]);
+    await runOk('history');
     await runOk('history', '--to', '2026-03-30');
-    expect(sent[0]?.path).toBe(
-      '/api/cli/history?from=2026-03-01&to=2026-03-30',
+    await runOk('history', '--from', '2025-01-01', '--to', '2026-01-01');
+    expect(sent.map((request) => request.path)).toEqual([
+      '/api/cli/history',
+      '/api/cli/history?to=2026-03-30',
+      '/api/cli/history?from=2025-01-01&to=2026-01-01',
+    ]);
+  });
+
+  it('rejects a reversed or too long range before asking the server', async () => {
+    const reversed = await failureOf(
+      'history',
+      '--from',
+      '2026-03-02',
+      '--to',
+      '2026-03-01',
     );
+    const tooLong = await failureOf(
+      'history',
+      '--from',
+      '2025-01-01',
+      '--to',
+      '2026-01-02',
+    );
+    expect([reversed._tag, tooLong._tag]).toEqual([
+      'InvalidInput',
+      'InvalidInput',
+    ]);
+    expect(tooLong.message).toContain('366');
+    expect(sent).toEqual([]);
+  });
+});
+
+describe('rota logout', () => {
+  it('ends the session and reports a token it could not remove', async () => {
+    answer = () => Response.json({});
+    fileSystem = (real) => ({
+      ...real,
+      rename: () =>
+        Effect.fail(
+          PlatformError.systemError({
+            _tag: 'PermissionDenied',
+            module: 'FileSystem',
+            method: 'rename',
+          }),
+        ),
+    });
+    const failure = await failureOf('logout');
+    expect(failure._tag).toBe('SessionStoreFailed');
+    expect(failure.message).toContain('rota logout');
+    expect(sent).toEqual([
+      {
+        method: 'POST',
+        path: signOutPath,
+        authorization: `Bearer ${token}`,
+        body: {},
+      },
+    ]);
   });
 });
 

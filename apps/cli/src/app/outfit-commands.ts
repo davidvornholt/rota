@@ -15,7 +15,7 @@ import {
 import { runApi } from './root.ts';
 
 const list = Command.make('list', {}, () =>
-  runApi(callRota((client) => client.outfits.list())),
+  runApi(Effect.void, () => callRota((client) => client.outfits.list())),
 ).pipe(
   Command.withDescription(
     'List saved outfits with their pieces, collections, and favourite marks',
@@ -59,10 +59,12 @@ const save = Command.make(
           collections: collections.map((collection) => collection.trim()),
           favourite,
         });
-        return yield* callRota((client) =>
-          client.outfits.save({ params: { id: outfitId }, payload }),
-        );
+        return { outfitId, payload };
       }),
+      ({ outfitId, payload }) =>
+        callRota((client) =>
+          client.outfits.save({ params: { id: outfitId }, payload }),
+        ),
     ),
 ).pipe(
   Command.withDescription(
@@ -72,14 +74,12 @@ const save = Command.make(
 
 const markFavourite = (name: string, favourite: boolean, description: string) =>
   Command.make(name, { id: idArgument('Outfit id') }, ({ id }) =>
-    runApi(
-      Effect.flatMap(validId(id), (valid) =>
-        callRota((client) =>
-          client.outfits.favourite({
-            params: { id: valid },
-            payload: { favourite },
-          }),
-        ),
+    runApi(validId(id), (valid) =>
+      callRota((client) =>
+        client.outfits.favourite({
+          params: { id: valid },
+          payload: { favourite },
+        }),
       ),
     ),
   ).pipe(Command.withDescription(description));
@@ -88,14 +88,10 @@ const remove = Command.make(
   'delete',
   { id: idArgument('Outfit id') },
   ({ id }) =>
-    runApi(
-      Effect.gen(function* () {
-        const valid = yield* validId(id);
-        yield* callRota((client) =>
-          client.outfits.remove({ params: { id: valid } }),
-        );
-        return { deleted: valid };
-      }),
+    runApi(validId(id), (valid) =>
+      callRota((client) =>
+        client.outfits.remove({ params: { id: valid } }),
+      ).pipe(Effect.as({ deleted: valid })),
     ),
 ).pipe(Command.withDescription('Delete a saved outfit'));
 

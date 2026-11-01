@@ -143,9 +143,21 @@ export const OutfitsApi = HttpApiGroup.make('outfits')
   )
   .prefix('/outfits');
 
+/** How many days, both ends included, a history request without `from` covers. */
+export const historyDefaultDays = 30;
+/** The most days, both ends included, one history request may cover. */
+export const historyMaxDays = 366;
+
+/**
+ * `to` defaults to today where the wardrobe stands, and `from` to the day
+ * that makes the range `historyDefaultDays` long.
+ */
 export const HistoryApi = HttpApiGroup.make('history').add(
   HttpApiEndpoint.get('list', '/history', {
-    query: { from: DaySchema, to: DaySchema },
+    query: {
+      from: Schema.optional(DaySchema),
+      to: Schema.optional(DaySchema),
+    },
     success: Schema.Array(HistoryDaySchema),
     error: failures,
   }),

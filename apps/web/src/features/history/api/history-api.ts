@@ -1,4 +1,4 @@
-import { RotaApi } from '@rota/api/api';
+import { historyDefaultDays, historyMaxDays, RotaApi } from '@rota/api/api';
 import { Rejected } from '@rota/api/errors';
 import type { HistoryDay } from '@rota/api/wardrobe';
 import { Effect } from 'effect';
@@ -11,14 +11,16 @@ import { slotOrder } from '#/shared/data/garment-types.ts';
 import { WearLogRepository } from '#/shared/data/wear-log-repository.ts';
 import { WeatherRepository } from '#/shared/data/weather-repository.ts';
 import {
+  addDays,
   daysBetween,
   type LocalDate,
   localDate,
 } from '#/shared/time/local-date.ts';
+import { readWardrobeClock } from '#/shared/time/wardrobe-clock.ts';
 import { historyRuntime } from '../services/history-runtime.ts';
 
-/** About a year, so one request stays a small read. */
-const longestRange = 366;
+const wardrobeToday = () =>
+  Effect.map(readWardrobeClock(), (clock) => clock.actualToday);
 
 /** The logged days and noted occasions between two days, oldest first. */
 const historyBetween = (from: LocalDate, to: LocalDate) =>
@@ -64,12 +66,18 @@ export const historyApi = HttpApiBuilder.group(RotaApi, 'history', (handlers) =>
   Effect.succeed(
     handlers.handle('list', ({ query }) =>
       Effect.gen(function* () {
-        const from = localDate(query.from);
-        const to = localDate(query.to);
+        const to =
+          query.to === undefined
+            ? yield* asMember(() => historyRuntime.run(wardrobeToday()))
+            : localDate(query.to);
+        const from =
+          query.from === undefined
+            ? addDays(to, 1 - historyDefaultDays)
+            : localDate(query.from);
         const span = daysBetween(from, to);
-        if (span < 0 || span >= longestRange) {
+        if (span < 0 || span >= historyMaxDays) {
           return yield* new Rejected({
-            message: `Ask for at most ${longestRange} days, with from on or before to.`,
+            message: `Ask for at most ${historyMaxDays} days, with from on or before to.`,
           });
         }
         return yield* asMember(() =>

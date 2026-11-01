@@ -18,10 +18,8 @@ import {
 import { runApi } from './root.ts';
 
 const show = Command.make('show', { day: dayArgument }, ({ day }) =>
-  runApi(
-    Effect.flatMap(validDay(day), (date) =>
-      callRota((client) => client.days.get({ params: { date } })),
-    ),
+  runApi(validDay(day), (date) =>
+    callRota((client) => client.days.get({ params: { date } })),
   ),
 ).pipe(
   Command.withDescription(
@@ -57,10 +55,10 @@ const plan = Command.make(
           items,
           basedOn: Option.getOrNull(basedOn),
         });
-        return yield* callRota((client) =>
-          client.days.plan({ params: { date }, payload }),
-        );
+        return { date, payload };
       }),
+      ({ date, payload }) =>
+        callRota((client) => client.days.plan({ params: { date }, payload })),
     ),
 ).pipe(
   Command.withDescription(
@@ -69,14 +67,12 @@ const plan = Command.make(
 );
 
 const clearPlan = Command.make('clear-plan', { day: dayArgument }, ({ day }) =>
-  runApi(
-    Effect.flatMap(validDay(day), (date) =>
-      callRota((client) =>
-        client.days.plan({
-          params: { date },
-          payload: { items: [], basedOn: null },
-        }),
-      ),
+  runApi(validDay(day), (date) =>
+    callRota((client) =>
+      client.days.plan({
+        params: { date },
+        payload: { items: [], basedOn: null },
+      }),
     ),
   ),
 ).pipe(Command.withDescription('Remove the planned outfit. Prints the day.'));
@@ -98,10 +94,12 @@ const occasion = Command.make(
       Effect.gen(function* () {
         const date = yield* validDay(day);
         const payload = yield* validOccasion({ text });
-        return yield* callRota((client) =>
-          client.days.occasion({ params: { date }, payload }),
-        );
+        return { date, payload };
       }),
+      ({ date, payload }) =>
+        callRota((client) =>
+          client.days.occasion({ params: { date }, payload }),
+        ),
     ),
 ).pipe(Command.withDescription("Note the day's occasion. Prints the day."));
 
@@ -114,11 +112,12 @@ const wear = Command.make('wear', { slots: slotFlags }, ({ slots }) =>
           'Name what was worn with slot flags such as --top and --bottom.',
         );
       }
-      const payload = yield* validWear({ items });
-      return yield* callRota((client) =>
-        client.days.wear({ params: { date: 'today' }, payload }),
-      );
+      return yield* validWear({ items });
     }),
+    (payload) =>
+      callRota((client) =>
+        client.days.wear({ params: { date: 'today' }, payload }),
+      ),
   ),
 ).pipe(
   Command.withDescription(
@@ -134,7 +133,7 @@ export const days = Command.make('day').pipe(
 );
 
 export const forecast = Command.make('forecast', {}, () =>
-  runApi(callRota((client) => client.days.forecast())),
+  runApi(Effect.void, () => callRota((client) => client.days.forecast())),
 ).pipe(
   Command.withDescription(
     "The weather for today and the next days at the wardrobe's location",

@@ -17,7 +17,7 @@ const list = Command.make(
     ),
   },
   ({ all }) =>
-    runApi(
+    runApi(Effect.void, () =>
       callRota((client) => client.garments.list()).pipe(
         Effect.map((wardrobe) =>
           all
@@ -33,23 +33,19 @@ const list = Command.make(
 );
 
 const get = Command.make('get', { id: idArgument('Garment id') }, ({ id }) =>
-  runApi(
-    Effect.flatMap(validId(id), (valid) =>
-      callRota((client) => client.garments.get({ params: { id: valid } })),
-    ),
+  runApi(validId(id), (valid) =>
+    callRota((client) => client.garments.get({ params: { id: valid } })),
   ),
 ).pipe(Command.withDescription('Show one garment'));
 
 const setRetired = (name: string, retired: boolean, description: string) =>
   Command.make(name, { id: idArgument('Garment id') }, ({ id }) =>
-    runApi(
-      Effect.flatMap(validId(id), (valid) =>
-        callRota((client) =>
-          client.garments.retire({
-            params: { id: valid },
-            payload: { retired },
-          }),
-        ),
+    runApi(validId(id), (valid) =>
+      callRota((client) =>
+        client.garments.retire({
+          params: { id: valid },
+          payload: { retired },
+        }),
       ),
     ),
   ).pipe(Command.withDescription(description));
@@ -58,14 +54,10 @@ const remove = Command.make(
   'delete',
   { id: idArgument('Garment id') },
   ({ id }) =>
-    runApi(
-      Effect.gen(function* () {
-        const valid = yield* validId(id);
-        yield* callRota((client) =>
-          client.garments.remove({ params: { id: valid } }),
-        );
-        return { deleted: valid };
-      }),
+    runApi(validId(id), (valid) =>
+      callRota((client) =>
+        client.garments.remove({ params: { id: valid } }),
+      ).pipe(Effect.as({ deleted: valid })),
     ),
 ).pipe(
   Command.withDescription(
@@ -95,14 +87,13 @@ const picture = Command.make(
     ),
   },
   ({ ids, width, kind }) =>
-    runApi(
+    runApi(Effect.forEach(ids, validId), (valid) =>
       Effect.forEach(
-        ids,
+        valid,
         (id) =>
           Effect.gen(function* () {
-            const valid = yield* validId(id);
             const garment = yield* callRota((client) =>
-              client.garments.get({ params: { id: valid } }),
+              client.garments.get({ params: { id } }),
             );
             return yield* garmentPicture(garment, kind, width);
           }),
