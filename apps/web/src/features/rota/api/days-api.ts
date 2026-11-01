@@ -57,6 +57,7 @@ export const toApiDay = (
             items: outfitItems(view.plan.entries, names),
             basedOn: view.plan.basedOn,
           },
+    cleanTop: view.cleanTop,
     // The wardrobe is projected onto the planned day, so tomorrow's laundry
     // already counts what today's plan will put in the basket.
     laundry: view.wardrobe
