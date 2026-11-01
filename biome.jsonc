@@ -193,7 +193,10 @@
     {
       // The device sign-in fixtures are RFC 8628 wire bodies, whose field
       // names are snake_case.
-      "includes": ["apps/cli/src/features/login/device-login.test.ts"],
+      "includes": [
+        "apps/cli/src/features/login/device-login.test.ts",
+        "apps/web/src/shared/auth/auth-commit.test.ts"
+      ],
       "linter": {
         "rules": {
           "style": {

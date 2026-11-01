@@ -1,11 +1,11 @@
 // biome-ignore lint/correctness/noNodejsModules: Auth transactions run only on the Bun/Node server.
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { pool } from '#/shared/db/database.ts';
+import { commitsResult } from './auth-commit.ts';
 
 const connect = () => pool.connect();
 type Client = Awaited<ReturnType<typeof connect>>;
 const currentClient = new AsyncLocalStorage<Client>();
-const httpErrorStatus = 400;
 
 /** Better Auth and its hooks must use the same transaction as revocation. */
 export const authPool = new Proxy(pool, {
@@ -23,9 +23,11 @@ export const authPool = new Proxy(pool, {
  * reads and writes use this client, so waiting requests cannot exhaust the pool
  * while the lock holder needs another connection. A lost connection also aborts
  * its credential/session writes, rather than merely releasing a separate lock.
+ * `commits` decides whether the outermost transaction keeps the work's writes.
  */
 export const withAccessTransaction = async <A>(
   work: (client: Client) => Promise<A>,
+  commits: (result: A) => boolean | Promise<boolean> = commitsResult,
 ): Promise<A> => {
   const existing = currentClient.getStore();
   if (existing) {
@@ -39,12 +41,7 @@ export const withAccessTransaction = async <A>(
       "select pg_advisory_xact_lock(hashtextextended('rota:access', 0))",
     );
     const result = await currentClient.run(client, () => work(client));
-    // Better Auth returns errors as HTTP responses and OAuth success as redirects.
-    await client.query(
-      result instanceof Response && result.status >= httpErrorStatus
-        ? 'rollback'
-        : 'commit',
-    );
+    await client.query((await commits(result)) ? 'commit' : 'rollback');
     reusable = true;
     return result;
   } finally {
