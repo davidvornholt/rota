@@ -30,6 +30,26 @@ export class StudioRateLimit extends Schema.TaggedError<StudioRateLimit>()(
   },
 ) {}
 
+/**
+ * The image service failed in a way that usually passes on its own: a 500,
+ * 502, 503 or 504, or a connection that broke before any answer arrived.
+ */
+export class StudioTransientFailure extends Schema.TaggedError<StudioTransientFailure>()(
+  'StudioTransientFailure',
+  {
+    message: Schema.String,
+    retryAfter: Schema.NullOr(Schema.String),
+    retryAfterSeconds: Schema.NullOr(Schema.String),
+    cause: Schema.Defect(),
+  },
+) {}
+
+/** An image request got no answer because the connection failed, not because Rota cancelled it. */
+export class ImageConnectionFailed extends Schema.TaggedError<ImageConnectionFailed>()(
+  'ImageConnectionFailed',
+  { cause: Schema.Defect() },
+) {}
+
 /** An outfit collage could not be made; the message is what the collage shows. */
 export class CollageError extends Schema.TaggedError<CollageError>()(
   'CollageError',

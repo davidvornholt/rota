@@ -1,5 +1,9 @@
 import { Clock, Duration, Effect, Random, Semaphore } from 'effect';
-import { StudioRateLimit, StudioRenderError } from './errors/ai-errors.ts';
+import {
+  StudioRateLimit,
+  StudioRenderError,
+  StudioTransientFailure,
+} from './errors/ai-errors.ts';
 import { studioRenderTimeout } from './studio-budgets.ts';
 import type { StudioProgress } from './studio-progress.ts';
 
@@ -15,8 +19,11 @@ const cooldownTimeoutMessage =
 const capCooldown = (milliseconds: number): number =>
   Math.min(maxCooldownMs, milliseconds);
 
+/** A provider answer worth asking again after a wait; both share one retry budget. */
+type ProviderRetry = StudioRateLimit | StudioTransientFailure;
+
 export const retryDelay = (
-  error: StudioRateLimit,
+  error: ProviderRetry,
   now: number,
 ): number | undefined => {
   const milliseconds =
@@ -52,7 +59,7 @@ export const retryDelay = (
 };
 
 const delayFor = (
-  error: StudioRateLimit,
+  error: ProviderRetry,
   now: number,
   retries: number,
   jitter: number,
@@ -64,7 +71,11 @@ export type ReportStudioProgress = (
   progress: StudioProgress,
 ) => Effect.Effect<void>;
 
-/** Both process-local slots share provider cooldowns, including exhausted retries. */
+/**
+ * Both process-local slots share provider cooldowns, including exhausted
+ * retries. A transient server failure starts a cooldown too, so the other slot
+ * also gives the service a moment before its next request.
+ */
 export const makeStudioScheduler = Effect.gen(function* () {
   const permit = yield* Semaphore.make(2);
   let cooldownUntil = 0;
@@ -83,8 +94,8 @@ export const makeStudioScheduler = Effect.gen(function* () {
     waitForCooldown(report).pipe(
       Effect.andThen(report({ status: 'rendering' })),
     );
-  const handleRateLimit = (
-    error: StudioRateLimit,
+  const handleRetry = (
+    error: ProviderRetry,
     retries: number,
     report: ReportStudioProgress,
   ) =>
@@ -93,11 +104,12 @@ export const makeStudioScheduler = Effect.gen(function* () {
       const jitter = yield* Random.next;
       const delay = delayFor(error, failedAt, retries, jitter);
       cooldownUntil = Math.max(cooldownUntil, failedAt + delay);
-      yield* Effect.logWarning('Studio image request rate limited.', {
-        retries,
-        retryAt: cooldownUntil,
-        cause: error.cause,
-      });
+      yield* Effect.logWarning(
+        error instanceof StudioRateLimit
+          ? 'Studio image request rate limited.'
+          : 'Studio image request failed transiently.',
+        { retries, retryAt: cooldownUntil, cause: error.cause },
+      );
       // A capped provider delay consumes this job's budget, so do not retry at
       // the deadline. The cooldown remains available to the next job.
       if (delay >= maxCooldownMs) {
@@ -118,7 +130,7 @@ export const makeStudioScheduler = Effect.gen(function* () {
       return retries + 1;
     });
   const schedule = <A, E>(
-    request: Effect.Effect<A, E | StudioRateLimit>,
+    request: Effect.Effect<A, E | ProviderRetry>,
     report: ReportStudioProgress,
   ) =>
     Effect.gen(function* () {
@@ -130,8 +142,11 @@ export const makeStudioScheduler = Effect.gen(function* () {
           return result.success;
         }
         const error = result.failure;
-        if (error instanceof StudioRateLimit) {
-          retries = yield* handleRateLimit(error, retries, report);
+        if (
+          error instanceof StudioRateLimit ||
+          error instanceof StudioTransientFailure
+        ) {
+          retries = yield* handleRetry(error, retries, report);
         } else {
           return yield* Effect.fail(error);
         }

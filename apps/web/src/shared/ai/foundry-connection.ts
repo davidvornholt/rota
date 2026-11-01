@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { env } from '#/shared/env.ts';
-import type { StudioConnection } from './studio-request.ts';
+import { type StudioConnection, sendImageRequest } from './studio-request.ts';
 import { makeUsageLedger } from './usage-ledger.ts';
 
 /**
@@ -19,7 +19,7 @@ export const foundryConnection = (deployment: string, operation: string) =>
           .measure(
             { provider: 'foundry', model: deployment, operation },
             async () => {
-              const response = await fetch(url, init);
+              const response = await sendImageRequest(url, init);
               if (!response.ok) {
                 return { response, usage: null };
               }
