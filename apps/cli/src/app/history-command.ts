@@ -10,7 +10,6 @@ const millisecondsPerDay = 86_400_000;
 
 const validHistoryDay = validate(DaySchema, 'day');
 
-/** Whole days from one calendar day to another; negative when `to` is earlier. */
 const daysBetween = (from: string, to: string) =>
   Math.round(
     (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /

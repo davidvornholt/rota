@@ -34,7 +34,6 @@ type Sent = {
 // `answer`, so no test reaches a real server.
 let sent: Array<Sent> = [];
 let answer: (path: string) => Response = () => Response.json({});
-// Lets a test break one file operation on this machine.
 let fileSystem = (real: FileSystem.FileSystem) => real;
 
 const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {

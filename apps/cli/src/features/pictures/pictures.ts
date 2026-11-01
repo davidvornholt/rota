@@ -41,7 +41,6 @@ const notSaved = (file: string) => (error: { readonly message: string }) =>
 const isMissing = (error: unknown) =>
   error instanceof Error && 'code' in error && error.code === 'ENOENT';
 
-/** What is at a path, without following a link there; none when nothing is. */
 const entryAt = (target: string) =>
   Effect.tryPromise({ try: () => lstat(target), catch: (error) => error }).pipe(
     Effect.map(Option.some),
