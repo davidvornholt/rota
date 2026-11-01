@@ -27,11 +27,19 @@ export const currentOrigin = Effect.flatMap(root, ({ server: chosen }) =>
 export const signedInLayer = (origin: string) =>
   rotaLayer(origin).pipe(Layer.provideMerge(httpLayer));
 
-// Runs a command against the signed-in server and prints its result. The
-// session is read lazily here, so `--help` never touches it.
-export const runApi = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+// Checks a command's input, then sends its request to the signed-in server
+// and prints the result. The session is read only after the input passes, so
+// `--help` never touches it and a mistake in the input is reported as one even
+// when nobody is signed in.
+export const runApi = <I, A, E1, E2, R1, R2>(
+  input: Effect.Effect<I, E1, R1>,
+  request: (input: I) => Effect.Effect<A, E2, R2>,
+) =>
   Effect.gen(function* () {
     const origin = yield* currentOrigin;
-    const data = yield* effect.pipe(Effect.provide(signedInLayer(origin)));
+    const valid = yield* input;
+    const data = yield* request(valid).pipe(
+      Effect.provide(signedInLayer(origin)),
+    );
     yield* emit(data);
   });

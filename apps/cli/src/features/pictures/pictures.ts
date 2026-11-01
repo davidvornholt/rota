@@ -1,6 +1,8 @@
+import { lstat } from 'node:fs/promises';
+import process from 'node:process';
 import { NotFound } from '@rota/api/errors';
 import type { Garment } from '@rota/api/wardrobe';
-import { Effect, FileSystem, Path } from 'effect';
+import { Effect, FileSystem, Option, Path } from 'effect';
 import { HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http';
 import {
   PictureNotSaved,
@@ -35,6 +37,41 @@ const picturesDirectory = Effect.gen(function* () {
 
 const notSaved = (file: string) => (error: { readonly message: string }) =>
   new PictureNotSaved({ message: `Could not save ${file}: ${error.message}` });
+
+const isMissing = (error: unknown) =>
+  error instanceof Error && 'code' in error && error.code === 'ENOENT';
+
+/** What is at a path, without following a link there; none when nothing is. */
+const entryAt = (target: string) =>
+  Effect.tryPromise({ try: () => lstat(target), catch: (error) => error }).pipe(
+    Effect.map(Option.some),
+    Effect.catchIf(isMissing, () => Effect.succeedNone),
+    Effect.mapError(
+      (error) =>
+        new PictureNotSaved({
+          message: `Could not use ${target}: ${error instanceof Error ? error.message : String(error)}`,
+        }),
+    ),
+  );
+
+/**
+ * Refuses a cache directory that is a link or another user's, since whoever
+ * controls it decides where a picture is read from or written to. Tells
+ * whether the directory exists.
+ */
+const ownDirectory = (target: string) =>
+  Effect.gen(function* () {
+    const entry = yield* entryAt(target);
+    if (Option.isNone(entry)) {
+      return false;
+    }
+    if (!entry.value.isDirectory() || entry.value.uid !== process.getuid?.()) {
+      return yield* new PictureNotSaved({
+        message: `${target} is not a plain directory of yours. Remove it, then try again.`,
+      });
+    }
+    return true;
+  });
 
 const download = (source: URL) =>
   Effect.gen(function* () {
@@ -82,23 +119,34 @@ const cachePicture = (url: string, width: PictureWidth) =>
       });
     }
     const directory = yield* picturesDirectory;
+    const directories = [path.dirname(directory), directory];
     const file = path.join(
       directory,
       width === 'original' ? key : `${key}.w${width}.webp`,
     );
-    if (yield* fs.exists(file).pipe(Effect.orElseSucceed(() => false))) {
-      return file;
+    const existing = yield* Effect.forEach(directories, ownDirectory);
+    if (existing.every(Boolean)) {
+      const cached = yield* entryAt(file);
+      if (Option.isSome(cached) && cached.value.isFile()) {
+        return file;
+      }
     }
     if (width !== 'original') {
       source.searchParams.set('w', width);
     }
     const bytes = yield* download(source);
-    // Written beside the final name and renamed, so a broken download never
-    // poses as a cached picture.
+    yield* fs
+      .makeDirectory(directory, { recursive: true, mode: 0o700 })
+      .pipe(Effect.mapError(notSaved(file)));
+    // Checked again, since a link may have taken a directory's place while the
+    // picture downloaded.
+    yield* Effect.forEach(directories, ownDirectory);
+    // Written as a new file beside the final name and renamed, so a broken
+    // download never poses as a cached picture, and a link at either name is
+    // replaced rather than followed.
     const draft = `${file}.${crypto.randomUUID()}.tmp`;
     yield* Effect.gen(function* () {
-      yield* fs.makeDirectory(directory, { recursive: true, mode: 0o700 });
-      yield* fs.writeFile(draft, new Uint8Array(bytes));
+      yield* fs.writeFile(draft, new Uint8Array(bytes), { flag: 'wx' });
       yield* fs.rename(draft, file);
     }).pipe(Effect.mapError(notSaved(file)));
     return file;

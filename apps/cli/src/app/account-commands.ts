@@ -5,6 +5,7 @@ import {
   requestDeviceCode,
 } from '../features/login/device-login.ts';
 import { endSession } from '../features/login/sign-out.ts';
+import { SessionStoreFailed } from '../shared/errors/errors.ts';
 import { callRota, httpLayer, rotaLayer } from '../shared/rota-api.ts';
 import { forgetToken, readToken, saveToken } from '../shared/session-store.ts';
 import { flag } from './command-inputs.ts';
@@ -60,10 +61,18 @@ export const logout = Command.make('logout', {}, () =>
     const origin = yield* currentOrigin;
     const token = yield* readToken(origin);
     if (Option.isSome(token)) {
-      // The token leaves this machine even when the server cannot be told.
-      yield* endSession(origin, token.value).pipe(
-        Effect.ensuring(forgetToken(origin).pipe(Effect.ignore)),
+      // The token leaves this machine even when the server cannot be told,
+      // and one that cannot be removed is reported, since it may still sign in.
+      const ended = yield* Effect.exit(endSession(origin, token.value));
+      yield* forgetToken(origin).pipe(
+        Effect.mapError(
+          (error) =>
+            new SessionStoreFailed({
+              message: `The token is still on this machine. ${error.message}${error.message.endsWith('.') ? '' : '.'} Fix or delete that file, then run \`rota logout\` again.`,
+            }),
+        ),
       );
+      yield* ended;
     }
     yield* emit({ server: origin, signedIn: false });
   }).pipe(Effect.provide(httpLayer)),
