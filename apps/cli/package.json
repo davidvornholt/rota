@@ -9,9 +9,9 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@effect/platform-bun": "4.0.1",
+    "@effect/platform-bun": "4.1.2",
     "@rota/api": "workspace:*",
-    "effect": "^4.0.1"
+    "effect": "^4.1.2"
   },
   "devDependencies": {
     "@davidvornholt/typescript-config": "workspace:*",
