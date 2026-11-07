@@ -12,7 +12,11 @@ import {
   decodeLogOutfitInput,
 } from '../schemas/today-input.ts';
 import type { TodayView } from '../schemas/today-view.ts';
-import { hasDistinctEntries, pieceChosenTwice } from './planning-rules.ts';
+import {
+  dayLoggedMeanwhile,
+  hasDistinctEntries,
+  pieceChosenTwice,
+} from './planning-rules.ts';
 import { ProposalService } from './proposal-service.ts';
 import { rotaRuntime } from './rota-runtime.ts';
 import { TodayService } from './today-service.ts';
@@ -104,6 +108,11 @@ export const logDaysFn = createServerFn({ method: 'POST' })
           // leave the ones before it saved.
           if (data.days.some((day) => !hasDistinctEntries(day.entries))) {
             return yield* pieceChosenTwice();
+          }
+          const wearLog = yield* WearLogRepository;
+          const logged = yield* Effect.forEach(dates, wearLog.readDay);
+          if (logged.some((entries) => entries.length > 0)) {
+            return yield* dayLoggedMeanwhile();
           }
           const proposals = yield* ProposalService;
           yield* Effect.forEach(

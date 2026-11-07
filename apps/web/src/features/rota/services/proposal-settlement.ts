@@ -29,7 +29,11 @@ import type {
   SlotEmptyError,
 } from '../errors/rota-errors.ts';
 import type { ForecastService, ForecastWindow } from './forecast-service.ts';
-import { hasDistinctEntries, pieceChosenTwice } from './planning-rules.ts';
+import {
+  dayLoggedMeanwhile,
+  hasDistinctEntries,
+  pieceChosenTwice,
+} from './planning-rules.ts';
 import type { GenerateOptions } from './proposal-service.ts';
 
 /** Everything that can stop a proposal being made once the forecast is in hand. */
@@ -56,8 +60,8 @@ export type SettlementDeps = {
 
 /**
  * The wearer's own word for a day: an override before confirming, a
- * backfill, or a correction. A pending proposal for that day is retired,
- * because the day is decided.
+ * backfill of a blank day, or a correction. A pending proposal for that day
+ * is retired, because the day is decided.
  */
 export const logOutfit = (
   { proposals, wearLog }: SettlementDeps,
@@ -68,6 +72,11 @@ export const logOutfit = (
   Effect.gen(function* () {
     if (!hasDistinctEntries(entries)) {
       return yield* pieceChosenTwice();
+    }
+    // A catch-up only fills a blank day. Checked under the operations gate,
+    // so a day logged on another device since the prompt appeared is kept.
+    if (source === 'backfill' && (yield* wearLog.readDay(date)).length > 0) {
+      return yield* dayLoggedMeanwhile();
     }
     yield* wearLog.replaceDay(date, entries, source);
     const latest = yield* proposals.latestForDate(date);
