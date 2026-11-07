@@ -1,7 +1,7 @@
 /**
- * Settling a proposal: confirming it into the log, asking again, or writing the
- * wearer's own outfit over it. Kept apart from generation so each half stays
- * readable; the service hands both the same repositories.
+ * Writing the wearer's own outfit for a day, which settles any pending proposal
+ * for it. Kept apart from generation so each half stays readable; the service
+ * hands both the same repositories.
  */
 
 import { Effect } from 'effect';
