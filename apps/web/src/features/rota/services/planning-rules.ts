@@ -26,6 +26,9 @@ export const hasDistinctEntries = (entries: ReadonlyArray<OutfitEntry>) =>
 export const pieceChosenTwice = () =>
   new ProposalStateError('Choose each piece only once.');
 
+export const dayLoggedMeanwhile = () =>
+  new ProposalStateError('A day was logged in the meantime. Reload to see it.');
+
 export const validateEntries = (
   entries: ReadonlyArray<OutfitEntry>,
   all: ReadonlyArray<Garment>,
