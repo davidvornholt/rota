@@ -1,7 +1,7 @@
 /**
- * Settling a proposal: confirming it into the log, asking again, or writing the
- * wearer's own outfit over it. Kept apart from generation so each half stays
- * readable; the service hands both the same repositories.
+ * Writing the wearer's own outfit for a day, which settles any pending proposal
+ * for it. Kept apart from generation so each half stays readable; the service
+ * hands both the same repositories.
  */
 
 import { Effect } from 'effect';
@@ -29,7 +29,11 @@ import type {
   SlotEmptyError,
 } from '../errors/rota-errors.ts';
 import type { ForecastService, ForecastWindow } from './forecast-service.ts';
-import { hasDistinctEntries, pieceChosenTwice } from './planning-rules.ts';
+import {
+  dayLoggedMeanwhile,
+  hasDistinctEntries,
+  pieceChosenTwice,
+} from './planning-rules.ts';
 import type { GenerateOptions } from './proposal-service.ts';
 
 /** Everything that can stop a proposal being made once the forecast is in hand. */
@@ -56,8 +60,8 @@ export type SettlementDeps = {
 
 /**
  * The wearer's own word for a day: an override before confirming, a
- * backfill, or a correction. A pending proposal for that day is retired,
- * because the day is decided.
+ * backfill of a blank day, or a correction. A pending proposal for that day
+ * is retired, because the day is decided.
  */
 export const logOutfit = (
   { proposals, wearLog }: SettlementDeps,
@@ -69,9 +73,38 @@ export const logOutfit = (
     if (!hasDistinctEntries(entries)) {
       return yield* pieceChosenTwice();
     }
+    // A catch-up only fills a blank day. Checked under the operations gate,
+    // so a day logged on another device since the prompt appeared is kept.
+    if (source === 'backfill' && (yield* wearLog.readDay(date)).length > 0) {
+      return yield* dayLoggedMeanwhile();
+    }
     yield* wearLog.replaceDay(date, entries, source);
     const latest = yield* proposals.latestForDate(date);
     if (latest?.status === 'pending') {
       yield* proposals.setStatus(latest.id, 'superseded');
     }
+  });
+
+export type LoggedDay = {
+  readonly date: LocalDate;
+  readonly entries: ReadonlyArray<OutfitEntry>;
+};
+
+/**
+ * A catch-up of several blank days, oldest first. Every day is checked before
+ * any is written, so a day logged meanwhile leaves the whole catch-up unsaved.
+ */
+export const logDays = (deps: SettlementDeps, days: ReadonlyArray<LoggedDay>) =>
+  Effect.gen(function* () {
+    const logged = yield* Effect.forEach(days, (day) =>
+      deps.wearLog.readDay(day.date),
+    );
+    if (logged.some((entries) => entries.length > 0)) {
+      return yield* dayLoggedMeanwhile();
+    }
+    yield* Effect.forEach(
+      [...days].sort((left, right) => (left.date < right.date ? -1 : 1)),
+      (day) => logOutfit(deps, day.date, day.entries, 'backfill'),
+      { discard: true },
+    );
   });

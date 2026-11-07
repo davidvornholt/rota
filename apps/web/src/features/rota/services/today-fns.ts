@@ -105,14 +105,10 @@ export const logDaysFn = createServerFn({ method: 'POST' })
           if (data.days.some((day) => !hasDistinctEntries(day.entries))) {
             return yield* pieceChosenTwice();
           }
+          // Checked and written under one gate, so a day logged in another
+          // tab meanwhile leaves the whole catch-up unsaved.
           const proposals = yield* ProposalService;
-          yield* Effect.forEach(
-            [...data.days].sort((left, right) =>
-              left.date < right.date ? -1 : 1,
-            ),
-            (day) => proposals.logOutfit(day.date, day.entries, 'backfill'),
-            { discard: true },
-          );
+          yield* proposals.logDays(data.days);
         }),
       ),
   );
