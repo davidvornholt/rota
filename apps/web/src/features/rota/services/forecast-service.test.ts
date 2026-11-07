@@ -15,7 +15,7 @@ const today = localDate('2026-09-05');
 const day: WeatherDay = {
   date: today,
   issuedOn: today,
-  locationLabel: 'Berlin',
+  locationLabel: 'Berlin (52.52° N, 13.41° E)',
   high: 20,
   low: 12,
   precipitationProbability: 10,
@@ -128,7 +128,7 @@ describe('a changed location', () => {
     const window = await Effect.runPromise(result);
     expect(forecast).toHaveBeenCalledTimes(1);
     expect(store).toHaveBeenCalledTimes(1);
-    expect(window.today.locationLabel).toBe('Berlin');
+    expect(window.today.locationLabel).toBe(day.locationLabel);
     expect(window.stale).toBeFalse();
   });
 
@@ -164,10 +164,26 @@ it('fetches anew for another city with the same name', async () => {
       timezone: 'America/Chicago',
     },
   };
+  const neuenkirchen = {
+    name: 'Neuenkirchen',
+    region: 'Lower Saxony',
+    country: 'Germany',
+    timezone: 'Europe/Berlin',
+  };
+  const nearBremen = {
+    ...settings,
+    location: { ...neuenkirchen, latitude: 53.032_59, longitude: 9.706_42 },
+  };
+  const nearOsnabrueck = {
+    ...settings,
+    location: { ...neuenkirchen, latitude: 52.137_78, longitude: 8.388_35 },
+  };
   const { ensureFor, forecast } = setup([]);
   await Effect.runPromise(ensureFor(inFrance));
   await Effect.runPromise(ensureFor(inTexas));
-  expect(forecast).toHaveBeenCalledTimes(2);
+  await Effect.runPromise(ensureFor(nearBremen));
+  await Effect.runPromise(ensureFor(nearOsnabrueck));
+  expect(forecast).toHaveBeenCalledTimes(4);
 });
 
 it('treats tomorrow’s forecast as fresh when issued today', async () => {

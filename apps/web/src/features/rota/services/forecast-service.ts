@@ -12,7 +12,7 @@ import {
   WeatherRepository,
 } from '#/shared/data/weather-repository.ts';
 import { addDays, type LocalDate } from '#/shared/time/local-date.ts';
-import { locationSearchLabel } from '#/shared/weather/location.ts';
+import { locationPlaceLabel } from '#/shared/weather/location.ts';
 import { WeatherApi } from '#/shared/weather/open-meteo.ts';
 import {
   ForecastUnavailableError,
@@ -46,7 +46,7 @@ export class ForecastService extends Context.Service<ForecastService>()(
             return yield* new LocationMissingError();
           }
           const days = yield* weatherApi.forecast(location);
-          yield* weather.store(days, today, locationSearchLabel(location));
+          yield* weather.store(days, today, locationPlaceLabel(location));
         });
 
       const windowOf = (
@@ -72,7 +72,7 @@ export class ForecastService extends Context.Service<ForecastService>()(
       // The region and country tell apart cities that share a name.
       const isForPlace = (window: ForecastWindow, settings: Settings) =>
         settings.location === null ||
-        window.today.locationLabel === locationSearchLabel(settings.location);
+        window.today.locationLabel === locationPlaceLabel(settings.location);
 
       /**
        * Today's forecast, fresh if it can be. A fetch is attempted when nothing
