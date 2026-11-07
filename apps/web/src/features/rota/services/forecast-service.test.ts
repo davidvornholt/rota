@@ -80,11 +80,12 @@ const setup = (
       ),
     ),
   );
-  const result = Effect.gen(function* () {
-    const service = yield* ForecastService;
-    return yield* service.ensure(settings, target, today);
-  }).pipe(Effect.provide(layer));
-  return { result, forecast, store };
+  const ensureFor = (place: typeof settings) =>
+    Effect.gen(function* () {
+      const service = yield* ForecastService;
+      return yield* service.ensure(place, target, today);
+    }).pipe(Effect.provide(layer));
+  return { result: ensureFor(settings), ensureFor, forecast, store };
 };
 
 describe('forecast cache', () => {
@@ -139,6 +140,34 @@ describe('a changed location', () => {
       failure: { _tag: 'ForecastUnavailableError' },
     });
   });
+});
+
+it('fetches anew for another city with the same name', async () => {
+  const paris = {
+    name: 'Paris',
+    latitude: 48.86,
+    longitude: 2.35,
+    timezone: 'Europe/Paris',
+  };
+  const inFrance = {
+    ...settings,
+    location: { ...paris, region: 'Île-de-France', country: 'France' },
+  };
+  const inTexas = {
+    ...settings,
+    location: {
+      ...paris,
+      region: 'Texas',
+      country: 'United States',
+      latitude: 33.66,
+      longitude: -95.56,
+      timezone: 'America/Chicago',
+    },
+  };
+  const { ensureFor, forecast } = setup([]);
+  await Effect.runPromise(ensureFor(inFrance));
+  await Effect.runPromise(ensureFor(inTexas));
+  expect(forecast).toHaveBeenCalledTimes(2);
 });
 
 it('treats tomorrow’s forecast as fresh when issued today', async () => {
