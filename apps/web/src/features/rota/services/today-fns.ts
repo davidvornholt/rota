@@ -12,11 +12,7 @@ import {
   decodeLogOutfitInput,
 } from '../schemas/today-input.ts';
 import type { TodayView } from '../schemas/today-view.ts';
-import {
-  dayLoggedMeanwhile,
-  hasDistinctEntries,
-  pieceChosenTwice,
-} from './planning-rules.ts';
+import { hasDistinctEntries, pieceChosenTwice } from './planning-rules.ts';
 import { ProposalService } from './proposal-service.ts';
 import { rotaRuntime } from './rota-runtime.ts';
 import { TodayService } from './today-service.ts';
@@ -109,19 +105,10 @@ export const logDaysFn = createServerFn({ method: 'POST' })
           if (data.days.some((day) => !hasDistinctEntries(day.entries))) {
             return yield* pieceChosenTwice();
           }
-          const wearLog = yield* WearLogRepository;
-          const logged = yield* Effect.forEach(dates, wearLog.readDay);
-          if (logged.some((entries) => entries.length > 0)) {
-            return yield* dayLoggedMeanwhile();
-          }
+          // Checked and written under one gate, so a day logged in another
+          // tab meanwhile leaves the whole catch-up unsaved.
           const proposals = yield* ProposalService;
-          yield* Effect.forEach(
-            [...data.days].sort((left, right) =>
-              left.date < right.date ? -1 : 1,
-            ),
-            (day) => proposals.logOutfit(day.date, day.entries, 'backfill'),
-            { discard: true },
-          );
+          yield* proposals.logDays(data.days);
         }),
       ),
   );

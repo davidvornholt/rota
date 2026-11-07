@@ -84,3 +84,27 @@ export const logOutfit = (
       yield* proposals.setStatus(latest.id, 'superseded');
     }
   });
+
+export type LoggedDay = {
+  readonly date: LocalDate;
+  readonly entries: ReadonlyArray<OutfitEntry>;
+};
+
+/**
+ * A catch-up of several blank days, oldest first. Every day is checked before
+ * any is written, so a day logged meanwhile leaves the whole catch-up unsaved.
+ */
+export const logDays = (deps: SettlementDeps, days: ReadonlyArray<LoggedDay>) =>
+  Effect.gen(function* () {
+    const logged = yield* Effect.forEach(days, (day) =>
+      deps.wearLog.readDay(day.date),
+    );
+    if (logged.some((entries) => entries.length > 0)) {
+      return yield* dayLoggedMeanwhile();
+    }
+    yield* Effect.forEach(
+      [...days].sort((left, right) => (left.date < right.date ? -1 : 1)),
+      (day) => logOutfit(deps, day.date, day.entries, 'backfill'),
+      { discard: true },
+    );
+  });

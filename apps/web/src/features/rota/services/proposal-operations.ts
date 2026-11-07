@@ -18,7 +18,12 @@ import {
   scheduledAttemptsPerDay,
 } from './proposal-backoff.ts';
 import type { GenerateOptions } from './proposal-service.ts';
-import { logOutfit, type SettlementDeps } from './proposal-settlement.ts';
+import {
+  type LoggedDay,
+  logDays,
+  logOutfit,
+  type SettlementDeps,
+} from './proposal-settlement.ts';
 
 const now = Effect.map(Clock.currentTimeMillis, (millis) => new Date(millis));
 
@@ -236,5 +241,7 @@ export const makeProposalOperations = (deps: SettlementDeps) =>
         entries: ReadonlyArray<OutfitEntry>,
         source: WearSource,
       ) => exclusive(logOutfit(deps, date, entries, source)),
+      logDays: (days: ReadonlyArray<LoggedDay>) =>
+        exclusive(logDays(deps, days)),
     };
   });
