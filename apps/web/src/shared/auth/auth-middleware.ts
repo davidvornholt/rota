@@ -1,11 +1,7 @@
 import { createMiddleware } from '@tanstack/react-start';
-import {
-  getRequest,
-  getResponseHeaders,
-  setResponseStatus,
-} from '@tanstack/react-start/server';
+import { getRequest, setResponseStatus } from '@tanstack/react-start/server';
 import { asIdentity, type Identity } from './identity.ts';
-import { applyPrivateResponseHeaders } from './private-response.ts';
+import { publishPrivateResponseHeaders } from './publish-private-headers.ts';
 import { authorizedIdentity } from './session.ts';
 import { runSessionRequired } from './session-required.ts';
 
@@ -25,7 +21,7 @@ export const sessionRequired = createMiddleware().server(({ next }) => {
       }
       return await asIdentity(identity, () => next());
     },
-    publishHeaders: () => applyPrivateResponseHeaders(getResponseHeaders()),
+    publishHeaders: publishPrivateResponseHeaders,
     publishStatus: (status) => setResponseStatus(status),
   });
 });

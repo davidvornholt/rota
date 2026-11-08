@@ -48,23 +48,21 @@ export const peopleFn = createServerFn({ method: 'GET' })
   );
 export const inviteFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
-  .inputValidator(
-    z.object({ name: z.string().trim().min(1).max(maxNameLength) }),
-  )
+  .validator(z.object({ name: z.string().trim().min(1).max(maxNameLength) }))
   .handler(({ data }) => peopleOperation(() => issueCode(data)));
 export const recoverFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
-  .inputValidator(z.object({ memberId: z.string().min(1) }))
+  .validator(z.object({ memberId: z.string().min(1) }))
   .handler(({ data }) => peopleOperation(() => issueCode(data)));
 export const accessFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
-  .inputValidator(z.object({ id: z.string().min(1), enabled: z.boolean() }))
+  .validator(z.object({ id: z.string().min(1), enabled: z.boolean() }))
   .handler(({ data }) =>
     peopleOperation(() => setAccess(data.id, data.enabled)),
   );
 export const cancelCodeFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
-  .inputValidator(z.object({ id: z.string().min(1) }))
+  .validator(z.object({ id: z.string().min(1) }))
   .handler(({ data }) =>
     peopleOperation(async () => {
       await pool.query('delete from access_code where member_id = $1', [
@@ -74,7 +72,7 @@ export const cancelCodeFn = createServerFn({ method: 'POST' })
   );
 export const usageFn = createServerFn({ method: 'GET' })
   .middleware([sessionRequired])
-  .inputValidator(
+  .validator(
     z.object({
       days: z.union([
         z.literal(weekDays),
@@ -109,7 +107,7 @@ export type AdminGarment = {
 };
 export const inspectWardrobeFn = createServerFn({ method: 'GET' })
   .middleware([sessionRequired])
-  .inputValidator(z.object({ id: z.string().min(1) }))
+  .validator(z.object({ id: z.string().min(1) }))
   .handler(({ data }) =>
     peopleOperation(async () => {
       const actor = requireAdmin();
