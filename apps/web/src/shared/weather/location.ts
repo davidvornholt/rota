@@ -18,3 +18,9 @@ export const locationSearchLabel = (location: Location): string =>
       (part, index, parts) => part !== '' && parts.indexOf(part) === index,
     )
     .join(', ');
+
+const coordinate = (value: number, positive: string, negative: string) =>
+  `${Math.abs(value).toFixed(2)}° ${value < 0 ? negative : positive}`;
+
+export const locationPlaceLabel = (location: Location): string =>
+  `${locationSearchLabel(location)} (${coordinate(location.latitude, 'N', 'S')}, ${coordinate(location.longitude, 'E', 'W')})`;

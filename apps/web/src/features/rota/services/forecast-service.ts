@@ -1,9 +1,3 @@
-/**
- * The forecast the day is decided on. Fetched once per day and stored; when
- * Open-Meteo cannot be reached the stored forecast from an earlier day is used
- * and marked stale, so a network blip never blanks the morning.
- */
-
 import { Context, Effect, Layer } from 'effect';
 
 import type { Settings } from '#/shared/data/settings.ts';
@@ -12,7 +6,7 @@ import {
   WeatherRepository,
 } from '#/shared/data/weather-repository.ts';
 import { addDays, type LocalDate } from '#/shared/time/local-date.ts';
-import { locationLabel } from '#/shared/weather/location.ts';
+import { locationPlaceLabel } from '#/shared/weather/location.ts';
 import { WeatherApi } from '#/shared/weather/open-meteo.ts';
 import {
   ForecastUnavailableError,
@@ -46,7 +40,7 @@ export class ForecastService extends Context.Service<ForecastService>()(
             return yield* new LocationMissingError();
           }
           const days = yield* weatherApi.forecast(location);
-          yield* weather.store(days, today, locationLabel(location));
+          yield* weather.store(days, today, locationPlaceLabel(location));
         });
 
       const windowOf = (
@@ -71,7 +65,7 @@ export class ForecastService extends Context.Service<ForecastService>()(
       // is neither reused nor used as a fallback after the location changes.
       const isForPlace = (window: ForecastWindow, settings: Settings) =>
         settings.location === null ||
-        window.today.locationLabel === locationLabel(settings.location);
+        window.today.locationLabel === locationPlaceLabel(settings.location);
 
       /**
        * Today's forecast, fresh if it can be. A fetch is attempted when nothing
