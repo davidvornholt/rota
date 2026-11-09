@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, spyOn } from 'bun:test';
+// biome-ignore lint/correctness/noNodejsModules: This test runs only under Bun and sets ANTHROPIC_LOG, which the SDK reads from process.env.
+import process from 'node:process';
 import { APIConnectionError, OverloadedError } from '@anthropic-ai/sdk';
 import { Cause, Deferred, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
@@ -91,6 +93,39 @@ describe('Claude wire requests', () => {
       );
     expect(failure).toBeInstanceOf(OverloadedError);
     expect(calls).toBe(1);
+  });
+
+  it('keeps the prompt, the photos and the answer out of the log when ANTHROPIC_LOG asks for debug', async () => {
+    const previousLevel = process.env.ANTHROPIC_LOG;
+    process.env.ANTHROPIC_LOG = 'debug';
+    // The SDK's default logger is console, and its debug and info lines go to
+    // console.debug and console.info. Silenced, so no body reaches the output.
+    const debug = spyOn(console, 'debug').mockImplementation(() => undefined);
+    const info = spyOn(console, 'info').mockImplementation(() => undefined);
+    try {
+      const client = claudeClient('made-up-key', () =>
+        Promise.resolve(Response.json(answer('{"choice":"chinos"}'))),
+      );
+      const generate = makeGenerateJson(
+        (request, signal) => client.beta.messages.create(request, { signal }),
+        claudeModel,
+      );
+      expect(await Effect.runPromise(generate(input))).toEqual({
+        choice: 'chinos',
+      });
+      expect({
+        debug: debug.mock.calls.length,
+        info: info.mock.calls.length,
+      }).toEqual({ debug: 0, info: 0 });
+    } finally {
+      debug.mockRestore();
+      info.mockRestore();
+      if (previousLevel === undefined) {
+        delete process.env.ANTHROPIC_LOG;
+      } else {
+        process.env.ANTHROPIC_LOG = previousLevel;
+      }
+    }
   });
 });
 

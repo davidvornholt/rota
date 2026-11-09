@@ -64,6 +64,9 @@ export const claudeClient = (
     fetch,
     maxRetries: 0,
     timeout: sdkTimeoutMilliseconds,
+    // At debug the SDK logs whole request and response bodies: the prompt, the
+    // photos and the answer. Pinned here, ANTHROPIC_LOG can't raise the level.
+    logLevel: 'warn',
   });
 
 const requestFailure = (cause: unknown): ClaudeError =>
