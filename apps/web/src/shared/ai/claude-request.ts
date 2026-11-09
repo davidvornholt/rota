@@ -139,7 +139,6 @@ const messageRequest = (
   fallbacks: 'default',
   thinking: { type: 'adaptive' },
   output_config: { effort: 'high' },
-  // The schema goes in as instructions; every answer is validated below.
   system: [
     { type: 'text', text: system },
     {

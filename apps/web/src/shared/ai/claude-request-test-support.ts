@@ -6,7 +6,6 @@ import {
   type MessageAnswer,
 } from './claude-request.ts';
 
-/** A made-up outfit request with one text part and one image part. */
 export const input: GenerateJsonInput<{ choice: string }, { choice: string }> =
   {
     purpose: 'outfit',
