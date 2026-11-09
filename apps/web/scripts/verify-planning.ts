@@ -12,8 +12,9 @@ import {
 } from '#/features/rota/services/planning-service.ts';
 import { ProposalService } from '#/features/rota/services/proposal-service.ts';
 import { TodayService } from '#/features/rota/services/today-service.ts';
-import { Bedrock } from '#/shared/ai/bedrock.ts';
-import { BedrockError } from '#/shared/ai/errors/ai-errors.ts';
+import { Claude } from '#/shared/ai/claude.ts';
+import { claudeModel } from '#/shared/ai/claude-request.ts';
+import { ClaudeError } from '#/shared/ai/errors/ai-errors.ts';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { GarmentRepository } from '#/shared/data/garment-repository.ts';
@@ -84,14 +85,14 @@ const forecastLayer = Layer.succeed(
       }),
   }),
 );
-const bedrockLayer = Layer.succeed(
-  Bedrock,
-  Bedrock.of({
-    model: 'global.anthropic.claude-sonnet-5-5',
+const claudeLayer = Layer.succeed(
+  Claude,
+  Claude.of({
+    model: claudeModel,
     generateJson: (input) => {
       if (failGeneration) {
         return Effect.fail(
-          new BedrockError({
+          new ClaudeError({
             message: 'Test failure.',
             reason: 'timeout',
             cause: undefined,
@@ -122,7 +123,7 @@ const bedrockLayer = Layer.succeed(
       }).pipe(
         Effect.mapError(
           (cause) =>
-            new BedrockError({
+            new ClaudeError({
               message: 'Bad test answer.',
               reason: 'answer',
               cause,
@@ -349,7 +350,7 @@ try {
   const infrastructure = Layer.mergeAll(
     repositories,
     forecastLayer,
-    bedrockLayer,
+    claudeLayer,
     mediaLayer,
   );
   const services = TodayService.layer.pipe(

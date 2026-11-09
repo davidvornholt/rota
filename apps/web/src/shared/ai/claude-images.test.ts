@@ -1,8 +1,8 @@
 import { expect, it } from 'bun:test';
 import { Effect } from 'effect';
 import sharp from 'sharp';
-import { prepareBedrockParts } from './bedrock-images.ts';
-import type { PromptPart } from './bedrock-request.ts';
+import { prepareClaudeParts } from './claude-images.ts';
+import type { PromptPart } from './claude-request.ts';
 
 it('keeps normal image requests unchanged and resizes large wardrobes without losing image order', async () => {
   const data = await sharp({
@@ -12,12 +12,12 @@ it('keeps normal image requests unchanged and resizes large wardrobes without lo
     .toBuffer();
   const part = { image: { mimeType: 'image/jpeg', data } };
   const single = [{ text: 'B1' }, part];
-  expect(await Effect.runPromise(prepareBedrockParts(single))).toBe(single);
+  expect(await Effect.runPromise(prepareClaudeParts(single))).toBe(single);
   const parts: Array<PromptPart> = [
     { text: 'B1' },
     ...Array.from({ length: 21 }, () => part),
   ];
-  const prepared = await Effect.runPromise(prepareBedrockParts(parts));
+  const prepared = await Effect.runPromise(prepareClaudeParts(parts));
   expect(prepared).toHaveLength(parts.length);
   expect(prepared[0]).toEqual({ text: 'B1' });
   const [, first] = prepared;
@@ -64,7 +64,7 @@ it.each([10, productionWardrobeImages])(
         { image: { mimeType: 'image/png', data } },
       ],
     ).flat();
-    const prepared = await Effect.runPromise(prepareBedrockParts(parts));
+    const prepared = await Effect.runPromise(prepareClaudeParts(parts));
     expect(prepared).toHaveLength(parts.length);
     expect(prepared.filter((part) => 'text' in part)).toEqual(
       parts.filter((part) => 'text' in part),

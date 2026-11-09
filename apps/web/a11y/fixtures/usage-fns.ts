@@ -3,8 +3,8 @@ export const usageFn = () =>
     {
       ownerId: 'demo',
       name: 'Alex',
-      provider: 'bedrock',
-      model: 'global.anthropic.claude-sonnet-5-5',
+      provider: 'anthropic',
+      model: 'claude-sonnet-5-5',
       operation: 'Outfit suggestion',
       attempts: 3,
       failures: 0,

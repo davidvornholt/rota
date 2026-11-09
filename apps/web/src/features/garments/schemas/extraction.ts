@@ -22,7 +22,7 @@ import {
 /** The longest rotation the model may suggest from material alone. */
 const longestSuggestedBudget = 10;
 
-/** What Bedrock is asked to read off a garment photo. */
+/** What Claude is asked to read off a garment photo. */
 export const ExtractionSchema = Schema.Struct({
   ...PhotoOrientationSchema.fields,
   name: Schema.String,

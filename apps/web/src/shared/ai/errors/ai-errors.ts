@@ -1,9 +1,13 @@
 import { Schema } from 'effect';
 
-export class BedrockError extends Schema.TaggedError<BedrockError>()(
-  'BedrockError',
+/**
+ * A failed Claude request. `configuration` means the API rejected Rota's key or
+ * its permissions, which another attempt cannot fix.
+ */
+export class ClaudeError extends Schema.TaggedError<ClaudeError>()(
+  'ClaudeError',
   {
-    reason: Schema.Literals(['request', 'timeout', 'answer']),
+    reason: Schema.Literals(['configuration', 'request', 'timeout', 'answer']),
     message: Schema.String,
     cause: Schema.Defect(),
   },

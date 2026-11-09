@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import { Effect } from 'effect';
 import { apiPrice } from '../src/shared/ai/api-prices.ts';
+import { claudeModel } from '../src/shared/ai/claude-request.ts';
 import { estimateUsd } from '../src/shared/ai/usage-cost.ts';
 import { makeUsageLedger } from '../src/shared/ai/usage-ledger.ts';
 import { WardrobeOwner } from '../src/shared/auth/identity.ts';
@@ -18,11 +19,12 @@ export const checkUsage = async (member: { id: string; userId: string }) => {
     ),
   );
   const operation = {
-    provider: 'bedrock' as const,
-    model: 'global.anthropic.claude-sonnet-5-5',
+    provider: 'anthropic' as const,
+    model: claudeModel,
     operation: 'Outfit suggestion',
   };
-  const usage = { inputTokens: 1000, outputTokens: 100 };
+  // biome-ignore lint/style/useNamingConvention: Claude API usage fields.
+  const usage = { input_tokens: 1000, output_tokens: 100 };
   await ledger.measure(
     operation,
     () => Promise.resolve(usage),
@@ -60,7 +62,14 @@ export const checkUsage = async (member: { id: string; userId: string }) => {
     );
   }
   const expected = estimateUsd(
-    { input: 1000, output: 100, imageInput: 0, imageOutput: 0, cachedInput: 0 },
+    {
+      input: 1000,
+      output: 100,
+      imageInput: 0,
+      imageOutput: 0,
+      cachedInput: 0,
+      cacheWrite: 0,
+    },
     price,
   );
   expect(

@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { Bedrock } from '#/shared/ai/bedrock.ts';
+import type { Claude } from '#/shared/ai/claude.ts';
 import { rotateImage, type SourcePhoto } from '#/shared/media/rotate-image.ts';
 import {
   PhotoOrientationSchema,
@@ -8,11 +8,11 @@ import {
 
 /** Retries need only orientation, leaving the owner's edited attributes alone. */
 export const orientStudioPhoto = (
-  bedrock: Pick<Bedrock['Service'], 'generateJson'>,
+  claude: Pick<Claude['Service'], 'generateJson'>,
   photo: SourcePhoto,
 ) =>
   Effect.gen(function* () {
-    const orientation = yield* bedrock.generateJson({
+    const orientation = yield* claude.generateJson({
       purpose: 'garment',
       system: [
         'Identify the upright orientation of a garment in a wardrobe photo.',

@@ -1,8 +1,8 @@
 import { expect, it, mock } from 'bun:test';
 import { Effect, Schema, Struct } from 'effect';
 import sharp from 'sharp';
-import type { GenerateJsonInput } from '#/shared/ai/bedrock-request.ts';
-import { BedrockError } from '#/shared/ai/errors/ai-errors.ts';
+import type { GenerateJsonInput } from '#/shared/ai/claude-request.ts';
+import { ClaudeError } from '#/shared/ai/errors/ai-errors.ts';
 import { ExtractionSchema } from '../schemas/extraction.ts';
 import { orientStudioPhoto } from './orient-studio-photo.ts';
 
@@ -30,7 +30,7 @@ it('analyzes the original on regeneration and applies the reported rotation', as
     }).pipe(
       Effect.mapError(
         (cause) =>
-          new BedrockError({
+          new ClaudeError({
             reason: 'answer',
             message: 'Invalid orientation.',
             cause,
@@ -48,7 +48,7 @@ it('analyzes the original on regeneration and applies the reported rotation', as
 });
 
 it('propagates analyzer failures without silently rendering an unprepared photo', async () => {
-  const failure = new BedrockError({
+  const failure = new ClaudeError({
     reason: 'answer',
     message: 'Analysis failed.',
     cause: undefined,

@@ -1,7 +1,7 @@
 /**
  * Makes, remakes, and settles the day's proposal.
  *
- * The engine narrows; Bedrock chooses; the wear log records. A proposal is a row
+ * The engine narrows; Claude chooses; the wear log records. A proposal is a row
  * with a status, and the day is decided the moment a `wear_log` row exists for
  * it — everything else here is bookkeeping around that fact.
  */
@@ -9,7 +9,7 @@
 import { Context, Effect, Layer } from 'effect';
 import { SqlClient } from 'effect/sql';
 
-import { Bedrock } from '#/shared/ai/bedrock.ts';
+import { Claude } from '#/shared/ai/claude.ts';
 import { DayNoteRepository } from '#/shared/data/day-note-repository.ts';
 import { writeError } from '#/shared/data/errors/data-errors.ts';
 import { displayImage } from '#/shared/data/garment.ts';
@@ -92,8 +92,8 @@ const withOutfitContext = (
   };
 };
 
-const ask = (bedrock: Bedrock['Service'], prompt: BuiltPrompt) =>
-  bedrock
+const ask = (claude: Claude['Service'], prompt: BuiltPrompt) =>
+  claude
     .generateJson({
       purpose: 'outfit',
       system: proposalSystemPrompt,
@@ -116,7 +116,7 @@ type GenerateDeps = {
   readonly proposals: ProposalRepository['Service'];
   readonly notes: DayNoteRepository['Service'];
   readonly media: MediaStore['Service'];
-  readonly bedrock: Bedrock['Service'];
+  readonly claude: Claude['Service'];
 };
 
 // Keep the proposal and saved selection atomic after the model has finished.
@@ -172,7 +172,7 @@ const persistProposal = (
       ),
   );
 
-/** Asks Bedrock for the day, given a forecast window and what to leave out. */
+/** Asks Claude for the day, given a forecast window and what to leave out. */
 const generateProposal = (
   {
     sql,
@@ -182,7 +182,7 @@ const generateProposal = (
     proposals,
     notes,
     media,
-    bedrock,
+    claude,
   }: GenerateDeps,
   clock: WardrobeClock,
   forecast: ForecastWindow,
@@ -261,7 +261,7 @@ const generateProposal = (
     });
     const answer = yield* proposalStage(
       'model',
-      ask(bedrock, withOutfitContext(prompt, options.pinned, saved)),
+      ask(claude, withOutfitContext(prompt, options.pinned, saved)),
     );
     const items = yield* answerToItems(answer, prompt.aliases, input);
     if (
@@ -290,7 +290,7 @@ const generateProposal = (
         date: clock.today,
         forecast: forecast.today,
         payload,
-        model: bedrock.model,
+        model: claude.model,
         rejectedProposalId: options.rejectedProposalId,
       },
     );
@@ -307,7 +307,7 @@ export class ProposalService extends Context.Service<ProposalService>()(
       const proposals = yield* ProposalRepository;
       const notes = yield* DayNoteRepository;
       const media = yield* MediaStore;
-      const bedrock = yield* Bedrock;
+      const claude = yield* Claude;
       const forecasts = yield* ForecastService;
       const generate = (
         clock: WardrobeClock,
@@ -315,7 +315,7 @@ export class ProposalService extends Context.Service<ProposalService>()(
         options: GenerateOptions,
       ) =>
         generateProposal(
-          { sql, outfits, garments, wearLog, proposals, notes, media, bedrock },
+          { sql, outfits, garments, wearLog, proposals, notes, media, claude },
           clock,
           forecast,
           options,

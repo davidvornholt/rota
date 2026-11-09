@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import sharp from 'sharp';
-import type { PromptPart } from './bedrock-request.ts';
-import { BedrockError } from './errors/ai-errors.ts';
+import type { PromptPart } from './claude-request.ts';
+import { ClaudeError } from './errors/ai-errors.ts';
 
 const manyImageThreshold = 20;
 const maximumLongEdge = 2000;
@@ -35,15 +35,15 @@ const supportedMimeTypes = new Set([
   'image/gif',
   'image/webp',
 ]);
-export const prepareBedrockParts = (parts: ReadonlyArray<PromptPart>) => {
+export const prepareClaudeParts = (parts: ReadonlyArray<PromptPart>) => {
   const invalid = parts.find(
     (part) => 'image' in part && !supportedMimeTypes.has(part.image.mimeType),
   );
   if (invalid !== undefined && 'image' in invalid) {
     return Effect.fail(
-      new BedrockError({
+      new ClaudeError({
         reason: 'request',
-        message: `Bedrock cannot read ${invalid.image.mimeType} images. Upload a PNG, JPEG, GIF, or WebP image.`,
+        message: `Claude cannot read ${invalid.image.mimeType} images. Upload a PNG, JPEG, GIF, or WebP image.`,
         cause: undefined,
       }),
     );
@@ -64,7 +64,7 @@ export const prepareBedrockParts = (parts: ReadonlyArray<PromptPart>) => {
     ) {
       const prepared = yield* Effect.forEach(
         parts,
-        (part): Effect.Effect<PromptPart, BedrockError> =>
+        (part): Effect.Effect<PromptPart, ClaudeError> =>
           'text' in part
             ? Effect.succeed(part)
             : Effect.tryPromise({
@@ -81,7 +81,7 @@ export const prepareBedrockParts = (parts: ReadonlyArray<PromptPart>) => {
                       image: { mimeType: 'image/jpeg', data },
                     })),
                 catch: (cause) =>
-                  new BedrockError({
+                  new ClaudeError({
                     reason: 'request',
                     message:
                       'A wardrobe image could not be prepared for Claude. Try uploading it again.',
@@ -94,9 +94,9 @@ export const prepareBedrockParts = (parts: ReadonlyArray<PromptPart>) => {
         return prepared;
       }
     }
-    return yield* new BedrockError({
+    return yield* new ClaudeError({
       reason: 'request',
-      message: 'The wardrobe images exceed the Bedrock request size limit.',
+      message: 'The wardrobe images exceed the Claude request size limit.',
       cause: undefined,
     });
   });

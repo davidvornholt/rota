@@ -6,7 +6,7 @@ import {
 } from '#/shared/data/garment-types.ts';
 
 /**
- * What Bedrock answers with. Garments are named by the short aliases the prompt
+ * What Claude answers with. Garments are named by the short aliases the prompt
  * introduced (C1, B2, T1 …), never by id: an alias is one token the model
  * cannot mistype, and the engine maps it back. Any slot may be null here; the
  * engine checks that the answer is a complete outfit.

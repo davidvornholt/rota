@@ -54,9 +54,7 @@ const server = Bun.spawn(['bun', 'run', 'scripts/serve.ts'], {
     // biome-ignore lint/style/useNamingConvention: Environment variable wire name.
     BETTER_AUTH_URL: origin,
     // biome-ignore lint/style/useNamingConvention: Environment variable wire name.
-    AWS_ACCESS_KEY_ID: 'family-test',
-    // biome-ignore lint/style/useNamingConvention: Environment variable wire name.
-    AWS_SECRET_ACCESS_KEY: 'family-test',
+    ANTHROPIC_API_KEY: 'family-test',
     // biome-ignore lint/style/useNamingConvention: Environment variable wire name.
     FOUNDRY_OPENAI_ENDPOINT: 'http://127.0.0.1:9',
     // biome-ignore lint/style/useNamingConvention: Environment variable wire name.
