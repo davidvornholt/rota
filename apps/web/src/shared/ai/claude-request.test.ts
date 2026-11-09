@@ -85,33 +85,6 @@ describe('Claude answer JSON', () => {
       failure: { _tag: 'ClaudeError', reason: 'answer' },
     });
   });
-
-  it('keeps the answer text and the formatted issue when decoding fails', async () => {
-    const value = 'The garment is slightly tilted.\n\n{"rotationClockwise":45}';
-    expect(await orient(value)).toMatchObject({
-      _tag: 'Failure',
-      failure: {
-        message: 'Claude answered outside the requested schema. Try again.',
-        cause: {
-          issue: expect.stringContaining('rotationClockwise'),
-          answer: value,
-        },
-      },
-    });
-  });
-
-  it('keeps both ends of a long answer in the failure cause', async () => {
-    const reasoning = 'The neckline is hard to see. '.repeat(40);
-    const value = `${reasoning}{"rotationClockwise":45}`;
-    expect(await orient(value)).toMatchObject({
-      _tag: 'Failure',
-      failure: {
-        cause: {
-          answer: `${value.slice(0, 300)} … ${value.slice(-300)}`,
-        },
-      },
-    });
-  });
 });
 
 describe('Claude answer endings', () => {

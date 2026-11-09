@@ -1,13 +1,14 @@
 import {
   Anthropic,
   APIConnectionError,
+  APIError,
   AuthenticationError,
   type ClientOptions,
   InternalServerError,
   PermissionDeniedError,
   RateLimitError,
 } from '@anthropic-ai/sdk';
-import { Duration, Effect, Schedule, Schema, SchemaIssue } from 'effect';
+import { Duration, Effect, Schedule, Schema } from 'effect';
 import { prepareClaudeParts } from './claude-images.ts';
 import { ClaudeError } from './errors/ai-errors.ts';
 import { jsonAnswer } from './json-answer.ts';
@@ -49,8 +50,6 @@ const millisecondsPerSecond = 1000;
 const sdkTimeoutMilliseconds =
   (outfitRequestSeconds + sdkTimeoutMarginSeconds) * millisecondsPerSecond;
 const outputTokens = 16_384;
-const answerExcerptEnds = 300;
-const formatIssue = SchemaIssue.makeFormatterDefault();
 
 /**
  * Effect owns the deadlines and the bounded retries, so each billed attempt has
@@ -66,12 +65,6 @@ export const claudeClient = (
     maxRetries: 0,
     timeout: sdkTimeoutMilliseconds,
   });
-
-/** A long answer keeps both ends: any reasoning comes first and the JSON usually last. */
-const answerExcerpt = (text: string): string =>
-  text.length <= answerExcerptEnds * 2
-    ? text
-    : `${text.slice(0, answerExcerptEnds)} … ${text.slice(-answerExcerptEnds)}`;
 
 const requestFailure = (cause: unknown): ClaudeError =>
   cause instanceof AuthenticationError || cause instanceof PermissionDeniedError
@@ -93,6 +86,22 @@ const isTransient = ({ reason, cause }: ClaudeError): boolean =>
   (cause instanceof RateLimitError ||
     cause instanceof InternalServerError ||
     cause instanceof APIConnectionError);
+
+/**
+ * What the log and the garment card may show of an SDK failure: the status,
+ * the error type and the request id, never the API's message or body.
+ * Other causes, such as the usage ledger's own errors, stay as they are.
+ */
+const safeCause = (cause: unknown): unknown => {
+  if (cause instanceof APIConnectionError) {
+    return 'The connection to the Claude API failed.';
+  }
+  if (!(cause instanceof APIError)) {
+    return cause;
+  }
+  const request = cause.requestID ? ` (request ${cause.requestID})` : '';
+  return `${cause.status ?? 'no status'} ${cause.type ?? 'unknown_error'}${request}`;
+};
 
 /** Why an answer stopped short, without anything the model wrote. */
 const stopCause = ({ stop_reason, stop_details }: MessageAnswer): string =>
@@ -194,6 +203,12 @@ export const makeGenerateJson =
           ]),
           while: isTransient,
         }),
+        // The retry above still needs the SDK error to decide by its class;
+        // from here on the cause holds only what may be logged and shown.
+        Effect.mapError(
+          ({ reason, message, cause }) =>
+            new ClaudeError({ reason, message, cause: safeCause(cause) }),
+        ),
         Effect.flatMap((response) => {
           if (response.stop_reason !== 'end_turn') {
             return Effect.fail(
@@ -209,16 +224,14 @@ export const makeGenerateJson =
             jsonAnswer(text),
           ).pipe(
             Effect.mapError(
-              (error) =>
+              () =>
                 new ClaudeError({
                   reason: 'answer',
                   message:
                     'Claude answered outside the requested schema. Try again.',
-                  // Plain strings, so the log shows what Claude said instead of a truncated issue object.
-                  cause: {
-                    issue: formatIssue(error.issue),
-                    answer: answerExcerpt(text),
-                  },
+                  // The issue quotes the values Claude wrote and its paths can
+                  // name them too, so neither the log nor the card gets any of it.
+                  cause: undefined,
                 }),
             ),
           );

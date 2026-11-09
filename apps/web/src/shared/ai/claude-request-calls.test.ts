@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { APIConnectionError, OverloadedError } from '@anthropic-ai/sdk';
-import { Deferred, Effect, Fiber } from 'effect';
+import { Cause, Deferred, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
 import {
   type CreateMessage,
@@ -259,4 +259,34 @@ describe('Claude request failures', () => {
       },
     });
   });
+
+  const marker = 'MADE-UP-MARKER-7f3a';
+  it.each([
+    [
+      'an answer outside the schema',
+      () => Promise.resolve(answer(`{"choice":["${marker}"]}`)),
+      undefined,
+    ],
+    [
+      'the message of an API error',
+      () => Promise.reject(apiError(400, 'invalid_request_error', marker)),
+      '400 invalid_request_error',
+    ],
+  ] as const)(
+    'keeps %s out of the failure, its cause and the log',
+    async (_case, reply, cause) => {
+      const failure = await Effect.runPromise(
+        Effect.flip(makeGenerateJson(reply, claudeModel)(input)),
+      );
+      expect({
+        message: failure.message.includes(marker),
+        cause:
+          `${String(failure.cause)} ${JSON.stringify(failure.cause)}`.includes(
+            marker,
+          ),
+        log: Cause.pretty(Cause.fail(failure)).includes(marker),
+      }).toEqual({ message: false, cause: false, log: false });
+      expect(failure.cause).toBe(cause);
+    },
+  );
 });

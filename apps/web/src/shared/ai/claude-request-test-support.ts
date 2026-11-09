@@ -75,10 +75,14 @@ export const answer = (value: string): MessageAnswer =>
   ]);
 
 /** The SDK error class the SDK itself raises for this status. */
-export const apiError = (status: number, type: string) =>
+export const apiError = (
+  status: number,
+  type: string,
+  apiMessage = 'Made-up failure.',
+) =>
   APIError.generate(
     status,
-    { type: 'error', error: { type, message: 'Made-up failure.' } },
+    { type: 'error', error: { type, message: apiMessage } },
     undefined,
     new Headers(),
   );
