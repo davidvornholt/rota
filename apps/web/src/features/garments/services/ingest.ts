@@ -3,14 +3,14 @@
  *
  * `start` does the little that has to happen before the upload is answered:
  * store the photo and open the garment row. `process` does the slow part in the
- * background — Bedrock reads the garment, then GPT-Image-2.5 Flare renders the studio
+ * background — Claude reads the garment, then GPT-Image-2.5 Flare renders the studio
  * flat lay — and never fails as an Effect: whatever goes wrong is written onto
  * the garment, which still reaches review with the photo it has, so nothing
  * you photographed is ever lost to a model that was down.
  */
 
 import { Context, Effect, Layer } from 'effect';
-import { Bedrock } from '#/shared/ai/bedrock.ts';
+import { Claude } from '#/shared/ai/claude.ts';
 import { StudioRenderError } from '#/shared/ai/errors/ai-errors.ts';
 import { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
 import type { Garment } from '#/shared/data/garment.ts';
@@ -100,7 +100,7 @@ const describeFailure = (error: unknown): string => {
 type IngestDependencies = {
   readonly garments: GarmentRepository['Service'];
   readonly media: MediaStore['Service'];
-  readonly bedrock: Bedrock['Service'];
+  readonly claude: Claude['Service'];
   readonly studio: StudioRenderer['Service'];
 };
 
@@ -128,11 +128,11 @@ const originalPhoto = ({ media }: IngestDependencies, garment: Garment) =>
     return { bytes, mime: original.mime };
   });
 
-/** Bedrock reads the photo; the reading lands on the row and review opens. */
+/** Claude reads the photo; the reading lands on the row and review opens. */
 const readGarment = (deps: IngestDependencies, garment: Garment) =>
   Effect.gen(function* () {
     const photo = yield* originalPhoto(deps, garment);
-    const extraction = yield* deps.bedrock.generateJson({
+    const extraction = yield* deps.claude.generateJson({
       purpose: 'garment',
       system: extractionSystemPrompt,
       parts: [
@@ -163,7 +163,7 @@ export class IngestService extends Context.Service<IngestService>()(
       const deps: IngestDependencies = {
         garments: yield* GarmentRepository,
         media: yield* MediaStore,
-        bedrock: yield* Bedrock,
+        claude: yield* Claude,
         studio: yield* StudioRenderer,
       };
       const { garments } = deps;
@@ -238,7 +238,7 @@ export class IngestService extends Context.Service<IngestService>()(
                   instructions,
                   photoEffect: originalPhoto(deps, garment).pipe(
                     Effect.flatMap((photo) =>
-                      orientStudioPhoto(deps.bedrock, photo),
+                      orientStudioPhoto(deps.claude, photo),
                     ),
                   ),
                   report,

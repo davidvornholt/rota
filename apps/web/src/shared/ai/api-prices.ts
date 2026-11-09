@@ -6,6 +6,15 @@ const imageRatesCheckedOn: Readonly<Record<string, string>> = {
   'gpt-image-2.5-sunburst': '2026-10-11',
 };
 
+/**
+ * Claude Sonnet 5.5, and Claude Sonnet 5, which answers its server-side
+ * fallbacks, at the same rates.
+ */
+const claudeModels: ReadonlySet<string> = new Set([
+  'claude-sonnet-5-5',
+  'claude-sonnet-5',
+]);
+
 export type PriceSnapshot = TokenPrices & {
   readonly source: string;
   readonly checkedOn: string;
@@ -17,7 +26,7 @@ export const apiPrice = ({
   provider,
   model,
 }: {
-  readonly provider: 'bedrock' | 'foundry';
+  readonly provider: 'anthropic' | 'foundry';
   readonly model: string;
 }): PriceSnapshot | undefined => {
   const imageCheckedOn =
@@ -32,15 +41,13 @@ export const apiPrice = ({
       imageInput: 8,
       imageOutput: 30,
       cachedInput: 0,
+      cacheWrite: 0,
       source: `https://developers.openai.com/api/docs/models/${model}`,
       checkedOn: imageCheckedOn,
       basis: 'OpenAI reference rates; Foundry invoice may differ',
     };
   }
-  if (
-    provider !== 'bedrock' ||
-    model !== 'global.anthropic.claude-sonnet-5-5'
-  ) {
+  if (provider !== 'anthropic' || !claudeModels.has(model)) {
     return undefined;
   }
   return {
@@ -49,8 +56,9 @@ export const apiPrice = ({
     imageInput: 2,
     imageOutput: 0,
     cachedInput: 0.2,
+    cacheWrite: 2.5,
     source: 'https://platform.claude.com/docs/en/about-claude/pricing',
-    checkedOn: '2026-10-01',
-    basis: 'Bedrock standard global pricing; no prompt cache writes',
+    checkedOn: '2026-11-09',
+    basis: 'Claude API standard pricing; five-minute cache writes',
   };
 };

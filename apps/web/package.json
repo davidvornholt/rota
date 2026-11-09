@@ -21,7 +21,7 @@
     "test:oauth": "bun --env-file=.env.local run scripts/oauth-check.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.1161.0",
+    "@anthropic-ai/sdk": "^1.6.0",
     "@better-auth/passkey": "1.7.15",
     "@effect/sql-pg": "^4.1.2",
     "@fontsource-variable/instrument-sans": "^5.3.0",

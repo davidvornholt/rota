@@ -19,7 +19,7 @@ import { Cause, Effect, type Fiber, Layer, ManagedRuntime } from 'effect';
 import type { SqlClient } from 'effect/sql/SqlClient';
 import type { SqlError } from 'effect/sql/SqlError';
 
-import { Bedrock } from '#/shared/ai/bedrock.ts';
+import { Claude } from '#/shared/ai/claude.ts';
 import { CollageRenderer } from '#/shared/ai/collage-renderer.ts';
 import { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
 import { CollageRepository } from '#/shared/data/collage-repository.ts';
@@ -45,7 +45,7 @@ export type Infrastructure =
   | DayNoteRepository
   | CollageRepository
   | MediaStore
-  | Bedrock
+  | Claude
   | StudioRenderer
   | CollageRenderer
   | WeatherApi;
@@ -64,7 +64,7 @@ export const infrastructureLayer: Layer.Layer<
   DayNoteRepository.layer,
   CollageRepository.layer,
   MediaStore.layer,
-  Bedrock.layer,
+  Claude.layer,
   StudioRenderer.layer,
   CollageRenderer.layer,
   WeatherApi.layer,

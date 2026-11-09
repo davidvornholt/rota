@@ -206,6 +206,24 @@
       }
     },
     {
+      // The Claude Messages API request, answer and usage fields are
+      // snake_case.
+      "includes": [
+        "apps/web/src/shared/ai/claude-request.ts",
+        "apps/web/src/shared/ai/claude-request.test.ts",
+        "apps/web/src/shared/ai/claude-request-calls.test.ts",
+        "apps/web/src/shared/ai/claude-request-test-support.ts",
+        "apps/web/src/shared/ai/usage-cost.test.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
       // noImgElement is a Next.js rule about its <Image> component. This is a
       // Vite app; the garment figure, its enlarged view and the outfit
       // collage render a plain <img> with explicit dimensions and async

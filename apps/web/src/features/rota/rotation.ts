@@ -1,7 +1,7 @@
 /**
  * The rotation engine: everything about what to wear that does not need a
  * model. It reads the wear log, identifies continuing garments, and offers
- * available alternatives. Weather and outfit suitability belong to Bedrock.
+ * available alternatives. Weather and outfit suitability belong to Claude.
  */
 
 import type { Garment } from '#/shared/data/garment.ts';

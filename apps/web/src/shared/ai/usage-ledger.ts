@@ -3,28 +3,45 @@ import { WardrobeOwner } from '#/shared/auth/identity.ts';
 import { pool } from '#/shared/db/database.ts';
 import { apiPrice } from './api-prices.ts';
 import {
-  bedrockTokens,
+  attemptsUsd,
+  claudeAttempts,
   estimateUsd,
   foundryTokens,
-  type TokenPrices,
   type TokenUsage,
+  totalTokens,
 } from './usage-cost.ts';
 
 class UsageError extends Schema.TaggedError<UsageError>()('UsageError', {
   message: Schema.String,
 }) {}
+type Provider = 'anthropic' | 'foundry';
+
+const tokenAmounts = (tokens: TokenUsage, cost: number | null) => [
+  tokens.input + tokens.imageInput + tokens.cachedInput + tokens.cacheWrite,
+  tokens.output + tokens.imageOutput,
+  cost,
+];
 const usageAmounts = (
-  tokens: TokenUsage | null,
-  price: TokenPrices | undefined,
+  provider: Provider,
+  model: string,
+  usage: unknown,
+  price: ReturnType<typeof apiPrice>,
 ) => {
-  if (!tokens) {
-    return [null, null, null];
+  if (provider === 'foundry') {
+    const tokens = foundryTokens(usage);
+    return tokens
+      ? tokenAmounts(tokens, price ? estimateUsd(tokens, price) : null)
+      : [null, null, null];
   }
-  return [
-    tokens.input + tokens.imageInput + tokens.cachedInput,
-    tokens.output + tokens.imageOutput,
-    price ? estimateUsd(tokens, price) : null,
-  ];
+  const attempts = claudeAttempts(usage);
+  return attempts
+    ? tokenAmounts(
+        totalTokens(attempts),
+        attemptsUsd(attempts, (served) =>
+          apiPrice({ provider, model: served ?? model }),
+        ),
+      )
+    : [null, null, null];
 };
 export const makeUsageLedger = Effect.gen(function* () {
   const owner = yield* WardrobeOwner;
@@ -34,7 +51,7 @@ export const makeUsageLedger = Effect.gen(function* () {
       model,
       operation,
     }: {
-      readonly provider: 'bedrock' | 'foundry';
+      readonly provider: Provider;
       readonly model: string;
       readonly operation: string;
     },
@@ -78,15 +95,13 @@ export const makeUsageLedger = Effect.gen(function* () {
       throw error;
     }
     const { usage, success } = extract(result);
-    const tokens =
-      provider === 'bedrock' ? bedrockTokens(usage) : foundryTokens(usage);
     await pool.query(
       `update api_usage set status = $6, usage = $2, input_tokens = $3,
       output_tokens = $4, estimated_usd = $5 where id = $1`,
       [
         id,
         JSON.stringify(usage),
-        ...usageAmounts(tokens, price),
+        ...usageAmounts(provider, model, usage, price),
         success ? 'success' : 'failed',
       ],
     );

@@ -26,7 +26,7 @@ describe('the failure an API client sees', () => {
   it('hides a server failure behind a generic message', () => {
     for (const error of [
       new Error('connection refused at 10.0.0.4'),
-      new Conflict({ message: 'Bedrock said no', httpStatus: 503 }),
+      new Conflict({ message: 'Claude said no', httpStatus: 503 }),
     ]) {
       const failure = apiFailure(error);
       expect(failure._tag).toBe('ServerError');
