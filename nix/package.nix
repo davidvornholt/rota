@@ -8,22 +8,8 @@
 }:
 let
   pname = "rota-cli";
-  # The repository without dependencies, build output, and local state, which a
-  # dirty checkout or a path: flake would otherwise copy into the store.
-  # lib.fileset can't exclude a directory by name at any depth, so this filters
-  # the source by name instead.
-  src = lib.cleanSourceWith {
-    src = lib.cleanSource ../.;
-    filter =
-      path: _type:
-      !builtins.elem (baseNameOf path) [
-        ".direnv"
-        ".media"
-        ".turbo"
-        "dist"
-        "node_modules"
-      ];
-  };
+  # The files git doesn't ignore; package-source.nix says what that protects.
+  src = import ./package-source.nix { inherit lib; } ../.;
   skills = builtins.attrNames (
     lib.filterAttrs (_name: type: type == "directory") (builtins.readDir ../apps/cli/skills)
   );
