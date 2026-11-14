@@ -207,8 +207,10 @@
     },
     {
       // The Claude Messages API request, answer and usage fields are
-      // snake_case.
+      // snake_case, and the service test names the environment variable it
+      // replaces.
       "includes": [
+        "apps/web/src/shared/ai/claude.test.ts",
         "apps/web/src/shared/ai/claude-request.ts",
         "apps/web/src/shared/ai/claude-request.test.ts",
         "apps/web/src/shared/ai/claude-request-calls.test.ts",

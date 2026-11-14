@@ -8,7 +8,7 @@ import {
   PermissionDeniedError,
   RateLimitError,
 } from '@anthropic-ai/sdk';
-import { Duration, Effect, Schedule, Schema } from 'effect';
+import { Duration, Effect, Exit, Schedule, Schema } from 'effect';
 import { prepareClaudeParts } from './claude-images.ts';
 import { ClaudeError } from './errors/ai-errors.ts';
 import { jsonAnswer } from './json-answer.ts';
@@ -169,6 +169,45 @@ const messageRequest = (
   ],
 });
 
+/**
+ * The value an answer holds, or why the request failed: Claude stopped before
+ * finishing, or what it wrote doesn't match the schema.
+ */
+const readAnswer = <A, I>(
+  response: MessageAnswer,
+  schema: Schema.Codec<A, I>,
+): Effect.Effect<A, ClaudeError> => {
+  if (response.stop_reason !== 'end_turn') {
+    return Effect.fail(
+      new ClaudeError({
+        reason: 'answer',
+        message: 'Claude did not finish a usable answer. Try again.',
+        cause: stopCause(response),
+      }),
+    );
+  }
+  return Schema.decodeUnknownEffect(Schema.fromJsonString(schema))(
+    jsonAnswer(servedText(response.content)),
+  ).pipe(
+    Effect.mapError(
+      () =>
+        new ClaudeError({
+          reason: 'answer',
+          message: 'Claude answered outside the requested schema. Try again.',
+          // The issue quotes the values Claude wrote and its paths can
+          // name them too, so neither the log nor the card gets any of it.
+          cause: undefined,
+        }),
+    ),
+  );
+};
+
+/** Whether `generateJson` will return this answer's value rather than fail, which the usage ledger records as success. */
+export const isUsableAnswer = <A, I>(
+  response: MessageAnswer,
+  schema: Schema.Codec<A, I>,
+): boolean => Exit.isSuccess(Effect.runSyncExit(readAnswer(response, schema)));
+
 export const makeGenerateJson =
   (createMessage: CreateMessage, model: string) =>
   <A, I>({
@@ -211,32 +250,6 @@ export const makeGenerateJson =
           ({ reason, message, cause }) =>
             new ClaudeError({ reason, message, cause: safeCause(cause) }),
         ),
-        Effect.flatMap((response) => {
-          if (response.stop_reason !== 'end_turn') {
-            return Effect.fail(
-              new ClaudeError({
-                reason: 'answer',
-                message: 'Claude did not finish a usable answer. Try again.',
-                cause: stopCause(response),
-              }),
-            );
-          }
-          const text = servedText(response.content);
-          return Schema.decodeUnknownEffect(Schema.fromJsonString(schema))(
-            jsonAnswer(text),
-          ).pipe(
-            Effect.mapError(
-              () =>
-                new ClaudeError({
-                  reason: 'answer',
-                  message:
-                    'Claude answered outside the requested schema. Try again.',
-                  // The issue quotes the values Claude wrote and its paths can
-                  // name them too, so neither the log nor the card gets any of it.
-                  cause: undefined,
-                }),
-            ),
-          );
-        }),
+        Effect.flatMap((response) => readAnswer(response, schema)),
       );
     });

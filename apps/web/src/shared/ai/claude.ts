@@ -3,6 +3,7 @@ import { env } from '#/shared/env.ts';
 import {
   claudeClient,
   claudeModel,
+  isUsableAnswer,
   makeGenerateJson,
 } from './claude-request.ts';
 import { makeUsageLedger } from './usage-ledger.ts';
@@ -27,7 +28,7 @@ export class Claude extends Context.Service<Claude>()('shared/Claude', {
             () => client.beta.messages.create(request, { signal }),
             (answer) => ({
               usage: answer.usage,
-              success: answer.stop_reason === 'end_turn',
+              success: isUsableAnswer(answer, input.schema),
             }),
           ),
         model,
