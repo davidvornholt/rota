@@ -11,7 +11,7 @@
   "dependencies": {
     "@effect/platform-bun": "4.1.2",
     "@rota/api": "workspace:*",
-    "effect": "^4.1.2"
+    "effect": "^4.1.3"
   },
   "devDependencies": {
     "@davidvornholt/typescript-config": "workspace:*",
