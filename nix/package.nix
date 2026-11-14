@@ -3,15 +3,13 @@
 {
   bun,
   lib,
-  nix-gitignore,
   stdenvNoCC,
   version,
 }:
 let
   pname = "rota-cli";
-  # The files git doesn't ignore, so that a dirty checkout or a path: flake
-  # can't copy local env files, dependencies, or build output into the store.
-  src = import ./package-source.nix { inherit lib nix-gitignore; } ../.;
+  # The files git doesn't ignore; package-source.nix says what that protects.
+  src = import ./package-source.nix { inherit lib; } ../.;
   skills = builtins.attrNames (
     lib.filterAttrs (_name: type: type == "directory") (builtins.readDir ../apps/cli/skills)
   );

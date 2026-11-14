@@ -32,7 +32,7 @@ jobs:
         uses: cachix/install-nix-action@v31
 
       - name: Build
-        run: nix build .#rota-cli -L
+        run: nix build .#rota-cli .#checks.x86_64-linux.package-source -L
 
       - name: Check the binary and skills
         run: |
