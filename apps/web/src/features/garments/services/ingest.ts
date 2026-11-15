@@ -197,6 +197,10 @@ export class IngestService extends Context.Service<IngestService>()(
           .start(id, (report) =>
             Effect.gen(function* () {
               const garment = yield* garments.byId(id);
+              // A retried upload can arrive after the first reading finished.
+              if (garment.status !== 'processing') {
+                return;
+              }
               const extraction = yield* readGarment(deps, garment);
               const read = yield* garments.byId(id);
               yield* studioWork(

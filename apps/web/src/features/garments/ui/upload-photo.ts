@@ -65,8 +65,6 @@ const refusal = (response: Response) =>
 /**
  * Shrinks one photo on the device and sends it on its own, so one bad photo
  * never holds back the rest. Answers with the id of the garment it opened.
- * The upload id names this photo for good: sending it again with the same id,
- * after a lost answer, finds the garment the first try opened.
  */
 export const uploadPhoto = Effect.fnUntraced(function* (
   file: File,
@@ -95,7 +93,6 @@ export const uploadPhoto = Effect.fnUntraced(function* (
     Effect.mapError(
       () =>
         new PhotoUploadError({
-          // Sending again would add the garment twice.
           message:
             'The photo was sent, but the answer could not be read. Refresh the page to see it.',
           retryable: false,
