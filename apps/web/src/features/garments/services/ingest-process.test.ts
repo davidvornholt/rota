@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import { Effect } from 'effect';
 import { Claude } from '#/shared/ai/claude.ts';
 import { StudioRenderer } from '#/shared/ai/studio-renderer.ts';
@@ -14,6 +14,8 @@ const processWith = (status: string) => {
   };
   const run = IngestService.make.pipe(
     Effect.flatMap((ingest) => ingest.process('garment-1')),
+    // The reading runs in the background, so give it time to reach a fake.
+    Effect.andThen(Effect.sleep('50 millis')),
     Effect.provideService(GarmentRepository, {
       byId: () => Effect.succeed({ id: 'garment-1', status }),
       // The fakes cannot read a photo, so any reading ends here.
@@ -23,18 +25,16 @@ const processWith = (status: string) => {
     Effect.provideService(MediaStore, { read: fail('media') } as never),
     Effect.provideService(StudioRenderer, { render: fail('studio') } as never),
   );
-  // The reading runs in the background, so give it time to reach a fake.
-  return Effect.runPromise(run)
-    .then(() => Bun.sleep(50))
-    .then(() => calls);
+  return Effect.runPromise(run).then(() => calls);
 };
 
 describe('IngestService.process', () => {
-  test('leaves a garment that is no longer processing alone', async () => {
+  it('leaves a garment that is no longer processing alone', async () => {
     // A retried upload finds the garment the first try opened, which was read
     // and accepted while the retry stored its photo.
-    for (const status of ['active', 'review', 'retired']) {
-      expect(await processWith(status)).toEqual([]);
-    }
+    const answers = await Promise.all(
+      ['active', 'review', 'retired'].map(processWith),
+    );
+    expect(answers).toEqual([[], [], []]);
   });
 });
