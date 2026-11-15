@@ -36,6 +36,80 @@ export type GarmentAttributes = {
 
 export type StoredImage = GarmentImage & { readonly bytes: number };
 
+/** The columns a reading or an edit sets; the caller adds the `where`. */
+const attributeUpdate = (
+  sql: SqlClient.SqlClient,
+  attributes: GarmentAttributes,
+) => sql`
+  set name = ${attributes.name},
+      category = ${attributes.category},
+      subcategory = ${attributes.subcategory},
+      slots = ${attributes.slots}::garment_slot[],
+      warmth = ${attributes.warmth},
+      rain_ok = ${attributes.rainOk},
+      formality = ${attributes.formality},
+      wear_budget = ${attributes.wearBudget},
+      colors = ${JSON.stringify(attributes.colors)}::jsonb,
+      pattern = ${attributes.pattern},
+      material = ${attributes.material},
+      fit = ${attributes.fit},
+      sleeve = ${attributes.sleeve},
+      brand = ${attributes.brand},
+      notes = ${attributes.notes},
+      price = ${attributes.price},
+      purchased_on = ${attributes.purchasedOn},
+      updated_at = now()
+`;
+
+type ImageRow = {
+  readonly garmentId: string;
+  readonly kind: 'original' | 'studio';
+  readonly image: StoredImage;
+};
+
+/** Stores or replaces one image of a garment the owner has. */
+const insertImage = (
+  sql: SqlClient.SqlClient,
+  ownerId: string,
+  { garmentId, kind, image }: ImageRow,
+) => sql`
+  insert into garment_image (garment_id, kind, storage_key, mime, width, height, bytes)
+  select ${garmentId}, ${kind}, ${image.key}, ${image.mime}, ${image.width}, ${image.height}, ${image.bytes}
+  where exists (select 1 from garment where id = ${garmentId} and owner_id = ${ownerId})
+  on conflict (garment_id, kind) do update
+    set storage_key = excluded.storage_key, mime = excluded.mime,
+        width = excluded.width, height = excluded.height,
+        bytes = excluded.bytes, created_at = now()
+`;
+
+/**
+ * A new garment enters as `processing`, with only its photo known. The row and
+ * its photo commit together, so a failed photo write never leaves a blank card
+ * in the wardrobe.
+ */
+const insertGarment = (
+  sql: SqlClient.SqlClient,
+  ownerId: string,
+  original: StoredImage,
+) =>
+  sql.withTransaction(
+    Effect.gen(function* () {
+      const rows = yield* sql`
+        insert into garment (owner_id) values (${ownerId}) returning id
+      `;
+      const id = rows[0]?.id;
+      if (typeof id !== 'string') {
+        return yield* Effect.fail(new Error('No id returned.'));
+      }
+      yield* insertImage(sql, ownerId, {
+        garmentId: id,
+        kind: 'original',
+        image: original,
+      });
+      return id;
+    }),
+  );
+
 const readGarments = readError('The wardrobe');
 const writeGarment = writeError('The garment');
 
@@ -96,52 +170,15 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
         kind: 'original' | 'studio',
         image: StoredImage,
       ) =>
-        sql`
-          insert into garment_image (garment_id, kind, storage_key, mime, width, height, bytes)
-          select ${garmentId}, ${kind}, ${image.key}, ${image.mime}, ${image.width}, ${image.height}, ${image.bytes}
-          where exists (select 1 from garment where id = ${garmentId} and owner_id = ${owner.id})
-          on conflict (garment_id, kind) do update
-            set storage_key = excluded.storage_key, mime = excluded.mime,
-                width = excluded.width, height = excluded.height,
-                bytes = excluded.bytes, created_at = now()
-        `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
+        insertImage(sql, owner.id, { garmentId, kind, image }).pipe(
+          Effect.asVoid,
+          Effect.mapError(writeGarment),
+        );
 
-      /** A new garment enters as `processing`, with only its photo known. */
       const create = (original: StoredImage) =>
-        Effect.gen(function* () {
-          const rows = yield* sql`
-            insert into garment (owner_id) values (${owner.id}) returning id
-          `.pipe(Effect.mapError(writeGarment));
-          const id = rows[0]?.id;
-          if (typeof id !== 'string') {
-            return yield* Effect.fail(
-              writeGarment(new Error('No id returned.')),
-            );
-          }
-          yield* attachImage(id, 'original', original);
-          return id;
-        });
-
-      const attributeUpdate = (attributes: GarmentAttributes) => sql`
-        set name = ${attributes.name},
-            category = ${attributes.category},
-            subcategory = ${attributes.subcategory},
-            slots = ${attributes.slots}::garment_slot[],
-            warmth = ${attributes.warmth},
-            rain_ok = ${attributes.rainOk},
-            formality = ${attributes.formality},
-            wear_budget = ${attributes.wearBudget},
-            colors = ${JSON.stringify(attributes.colors)}::jsonb,
-            pattern = ${attributes.pattern},
-            material = ${attributes.material},
-            fit = ${attributes.fit},
-            sleeve = ${attributes.sleeve},
-            brand = ${attributes.brand},
-            notes = ${attributes.notes},
-            price = ${attributes.price},
-            purchased_on = ${attributes.purchasedOn},
-            updated_at = now()
-      `;
+        insertGarment(sql, owner.id, original).pipe(
+          Effect.mapError(writeGarment),
+        );
 
       /** The model's reading lands, the raw answer is kept, and review opens. */
       const applyExtraction = (
@@ -151,7 +188,7 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
       ) =>
         sql`
           update garment
-          ${attributeUpdate(attributes)},
+          ${attributeUpdate(sql, attributes)},
               extraction = ${JSON.stringify(extraction)}::jsonb,
               processing_error = null,
               status = 'review'
@@ -160,7 +197,7 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
 
       const update = (id: string, attributes: GarmentAttributes) =>
         sql`
-          update garment ${attributeUpdate(attributes)} where id = ${id} and owner_id = ${owner.id}
+          update garment ${attributeUpdate(sql, attributes)} where id = ${id} and owner_id = ${owner.id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
       const markProcessingError = (id: string, message: string) =>
