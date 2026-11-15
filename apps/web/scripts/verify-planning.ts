@@ -29,6 +29,7 @@ import { verifyCollections } from './verify-collections.ts';
 import { verifyCare, verifyDailyDrafts } from './verify-daily-drafts.ts';
 import { verifyDirectLaundry } from './verify-direct-laundry.ts';
 import { verifyFavourites } from './verify-favourites.ts';
+import { verifyGarmentCreation } from './verify-garment-creation.ts';
 import { verifyPlanningIsolation } from './verify-planning-isolation.ts';
 import { verifyScheduledRetry } from './verify-scheduled-retry.ts';
 import { verifySuggestionRollback } from './verify-suggestion-rollback.ts';
@@ -358,10 +359,11 @@ try {
     Layer.provideMerge(infrastructure),
   );
   await Effect.runPromise(verify.pipe(Effect.provide(services)));
+  await Effect.runPromise(verifyGarmentCreation.pipe(Effect.provide(services)));
   await verifyPlanningIsolation(pool, databaseUrl.href);
   await Effect.runPromise(
     Effect.logInfo(
-      'Planning integration passed: migrations, suggestions, pinned garments, saved outfits, collections, favourites, plans, wear, weather changes, laundry and scheduled retries.',
+      'Planning integration passed: migrations, garment creation, suggestions, pinned garments, saved outfits, collections, favourites, plans, wear, weather changes, laundry and scheduled retries.',
     ),
   );
 } finally {
