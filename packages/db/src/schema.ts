@@ -128,6 +128,7 @@ export const garment = pgTable(
     purchasedOn: date('purchased_on'),
     imageChoice: garmentImageChoice('image_choice').notNull().default('studio'),
     extraction: jsonb('extraction'),
+    uploadId: uuid('upload_id'),
     processingError: text('processing_error'),
     studioError: text('studio_error'),
     retiredAt: timestamp('retired_at', { withTimezone: true }),
@@ -146,6 +147,10 @@ export const garment = pgTable(
       sql`${table.wearBudget} is null or ${table.wearBudget} between 1 and 30`,
     ),
     index('garment_status_idx').on(table.status),
+    uniqueIndex('garment_owner_upload_unique').on(
+      table.ownerId,
+      table.uploadId,
+    ),
   ],
 );
 

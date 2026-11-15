@@ -169,9 +169,14 @@ export class IngestService extends Context.Service<IngestService>()(
       const { garments } = deps;
       const jobs = makeStudioJobs();
 
-      /** Stores the photo and opens the garment; the caller starts `process`. */
-      const start = (upload: Upload) =>
-        storeUpload(deps, upload).pipe(Effect.flatMap(garments.create));
+      /**
+       * Stores the photo and opens the garment, or answers with the one this
+       * upload id opened before. The caller starts `process` while it waits.
+       */
+      const start = (upload: Upload, uploadId: string) =>
+        storeUpload(deps, upload).pipe(
+          Effect.flatMap((image) => garments.create(image, uploadId)),
+        );
 
       const recordFailure = (id: string, step: string) => (error: unknown) =>
         Effect.logWarning(`${step} failed for garment ${id}.`, error).pipe(

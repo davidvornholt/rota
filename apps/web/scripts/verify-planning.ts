@@ -363,7 +363,7 @@ try {
   await verifyPlanningIsolation(pool, databaseUrl.href);
   await Effect.runPromise(
     Effect.logInfo(
-      'Planning integration passed: migrations, garment creation, suggestions, pinned garments, saved outfits, collections, favourites, plans, wear, weather changes, laundry and scheduled retries.',
+      'Planning integration passed: migrations, garment creation and upload retries, suggestions, pinned garments, saved outfits, collections, favourites, plans, wear, weather changes, laundry and scheduled retries.',
     ),
   );
 } finally {

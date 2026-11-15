@@ -1,6 +1,10 @@
 import { Effect, Schema } from 'effect';
 
-import { uploadEndpoint, uploadFieldName } from '../upload-contract.ts';
+import {
+  uploadEndpoint,
+  uploadFieldName,
+  uploadIdFieldName,
+} from '../upload-contract.ts';
 import { DownscaleError, downscaleForUpload } from './downscale-image.ts';
 
 /** Why a photo did not reach the wardrobe, and whether sending it again can help. */
@@ -61,11 +65,17 @@ const refusal = (response: Response) =>
 /**
  * Shrinks one photo on the device and sends it on its own, so one bad photo
  * never holds back the rest. Answers with the id of the garment it opened.
+ * The upload id names this photo for good: sending it again with the same id,
+ * after a lost answer, finds the garment the first try opened.
  */
-export const uploadPhoto = Effect.fnUntraced(function* (file: File) {
+export const uploadPhoto = Effect.fnUntraced(function* (
+  file: File,
+  uploadId: string,
+) {
   const prepared = yield* prepare(file);
   const form = new FormData();
   form.append(uploadFieldName, prepared, prepared.name);
+  form.append(uploadIdFieldName, uploadId);
   const response = yield* Effect.tryPromise({
     try: () => fetch(uploadEndpoint, { method: 'POST', body: form }),
     catch: () => unreachable,

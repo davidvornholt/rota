@@ -82,31 +82,47 @@ const insertImage = (
         bytes = excluded.bytes, created_at = now()
 `;
 
+/** What `create` answers: the garment, and whether it still waits for its reading. */
+export type CreatedGarment = {
+  readonly id: string;
+  readonly status: GarmentStatus;
+};
+
 /**
  * A new garment enters as `processing`, with only its photo known. The row and
  * its photo commit together, so a failed photo write never leaves a blank card
- * in the wardrobe.
+ * in the wardrobe. The upload id is the browser's name for this photo: a second
+ * call with the same id answers with the garment the first call opened.
  */
 const insertGarment = (
   sql: SqlClient.SqlClient,
   ownerId: string,
   original: StoredImage,
+  uploadId: string,
 ) =>
   sql.withTransaction(
     Effect.gen(function* () {
-      const rows = yield* sql`
-        insert into garment (owner_id) values (${ownerId}) returning id
+      const created = yield* sql`
+        insert into garment (owner_id, upload_id) values (${ownerId}, ${uploadId})
+        on conflict (owner_id, upload_id) do nothing returning id, status
       `;
-      const id = rows[0]?.id;
-      if (typeof id !== 'string') {
+      const [row] =
+        created.length > 0
+          ? created
+          : yield* sql`
+        select id, status from garment where owner_id = ${ownerId} and upload_id = ${uploadId}
+      `;
+      if (typeof row?.id !== 'string') {
         return yield* Effect.fail(new Error('No id returned.'));
       }
-      yield* insertImage(sql, ownerId, {
-        garmentId: id,
-        kind: 'original',
-        image: original,
-      });
-      return id;
+      if (created.length > 0) {
+        yield* insertImage(sql, ownerId, {
+          garmentId: row.id,
+          kind: 'original',
+          image: original,
+        });
+      }
+      return { id: row.id, status: row.status } as CreatedGarment;
     }),
   );
 
@@ -175,8 +191,8 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
           Effect.mapError(writeGarment),
         );
 
-      const create = (original: StoredImage) =>
-        insertGarment(sql, owner.id, original).pipe(
+      const create = (original: StoredImage, uploadId: string) =>
+        insertGarment(sql, owner.id, original, uploadId).pipe(
           Effect.mapError(writeGarment),
         );
 
