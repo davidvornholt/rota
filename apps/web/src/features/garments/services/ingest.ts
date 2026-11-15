@@ -44,6 +44,7 @@ import {
   renderStudio,
   withStudioPersistenceDeadline,
 } from './studio-render-job.ts';
+import { whenWaiting } from './when-waiting.ts';
 
 /** The model's reading, as the garment row stores it. A budget equal to the category default stays null so later category changes apply. */
 export const attributesFromExtraction = (
@@ -195,29 +196,26 @@ export class IngestService extends Context.Service<IngestService>()(
       const process = (id: string): Effect.Effect<void> =>
         jobs
           .start(id, (report) =>
-            Effect.gen(function* () {
-              const garment = yield* garments.byId(id);
-              // A retried upload can arrive after the first reading finished.
-              if (garment.status !== 'processing') {
-                return;
-              }
-              const extraction = yield* readGarment(deps, garment);
-              const read = yield* garments.byId(id);
-              yield* studioWork(
-                id,
-                renderStudio(deps, {
-                  garment: read,
-                  description: extraction.description,
-                  instructions: '',
-                  photoEffect: originalPhoto(deps, read).pipe(
-                    Effect.flatMap((photo) =>
-                      rotateImage(photo, extraction.rotationClockwise),
+            whenWaiting(garments, id, (garment) =>
+              Effect.gen(function* () {
+                const extraction = yield* readGarment(deps, garment);
+                const read = yield* garments.byId(id);
+                yield* studioWork(
+                  id,
+                  renderStudio(deps, {
+                    garment: read,
+                    description: extraction.description,
+                    instructions: '',
+                    photoEffect: originalPhoto(deps, read).pipe(
+                      Effect.flatMap((photo) =>
+                        rotateImage(photo, extraction.rotationClockwise),
+                      ),
                     ),
-                  ),
-                  report,
-                }),
-              );
-            }).pipe(
+                    report,
+                  }),
+                );
+              }),
+            ).pipe(
               Effect.catch(recordFailure(id, 'Reading the photo')),
               Effect.catchDefect(recordFailure(id, 'Processing')),
             ),
