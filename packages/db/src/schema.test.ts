@@ -33,6 +33,10 @@ it('a day holds one garment per slot, which is what makes the log an outfit', ()
   expect(uniqueColumns(wearLog)).toEqual([['owner_id', 'worn_on', 'slot']]);
 });
 
+it('an owner cannot open two garments from one upload', () => {
+  expect(uniqueColumns(garment)).toEqual([['owner_id', 'upload_id']]);
+});
+
 it('a garment keeps at most one image of each kind', () => {
   expect(uniqueColumns(garmentImage)).toEqual([['garment_id', 'kind']]);
 });

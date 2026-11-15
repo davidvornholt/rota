@@ -20,7 +20,12 @@ export type PendingPhoto = {
   readonly state: PendingState;
 };
 
-type Picked = { readonly file: File; readonly preview: string };
+type Picked = {
+  readonly file: File;
+  readonly preview: string;
+  /** Kept across retries, so the server can tell a retry from a second photo. */
+  readonly uploadId: string;
+};
 
 /**
  * A photo decodes at full size before it shrinks; two at a time keeps a phone
@@ -66,10 +71,10 @@ export const usePhotoUploads = ({
       list.map((photo) => (photo.key === key ? { ...photo, state } : photo)),
     );
 
-  const send = (key: string, file: File) => {
+  const send = (key: string, { file, uploadId }: Picked) => {
     Effect.runFork(
       Effect.sync(() => update(key, { phase: 'sending' })).pipe(
-        Effect.andThen(uploadPhoto(file)),
+        Effect.andThen(uploadPhoto(file, uploadId)),
         semaphore.withPermits(1),
         Effect.match({
           onSuccess: (garmentId) => {
@@ -88,20 +93,21 @@ export const usePhotoUploads = ({
       nextKeyRef.current += 1;
       const key = `pending-${nextKeyRef.current}`;
       const preview = URL.createObjectURL(file);
-      pickedRef.current.set(key, { file, preview });
-      return { key, file, preview };
+      const picked = { file, preview, uploadId: crypto.randomUUID() };
+      pickedRef.current.set(key, picked);
+      return { key, picked };
     });
     // Newest first, the order the queue lists garments in, so nothing moves
     // when a card hands over to the server's.
-    const fresh = [...entries].reverse().map(({ key, preview }) => ({
+    const fresh = [...entries].reverse().map(({ key, picked }) => ({
       key,
-      preview,
+      preview: picked.preview,
       state: { phase: 'waiting' } as const,
     }));
     setPhotos((list) => [...fresh, ...list]);
     setRevealKey(fresh[0]?.key ?? null);
-    for (const { key, file } of entries) {
-      send(key, file);
+    for (const { key, picked } of entries) {
+      send(key, picked);
     }
   };
 
@@ -109,7 +115,7 @@ export const usePhotoUploads = ({
     const entry = pickedRef.current.get(key);
     if (entry !== undefined) {
       update(key, { phase: 'waiting' });
-      send(key, entry.file);
+      send(key, entry);
     }
   };
 

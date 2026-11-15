@@ -6,9 +6,14 @@ import {
   privateResponseHeaders,
 } from '#/shared/auth/private-response.ts';
 import type { UploadError } from '../errors/garment-errors.ts';
-import { uploadFieldName } from '../upload-contract.ts';
+import {
+  isUploadId,
+  uploadFieldName,
+  uploadIdFieldName,
+} from '../upload-contract.ts';
 import { garmentsRuntime } from './garments-runtime.ts';
 import { IngestService } from './ingest.ts';
+import { openGarments } from './open-garments.ts';
 import { type Upload, validateUpload } from './photo-upload.ts';
 
 /** 202: the photos are stored; the reading continues after the answer. */
@@ -27,13 +32,17 @@ const rejected = (message: string, status: number): Response =>
     new Response(message, { status, headers: privateResponseHeaders }),
   );
 
+type Uploads = {
+  readonly uploads: ReadonlyArray<Upload>;
+  /** One id per photo, in the same order; empty when the request carried none. */
+  readonly uploadIds: ReadonlyArray<string>;
+};
+
 /**
  * The photos of a multipart request, checked before any byte is stored. A
  * rejected file fails the whole request, so a batch never half-lands.
  */
-const readUploads = async (
-  request: Request,
-): Promise<ReadonlyArray<Upload> | Response> => {
+const readUploads = async (request: Request): Promise<Uploads | Response> => {
   const form = await request.formData().catch(() => undefined);
   const files = form
     ?.getAll(uploadFieldName)
@@ -50,39 +59,44 @@ const readUploads = async (
   const rejection = uploads
     .map(validateUpload)
     .find((error): error is UploadError => error !== undefined);
-  return rejection === undefined
-    ? uploads
-    : rejected(rejection.message, rejection.httpStatus);
+  if (rejection !== undefined) {
+    return rejected(rejection.message, rejection.httpStatus);
+  }
+  const uploadIds = (form?.getAll(uploadIdFieldName) ?? []).filter(
+    (entry): entry is string => typeof entry === 'string',
+  );
+  return { uploads, uploadIds };
 };
 
 /**
  * Accepts the photos of an upload, answers as soon as each is stored, and
- * leaves the reading and rendering to run on.
+ * leaves the reading and rendering to run on. A photo whose upload id opened a
+ * garment before, because the answer to the first try was lost, answers with
+ * that garment instead of opening a second one.
  */
 export const handleUpload = async (request: Request): Promise<Response> => {
-  const uploads = await readUploads(request);
-  if (uploads instanceof Response) {
-    return uploads;
+  const read = await readUploads(request);
+  if (read instanceof Response) {
+    return read;
+  }
+  const { uploads, uploadIds } = read;
+  if (uploadIds.length !== uploads.length || !uploadIds.every(isUploadId)) {
+    return rejected(
+      'This upload is not from the current app. Reload the app and try again.',
+      badRequest,
+    );
   }
 
   const ids = await garmentsRuntime.run(
-    Effect.gen(function* () {
-      const ingest = yield* IngestService;
-      const started: Array<string> = [];
-      for (const upload of uploads) {
-        started.push(yield* ingest.start(upload));
-      }
-      return started;
-    }),
-  );
-
-  await garmentsRuntime.run(
-    Effect.gen(function* () {
-      const ingest = yield* IngestService;
-      for (const id of ids) {
-        yield* ingest.process(id);
-      }
-    }),
+    Effect.flatMap(IngestService, (ingest) =>
+      openGarments(
+        ingest,
+        uploads.map((upload, index) => ({
+          upload,
+          uploadId: uploadIds[index] ?? '',
+        })),
+      ),
+    ),
   );
   return jsonResponse({ ids }, accepted);
 };
@@ -96,10 +110,11 @@ export const handleReplacePhoto = async (
   request: Request,
   garmentId: string,
 ): Promise<Response> => {
-  const uploads = await readUploads(request);
-  if (uploads instanceof Response) {
-    return uploads;
+  const read = await readUploads(request);
+  if (read instanceof Response) {
+    return read;
   }
+  const { uploads } = read;
   const [upload] = uploads;
   if (upload === undefined || uploads.length !== 1) {
     return rejected('Send exactly one photo.', badRequest);

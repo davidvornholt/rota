@@ -1,6 +1,10 @@
 import { Effect, Schema } from 'effect';
 
-import { uploadEndpoint, uploadFieldName } from '../upload-contract.ts';
+import {
+  uploadEndpoint,
+  uploadFieldName,
+  uploadIdFieldName,
+} from '../upload-contract.ts';
 import { DownscaleError, downscaleForUpload } from './downscale-image.ts';
 
 /** Why a photo did not reach the wardrobe, and whether sending it again can help. */
@@ -62,10 +66,14 @@ const refusal = (response: Response) =>
  * Shrinks one photo on the device and sends it on its own, so one bad photo
  * never holds back the rest. Answers with the id of the garment it opened.
  */
-export const uploadPhoto = Effect.fnUntraced(function* (file: File) {
+export const uploadPhoto = Effect.fnUntraced(function* (
+  file: File,
+  uploadId: string,
+) {
   const prepared = yield* prepare(file);
   const form = new FormData();
   form.append(uploadFieldName, prepared, prepared.name);
+  form.append(uploadIdFieldName, uploadId);
   const response = yield* Effect.tryPromise({
     try: () => fetch(uploadEndpoint, { method: 'POST', body: form }),
     catch: () => unreachable,
@@ -85,7 +93,6 @@ export const uploadPhoto = Effect.fnUntraced(function* (file: File) {
     Effect.mapError(
       () =>
         new PhotoUploadError({
-          // Sending again would add the garment twice.
           message:
             'The photo was sent, but the answer could not be read. Refresh the page to see it.',
           retryable: false,
