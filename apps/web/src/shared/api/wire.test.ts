@@ -11,6 +11,7 @@ const garmentId = '0f8fad5b-d9cb-469f-a165-70867728950e';
 
 const shirt: Garment = {
   id: garmentId,
+  revision: 0,
   status: 'active',
   name: 'Blue oxford shirt',
   category: 'shirt',

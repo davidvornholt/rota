@@ -23,6 +23,7 @@ const garment = (
   images: Garment['images'],
 ): Garment => ({
   id,
+  revision: 0,
   status: 'active',
   name,
   category: 'shirt',

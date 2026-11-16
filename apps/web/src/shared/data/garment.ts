@@ -96,6 +96,7 @@ export const GarmentFromRow = Schema.Struct({
   price: NumericFromRow,
   purchasedOn: Schema.NullOr(LocalDateSchema),
   imageChoice: ImageChoiceSchema,
+  revision: Schema.Int,
   processingError: Schema.NullOr(Schema.String),
   studioError: Schema.NullOr(Schema.String),
   retiredAt: Schema.NullOr(Schema.Date),

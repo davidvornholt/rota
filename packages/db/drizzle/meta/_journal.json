@@ -120,6 +120,13 @@
       "when": 1794810227768,
       "tag": "0016_member_submission_id",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794817402103,
+      "tag": "0017_garment_settings_revision",
+      "breakpoints": true
     }
   ]
 }

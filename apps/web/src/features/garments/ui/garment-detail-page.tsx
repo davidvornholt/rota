@@ -18,7 +18,7 @@ import {
 } from '#/shared/ui/classes.ts';
 import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
-import { Notice } from '#/shared/ui/notice.tsx';
+import { FailureNotice } from '#/shared/ui/failure-notice.tsx';
 import { GarmentCareControl } from './garment-care-control.tsx';
 import { GarmentForm } from './garment-form.tsx';
 import { ReplacePhotoControl } from './replace-photo-control.tsx';
@@ -310,7 +310,7 @@ export const GarmentDetailPage = ({
               />
             </fieldset>
             {failure === undefined ? null : (
-              <Notice live={true}>{failureMessage(failure)}</Notice>
+              <FailureNotice message={failureMessage(failure)} />
             )}
             <div className="flex flex-wrap items-center gap-3">
               <button

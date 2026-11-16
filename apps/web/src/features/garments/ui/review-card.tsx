@@ -10,6 +10,7 @@ import { type GarmentView, isRendering } from '#/shared/data/garment-view.ts';
 import { checkClass, signalButtonClass } from '#/shared/ui/classes.ts';
 import { ConfirmButton } from '#/shared/ui/confirm-button.tsx';
 import { EnlargeableFigure } from '#/shared/ui/enlargeable-figure.tsx';
+import { FailureNotice } from '#/shared/ui/failure-notice.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { acceptGarmentFn, deleteGarmentFn } from '../services/garments-fns.ts';
 import { requestStudioRender } from '../services/studio-request.ts';
@@ -125,13 +126,17 @@ export const ReviewCard = ({
   onChanged,
 }: ReviewCardProps) => {
   const [edit, setEdit] = useState(() => editOf(garment));
+  // The revision the fields above are based on; see `useGarmentDetail`.
+  const [revision, setRevision] = useState(garment.revision);
   const [selectedImage, setSelectedImage] = useState<ImageChoice | null>(null);
   // Follow arriving renders until the wearer explicitly chooses a picture.
   const choice =
     selectedImage ?? (garment.studio === undefined ? 'original' : 'studio');
   const accept = useMutation({
     mutationFn: () =>
-      acceptGarmentFn({ data: { id: garment.id, edit, imageChoice: choice } }),
+      acceptGarmentFn({
+        data: { id: garment.id, revision, edit, imageChoice: choice },
+      }),
     onSuccess: onChanged,
   });
   const remove = useMutation({
@@ -141,7 +146,10 @@ export const ReviewCard = ({
   const [instructions, setInstructions] = useState('');
   const retryStudio = useMutation({
     mutationFn: () =>
-      requestStudioRender({ id: garment.id, edit, instructions }),
+      requestStudioRender(
+        { id: garment.id, revision, edit, instructions },
+        (saved) => setRevision(saved.revision),
+      ),
     onSuccess: onChanged,
   });
 
@@ -199,7 +207,7 @@ export const ReviewCard = ({
           />
         </fieldset>
         {accept.isError ? (
-          <Notice live={true}>{failureMessage(accept.error)}</Notice>
+          <FailureNotice message={failureMessage(accept.error)} />
         ) : null}
         <div className="flex flex-wrap items-center gap-3">
           <button

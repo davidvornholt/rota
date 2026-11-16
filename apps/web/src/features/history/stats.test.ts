@@ -7,6 +7,7 @@ const garment = (
   overrides: Partial<GarmentView> = {},
 ): GarmentView => ({
   id,
+  revision: 0,
   status: 'active',
   name: id,
   category: 'shirt',

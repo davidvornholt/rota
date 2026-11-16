@@ -33,6 +33,7 @@ const garment = (
   slots: ReadonlyArray<Slot>,
 ): Garment => ({
   id,
+  revision: 0,
   status: 'active',
   name: id,
   category,

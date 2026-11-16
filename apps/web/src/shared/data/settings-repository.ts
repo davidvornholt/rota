@@ -1,8 +1,15 @@
 import { Context, Effect, Layer, Schema } from 'effect';
 import { SqlClient } from 'effect/sql';
 import { WardrobeOwner } from '#/shared/auth/identity.ts';
+import type { Location } from '#/shared/weather/location.ts';
 import { readError, writeError } from './errors/data-errors.ts';
-import { defaultSettings, type Settings, SettingsFromRow } from './settings.ts';
+import { staleEdit } from './errors/stale-edit.ts';
+import {
+  defaultSettings,
+  type RotationSettings,
+  type Settings,
+  SettingsFromRow,
+} from './settings.ts';
 
 const decodeSettings = Schema.decodeUnknownEffect(
   Schema.Array(SettingsFromRow),
@@ -20,7 +27,7 @@ export class SettingsRepository extends Context.Service<SettingsRepository>()(
       /** The settings row, or the defaults until the first save creates it. */
       const read = () =>
         sql`
-          select location, laundry_days, clean_top_anchor, cooldown_days, category_budgets, proposal_hour
+          select location, laundry_days, clean_top_anchor, cooldown_days, category_budgets, proposal_hour, revision
           from settings where owner_id = ${owner.id}
         `.pipe(
           Effect.flatMap(decodeSettings),
@@ -28,27 +35,59 @@ export class SettingsRepository extends Context.Service<SettingsRepository>()(
           Effect.mapError(readSettings),
         );
 
-      const save = (settings: Settings) =>
+      /** Sets the place alone, so it never touches what the rotation form saved. */
+      const saveLocation = (location: Location) =>
         sql`
-          insert into settings (id, owner_id, location, laundry_days, clean_top_anchor, cooldown_days, category_budgets, proposal_hour)
-          values (${owner.id}, ${owner.id},
-                  ${settings.location === null ? null : JSON.stringify(settings.location)}::jsonb,
-                  ${settings.laundryDays},
-                  ${settings.cleanTopAnchor},
-                  ${settings.cooldownDays},
-                  ${JSON.stringify(settings.categoryBudgets)}::jsonb,
-                  ${settings.proposalHour})
+          insert into settings (id, owner_id, location)
+          values (${owner.id}, ${owner.id}, ${JSON.stringify(location)}::jsonb)
           on conflict (owner_id) do update
-            set location = excluded.location,
-                clean_top_anchor = excluded.clean_top_anchor,
-                laundry_days = excluded.laundry_days,
-                cooldown_days = excluded.cooldown_days,
-                category_budgets = excluded.category_budgets,
-                proposal_hour = excluded.proposal_hour,
-                updated_at = now()
+            set location = excluded.location, updated_at = now()
         `.pipe(Effect.asVoid, Effect.mapError(writeSettings));
 
-      return { read, save };
+      /**
+       * Saves the rotation form that loaded `revision`; no row yet is revision
+       * 0. The write counts only while the settings are still at that revision,
+       * so a form that is out of date is refused and never undoes another save.
+       */
+      const saveRotation = (rotation: RotationSettings, revision: number) => {
+        const fields = {
+          laundryDays: rotation.laundryDays,
+          cleanTopAnchor: rotation.cleanTopAnchor,
+          cooldownDays: rotation.cooldownDays,
+          categoryBudgets: JSON.stringify(rotation.categoryBudgets),
+          proposalHour: rotation.proposalHour,
+        };
+        // An insert that finds the row already there changes nothing, so a
+        // form from before the first save is refused once a save exists.
+        const write =
+          revision === 0
+            ? sql<{ readonly revision: number }>`
+                insert into settings (id, owner_id, laundry_days, clean_top_anchor, cooldown_days, category_budgets, proposal_hour, revision)
+                values (${owner.id}, ${owner.id}, ${fields.laundryDays}, ${fields.cleanTopAnchor}, ${fields.cooldownDays}, ${fields.categoryBudgets}::jsonb, ${fields.proposalHour}, 1)
+                on conflict (owner_id) do nothing
+                returning revision
+              `
+            : sql<{ readonly revision: number }>`
+                update settings
+                set laundry_days = ${fields.laundryDays},
+                    clean_top_anchor = ${fields.cleanTopAnchor},
+                    cooldown_days = ${fields.cooldownDays},
+                    category_budgets = ${fields.categoryBudgets}::jsonb,
+                    proposal_hour = ${fields.proposalHour},
+                    revision = revision + 1,
+                    updated_at = now()
+                where owner_id = ${owner.id} and revision = ${revision}
+                returning revision
+              `;
+        return write.pipe(
+          Effect.mapError(writeSettings),
+          Effect.flatMap((rows) =>
+            rows.length > 0 ? Effect.void : Effect.fail(staleEdit()),
+          ),
+        );
+      };
+
+      return { read, saveLocation, saveRotation };
     }),
   },
 ) {

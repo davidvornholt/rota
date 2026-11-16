@@ -16,6 +16,7 @@ import {
   labelClass,
   linkButtonClass,
 } from '#/shared/ui/classes.ts';
+import { FailureNotice } from '#/shared/ui/failure-notice.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import {
   type Location,
@@ -216,7 +217,10 @@ const RotationSection = ({
     });
   }, [settings]);
   const save = useMutation({
-    mutationFn: () => saveRotationSettingsFn({ data: draft }),
+    mutationFn: () =>
+      saveRotationSettingsFn({
+        data: { ...draft, revision: settings.revision },
+      }),
     onSuccess: (next) => {
       setSaved(true);
       onSaved(next);
@@ -338,7 +342,7 @@ const RotationSection = ({
           </ul>
         </fieldset>
         {save.isError ? (
-          <Notice live={true}>{failureMessage(save.error)}</Notice>
+          <FailureNotice message={failureMessage(save.error)} />
         ) : null}
         <div className="flex items-center gap-4">
           <button

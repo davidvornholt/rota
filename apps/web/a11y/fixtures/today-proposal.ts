@@ -7,6 +7,7 @@ import { localDate } from '#/shared/time/local-date.ts';
 
 export const shirt: GarmentView = {
   id: 'demo-shirt',
+  revision: 0,
   status: 'active',
   name: 'Blue Oxford shirt',
   category: 'shirt',

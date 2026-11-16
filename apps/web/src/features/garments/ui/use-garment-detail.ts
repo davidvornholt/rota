@@ -22,6 +22,10 @@ export const useGarmentDetail = (initial: GarmentView) => {
   const router = useRouter();
   const [garment, setGarment] = useState(initial);
   const [edit, setEdit] = useState<GarmentEdit>(() => editOf(initial));
+  // The revision the form's fields are based on. Another tab's save moves the
+  // garment on without changing the form, so only a save of this form, or a
+  // form reset to the server's fields, may change it.
+  const [revision, setRevision] = useState(initial.revision);
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     setGarment(initial);
@@ -30,6 +34,7 @@ export const useGarmentDetail = (initial: GarmentView) => {
   const apply = (next: GarmentView) => {
     setGarment(next);
     setEdit(editOf(next));
+    setRevision(next.revision);
     router.invalidate().catch(() => undefined);
   };
   // Only the picture or care state changed on the server; unsaved edits in the
@@ -40,7 +45,7 @@ export const useGarmentDetail = (initial: GarmentView) => {
   };
   const { id } = garment;
   const save = useMutation({
-    mutationFn: () => updateGarmentFn({ data: { id, edit } }),
+    mutationFn: () => updateGarmentFn({ data: { id, revision, edit } }),
     onSuccess: (next) => {
       setSaved(true);
       apply(next);
@@ -78,7 +83,10 @@ export const useGarmentDetail = (initial: GarmentView) => {
   });
   const [instructions, setInstructions] = useState('');
   const retryStudio = useMutation({
-    mutationFn: () => requestStudioRender({ id, edit, instructions }),
+    mutationFn: () =>
+      requestStudioRender({ id, revision, edit, instructions }, (fresh) =>
+        setRevision(fresh.revision),
+      ),
     onSuccess: apply,
   });
 

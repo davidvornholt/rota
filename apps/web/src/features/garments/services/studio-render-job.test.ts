@@ -11,6 +11,7 @@ import { makeStudioWork, renderStudio } from './studio-render-job.ts';
 const image = { key: 'existing', mime: 'image/png', width: 300, height: 400 };
 const garment = (status: Garment['status'], hasStudio: boolean): Garment => ({
   id: 'shirt',
+  revision: 0,
   status,
   name: 'Shirt',
   category: 'shirt',

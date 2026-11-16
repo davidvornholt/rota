@@ -23,6 +23,7 @@ const photo = {
 } as const;
 const garment: GarmentView = {
   id: 'demo-shirt',
+  revision: 0,
   status: 'review',
   name: 'Blue Oxford shirt',
   category: 'shirt',

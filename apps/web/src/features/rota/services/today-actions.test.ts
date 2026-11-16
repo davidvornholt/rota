@@ -23,6 +23,7 @@ const clock: WardrobeClock = {
     cooldownDays: 7,
     categoryBudgets: {},
     proposalHour: 5,
+    revision: 0,
   },
   timeZone: 'Europe/Berlin',
   today,
@@ -32,6 +33,7 @@ const clock: WardrobeClock = {
 
 const garment = (status: GarmentStatus): Garment => ({
   id: '0398ab00-0000-4000-8000-000000000001',
+  revision: 0,
   status,
   name: 'Jeans',
   category: 'jeans',

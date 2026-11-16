@@ -35,7 +35,7 @@ const budgetDay = Schema.Int.check(
   Schema.isBetween({ minimum: 1, maximum: longestWearBudget }),
 );
 
-export const RotationSettingsInputSchema = Schema.Struct({
+const RotationFieldsSchema = Schema.Struct({
   cleanTopAnchor: Schema.NullOr(LocalDateSchema),
   laundryDays: Schema.Int.check(
     Schema.isBetween({ minimum: 1, maximum: longestLaundry }),
@@ -49,7 +49,18 @@ export const RotationSettingsInputSchema = Schema.Struct({
   categoryBudgets: Schema.Record(Schema.Literals(garmentCategories), budgetDay),
 });
 
+/** The fields the rotation form edits. */
 export type RotationSettingsInput = Schema.Schema.Type<
+  typeof RotationFieldsSchema
+>;
+
+/** The fields with the revision the form loaded, which proves the form is current. */
+export const RotationSettingsInputSchema = Schema.Struct({
+  ...RotationFieldsSchema.fields,
+  revision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+});
+
+export type SaveRotationSettingsInput = Schema.Schema.Type<
   typeof RotationSettingsInputSchema
 >;
 

@@ -5,7 +5,7 @@ import {
   labelClass,
   linkButtonClass,
 } from '#/shared/ui/classes.ts';
-import { Notice } from '#/shared/ui/notice.tsx';
+import { FailureNotice } from '#/shared/ui/failure-notice.tsx';
 import { renderInstructionsLength } from '../schemas/garment-input.ts';
 
 type StudioRenderControlProps = {
@@ -89,7 +89,7 @@ export const StudioRenderControl = ({
           Studio picture updated.
         </p>
       ) : null}
-      {failure === null || busy ? null : <Notice live={true}>{failure}</Notice>}
+      {failure === null || busy ? null : <FailureNotice message={failure} />}
     </div>
   );
 };
