@@ -52,9 +52,11 @@ const boundedAt = (
       onTimeout();
       resolve(false);
     }, databaseHealthDeadlineMs);
-    work.then(resolve, () => resolve(false)).finally(() => {
-      clearTimeout(timer);
-    });
+    work
+      .then(resolve, () => resolve(false))
+      .finally(() => {
+        clearTimeout(timer);
+      });
   });
 
 /**
@@ -68,14 +70,15 @@ export const makeDatabaseCheck = (
 ): (() => Promise<boolean>) => {
   let inFlight: { work: Promise<boolean>; timeoutLogged: boolean } | undefined;
   return () => {
-    const check = (inFlight ??= {
+    inFlight ??= {
       work: Effect.runPromise(databaseAnswers(databaseUrl))
         .catch(() => false)
         .finally(() => {
           inFlight = undefined;
         }),
       timeoutLogged: false,
-    });
+    };
+    const check = inFlight;
     return boundedAt(check.work, () => {
       if (!check.timeoutLogged) {
         check.timeoutLogged = true;
