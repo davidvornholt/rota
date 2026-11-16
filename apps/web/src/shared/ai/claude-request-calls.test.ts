@@ -14,7 +14,7 @@ import {
 import { answer, apiError, input } from './claude-request-test-support.ts';
 
 describe('Claude wire requests', () => {
-  it('sends adaptive high-effort thinking, the fallback beta and the original image bytes', async () => {
+  it('sends adaptive high-effort thinking, the answer schema, the fallback beta and the original image bytes', async () => {
     const requests: Array<{ url: URL; headers: Headers; body: unknown }> = [];
     const client = claudeClient('made-up-key', (url, init) => {
       requests.push({
@@ -43,14 +43,11 @@ describe('Claude wire requests', () => {
       max_tokens: 16_384,
       fallbacks: 'default',
       thinking: { type: 'adaptive' },
-      output_config: { effort: 'high' },
-      system: [
-        { type: 'text', text: 'Choose an outfit.' },
-        {
-          type: 'text',
-          text: expect.stringContaining(JSON.stringify(input.jsonSchema)),
-        },
-      ],
+      output_config: {
+        effort: 'high',
+        format: { type: 'json_schema', schema: input.jsonSchema },
+      },
+      system: 'Choose an outfit.',
       messages: [
         {
           role: 'user',

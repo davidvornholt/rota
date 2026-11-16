@@ -11,6 +11,7 @@ import {
 } from '#/shared/data/garment-scales.ts';
 import {
   garmentCategories,
+  scaleMaximum,
   scaleMinimum,
   slotOrder,
 } from '#/shared/data/garment-types.ts';
@@ -54,10 +55,16 @@ const stringProperty = (description: string) => ({
   description,
 });
 
+/** Every integer from `minimum` to `maximum`, because structured outputs reject numeric bounds. */
+const integersFrom = (minimum: number, maximum: number) =>
+  Array.from({ length: maximum - minimum + 1 }, (_, index) => minimum + index);
+
 /**
- * The JSON Schema handed to the model. Written by hand rather than derived so
- * every field carries the instruction that decides its value; the Effect
- * schema above is what the answer is checked against.
+ * The JSON Schema the Claude API constrains the answer to. Written by hand
+ * rather than derived so every field carries the instruction that decides its
+ * value; the Effect schema above checks the answer again. Structured outputs
+ * can't express an array's maximum length, so "at most three" colours stays an
+ * instruction that neither schema enforces.
  */
 export const extractionJsonSchema = {
   type: 'object',
@@ -76,6 +83,7 @@ export const extractionJsonSchema = {
     ),
     slots: {
       type: 'array',
+      minItems: 1,
       items: {
         type: 'string',
         enum: [...slotOrder],
@@ -85,8 +93,7 @@ export const extractionJsonSchema = {
     },
     warmth: {
       type: 'integer',
-      minimum: 1,
-      maximum: 3,
+      enum: integersFrom(scaleMinimum, scaleMaximum),
       description: warmthInstruction,
     },
     rainOk: {
@@ -96,29 +103,30 @@ export const extractionJsonSchema = {
     },
     formality: {
       type: 'integer',
-      minimum: 1,
-      maximum: 3,
+      enum: integersFrom(scaleMinimum, scaleMaximum),
       description: formalityInstruction,
     },
     wearBudgetDays: {
       type: 'integer',
-      minimum: 1,
-      maximum: 10,
+      enum: integersFrom(scaleMinimum, longestSuggestedBudget),
       description:
         'How many separate wears before washing (not necessarily consecutive); use 1 for shoes, bags, hats and scarves, whose allowance is ignored. For clothing, judged from material and how close to the skin it sits. Undershirts and tees 1–2, shirts and dresses 2, trousers, skirts and jumpers 4–5, wool outer layers up to 7.',
     },
     colors: {
       type: 'array',
       minItems: 1,
-      maxItems: 3,
       items: {
         type: 'object',
         properties: {
-          hex: stringProperty(
-            'The colour as #RRGGBB, matched to the garment, not the lighting.',
-          ),
+          hex: {
+            ...stringProperty(
+              'The colour as #RRGGBB, matched to the garment, not the lighting.',
+            ),
+            pattern: '^#[0-9a-fA-F]{6}$',
+          },
         },
         required: ['hex'],
+        additionalProperties: false,
       },
       description: 'Dominant colours first, at most three.',
     },
@@ -159,6 +167,7 @@ export const extractionJsonSchema = {
     'brand',
     'description',
   ],
+  additionalProperties: false,
 } as const;
 
 export const extractionSystemPrompt = [
