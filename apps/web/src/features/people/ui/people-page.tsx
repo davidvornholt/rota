@@ -31,8 +31,6 @@ export const PeoplePage = () => {
     queryFn: () => currentPersonFn(),
   });
   const [name, setName] = useState('');
-  // The same ID for the same name, so pressing the button again after a lost
-  // answer does not invite the person twice.
   const [submissionIds] = useState(createSubmissionIds);
   const [issuedCode, setIssuedCode] = useState<IssuedCode | null>(null);
   const action = useMutation({

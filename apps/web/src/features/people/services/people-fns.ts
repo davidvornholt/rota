@@ -51,7 +51,6 @@ export const inviteFn = createServerFn({ method: 'POST' })
   .validator(
     z.object({
       name: z.string().trim().min(1).max(maxNameLength),
-      // One form fill: sending it again creates no second member.
       submissionId: z.uuid().optional(),
     }),
   )

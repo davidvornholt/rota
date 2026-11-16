@@ -115,11 +115,7 @@ export const member = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
-    /**
-     * The ID the invitation form chose for one form fill, so sending the same
-     * fill again after a lost answer finds this member instead of adding a
-     * second. Members invited without one have none, and any number of rows may.
-     */
+    /** Members invited without one have none, and any number of rows may. */
     submissionId: uuid('submission_id'),
   },
   (table) => [uniqueIndex('member_submission_unique').on(table.submissionId)],

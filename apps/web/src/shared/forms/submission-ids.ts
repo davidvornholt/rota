@@ -2,9 +2,7 @@
 // The server stores it with what it creates, so it can tell a repeated save
 // (for example after a lost answer) from a new one. The ID stays the same
 // while the form is saved with unchanged values. Changed values are a new
-// fill, so a correction is never swallowed as a repeat of the old input. The
-// server still accepts a create without an ID, as sent by a page that was
-// loaded before the ID existed.
+// fill, so a correction is never swallowed as a repeat of the old input.
 export const createSubmissionIds = (
   createId: () => string = () => crypto.randomUUID(),
 ) => {
