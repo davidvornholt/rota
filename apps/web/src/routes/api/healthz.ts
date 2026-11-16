@@ -8,6 +8,11 @@ const headers = { 'cache-control': 'no-store' };
 
 const isDatabaseAvailable = makeDatabaseCheck(env.DATABASE_URL);
 
+export const getHealth = async (): Promise<Response> =>
+  (await isDatabaseAvailable())
+    ? Response.json({ status: 'ok' }, { headers })
+    : new Response(null, { status: serviceUnavailable, headers });
+
 /**
  * Health probe for the container, the release switch and the host's deploy
  * check. It answers 200 only while the database answers, because no page can
@@ -16,10 +21,7 @@ const isDatabaseAvailable = makeDatabaseCheck(env.DATABASE_URL);
 export const Route = createFileRoute('/api/healthz')({
   server: {
     handlers: {
-      GET: async () =>
-        (await isDatabaseAvailable())
-          ? Response.json({ status: 'ok' }, { headers })
-          : new Response(null, { status: serviceUnavailable, headers }),
+      GET: getHealth,
     },
   },
 });

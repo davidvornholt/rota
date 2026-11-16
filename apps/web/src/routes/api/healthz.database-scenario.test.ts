@@ -74,14 +74,12 @@ describe.skipIf(!scenario)('GET /api/healthz with a real database', () => {
   it(
     'reports unavailable while the wardrobe cannot be read and recovers without a restart',
     async () => {
-      const { Route } = await import('./healthz.ts');
+      const { getHealth: health } = await import('./healthz.ts');
       const { WardrobeOwner } = await import('#/shared/auth/identity.ts');
       const { GarmentRepository } = await import(
         '#/shared/data/garment-repository.ts'
       );
       const database = await import('#/shared/db/database.ts');
-      const health = () =>
-        Route.options.server?.handlers?.GET?.({} as never) as Promise<Response>;
       // The production database layer and the real repository.
       const runtime = ManagedRuntime.make(
         GarmentRepository.layer.pipe(
