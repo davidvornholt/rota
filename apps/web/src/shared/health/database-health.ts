@@ -16,7 +16,9 @@ const logUnavailable = (reason: DatabaseUnavailableReason) =>
 /**
  * A pool of its own for each check keeps no state between checks, so a
  * database that comes back answers the next check without a restart, and an
- * exhausted application pool cannot make the app report itself down.
+ * exhausted application pool cannot make the app report itself down. The
+ * timeout here only makes sure the check cleans up; callers stop waiting at
+ * the same deadline through `boundedAt`.
  */
 const databaseAnswers = (databaseUrl: string) =>
   Effect.gen(function* () {
@@ -27,7 +29,8 @@ const databaseAnswers = (databaseUrl: string) =>
     Effect.timeoutOption(databaseHealthDeadlineMs),
     Effect.flatMap(
       Option.match({
-        onNone: () => logUnavailable('timeout').pipe(Effect.as(false)),
+        // The caller logs the timeout when it stops waiting.
+        onNone: () => Effect.succeed(false),
         onSome: () => Effect.succeed(true),
       }),
     ),
@@ -35,17 +38,49 @@ const databaseAnswers = (databaseUrl: string) =>
   );
 
 /**
+ * Stops waiting for a check at the deadline. The check's own timeout cannot do
+ * that: interrupting a query the database never answers waits for the driver
+ * to cancel it, which takes several seconds more, so the answer is bounded here
+ * and the check is left to clean up in the background.
+ */
+const boundedAt = (
+  work: Promise<boolean>,
+  onTimeout: () => void,
+): Promise<boolean> =>
+  new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      onTimeout();
+      resolve(false);
+    }, databaseHealthDeadlineMs);
+    work.then(resolve, () => resolve(false)).finally(() => {
+      clearTimeout(timer);
+    });
+  });
+
+/**
  * Concurrent calls share one check, so a flood of requests to the public
- * health route cannot open more than one database connection at a time.
+ * health route cannot open more than one database connection at a time. The
+ * check stays shared until it has cleaned up, even if callers stopped waiting
+ * for it, so a database that hangs cannot pile up connections.
  */
 export const makeDatabaseCheck = (
   databaseUrl: string,
 ): (() => Promise<boolean>) => {
-  let inFlight: Promise<boolean> | undefined;
+  let inFlight: { work: Promise<boolean>; timeoutLogged: boolean } | undefined;
   return () => {
-    inFlight ??= Effect.runPromise(databaseAnswers(databaseUrl)).finally(() => {
-      inFlight = undefined;
+    const check = (inFlight ??= {
+      work: Effect.runPromise(databaseAnswers(databaseUrl))
+        .catch(() => false)
+        .finally(() => {
+          inFlight = undefined;
+        }),
+      timeoutLogged: false,
     });
-    return inFlight;
+    return boundedAt(check.work, () => {
+      if (!check.timeoutLogged) {
+        check.timeoutLogged = true;
+        Effect.runSync(logUnavailable('timeout'));
+      }
+    });
   };
 };
