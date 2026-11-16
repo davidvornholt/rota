@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { currentPersonFn } from '#/shared/auth/session-fn.ts';
+import { createSubmissionIds } from '#/shared/forms/submission-ids.ts';
 import {
   fieldClass,
   frameClass,
@@ -30,6 +31,9 @@ export const PeoplePage = () => {
     queryFn: () => currentPersonFn(),
   });
   const [name, setName] = useState('');
+  // The same ID for the same name, so pressing the button again after a lost
+  // answer does not invite the person twice.
+  const [submissionIds] = useState(createSubmissionIds);
   const [issuedCode, setIssuedCode] = useState<IssuedCode | null>(null);
   const action = useMutation({
     mutationFn: async (operation: () => Promise<unknown>) => {
@@ -49,7 +53,10 @@ export const PeoplePage = () => {
         onSubmit={(event) => {
           event.preventDefault();
           action.mutate(async () => {
-            const result = await inviteFn({ data: { name } });
+            const result = await inviteFn({
+              data: { name, submissionId: submissionIds.idFor(name.trim()) },
+            });
+            submissionIds.settle();
             setIssuedCode({
               code: result.code,
               name: name.trim(),

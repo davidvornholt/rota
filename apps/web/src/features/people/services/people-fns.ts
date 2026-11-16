@@ -48,7 +48,13 @@ export const peopleFn = createServerFn({ method: 'GET' })
   );
 export const inviteFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
-  .validator(z.object({ name: z.string().trim().min(1).max(maxNameLength) }))
+  .validator(
+    z.object({
+      name: z.string().trim().min(1).max(maxNameLength),
+      // One form fill: sending it again creates no second member.
+      submissionId: z.uuid().optional(),
+    }),
+  )
   .handler(({ data }) => peopleOperation(() => issueCode(data)));
 export const recoverFn = createServerFn({ method: 'POST' })
   .middleware([sessionRequired])
