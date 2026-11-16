@@ -2,12 +2,24 @@ import { describe, expect, it } from 'bun:test';
 import { Effect } from 'effect';
 
 import { privateResponseHeaders } from '../src/shared/auth/private-response.ts';
-import { createFetchHandler, serveRequest, shutdown } from './serve.ts';
+import {
+  bootSelfCheckFailure,
+  createFetchHandler,
+  serveRequest,
+  shutdown,
+} from './serve.ts';
 
 const serverFunctionPath = '/_serverFn/test';
 const unauthorized = 401;
 const conflict = 409;
 const frameworkHeader = 'x-framework-header';
+const emptyStatus = 204;
+const serverErrorStatus = 500;
+const unavailable = 503;
+const bootPort = 3000;
+// Long enough that a settled handler always wins the race, short enough that
+// the never-settling case costs the suite nothing.
+const bootTimeoutMs = 50;
 
 const frameworkFailure = (status: number): Response =>
   new Response('serialized failure', {
@@ -85,6 +97,71 @@ describe('createFetchHandler', () => {
       }
     },
   );
+});
+
+describe('bootSelfCheckFailure', () => {
+  const answerHealthWith = (healthStatus: number) => (request: Request) =>
+    new URL(request.url).pathname === '/api/healthz'
+      ? new Response(null, { status: healthStatus })
+      : new Response('login page');
+
+  it('passes when the health route and the page answer 200', async () => {
+    const failure = await bootSelfCheckFailure(
+      answerHealthWith(200),
+      bootPort,
+      bootTimeoutMs,
+    );
+
+    expect(failure).toBeNull();
+  });
+
+  it('lets the process start while the database is down', async () => {
+    const failure = await bootSelfCheckFailure(
+      answerHealthWith(unavailable),
+      bootPort,
+      bootTimeoutMs,
+    );
+
+    expect(failure).toBeNull();
+  });
+
+  it.each([emptyStatus, serverErrorStatus])(
+    'reports a health route that answers %d',
+    async (status) => {
+      const failure = await bootSelfCheckFailure(
+        answerHealthWith(status),
+        bootPort,
+        bootTimeoutMs,
+      );
+
+      expect(failure).toBe(
+        `/api/healthz answered ${status} instead of 200 or 503`,
+      );
+    },
+  );
+
+  it('reports a page that fails to render', async () => {
+    const failure = await bootSelfCheckFailure(
+      (request) =>
+        new URL(request.url).pathname === '/api/healthz'
+          ? new Response(null, { status: unavailable })
+          : new Response('render failed', { status: serverErrorStatus }),
+      bootPort,
+      bootTimeoutMs,
+    );
+
+    expect(failure).toBe('/login answered 500 instead of 200');
+  });
+
+  it('reports a timeout instead of hanging when the handler never settles', async () => {
+    const failure = await bootSelfCheckFailure(
+      () => new Promise<Response>(() => undefined),
+      bootPort,
+      bootTimeoutMs,
+    );
+
+    expect(failure).toBe(`/api/healthz timed out after ${bootTimeoutMs}ms`);
+  });
 });
 
 describe('shutdown', () => {

@@ -15,6 +15,11 @@
  *
  * Whoever creates a pool closes it: `pool.end()` for the `pg` pool, and the
  * scope the layer was built in for the Effect client.
+ *
+ * The health route is the one exception to the ten: each check builds a pool of
+ * its own for a single `select 1` and closes it again, so a process can hold
+ * one more connection (eleven) while a check runs. Checks never overlap in a
+ * process, and one that gets no answer is cancelled after a few seconds.
  */
 
 import { PgClient } from '@effect/sql-pg';
