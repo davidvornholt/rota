@@ -134,7 +134,10 @@ export const retryStudioFn = createServerFn({ method: 'POST' })
             data.revision,
             data.instructions,
           );
-          return yield* garmentView(data.id);
+          // The revision this save made. Another tab's save after it must not
+          // be adopted with the form fields it didn't write.
+          const view = yield* garmentView(data.id);
+          return { ...view, revision: data.revision + 1 };
         }),
       ),
   );
