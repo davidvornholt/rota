@@ -28,6 +28,10 @@
     "test:a11y": {
       "dependsOn": ["build"],
       "cache": false
+    },
+    "test:planning-db": {
+      "cache": false,
+      "passThroughEnv": ["CI", "DATABASE_URL"]
     }
   }
 }

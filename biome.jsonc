@@ -135,8 +135,10 @@
       // PORT and DATABASE_URL are handed to the process at launch (`bun run
       // start`, the a11y web server, the migration container), not inherited
       // from a Turbo task, so noUndeclaredEnvVars has nothing to check them
-      // against. The server also sets the tick token into its own environment
-      // before loading the bundle.
+      // against. The planning database check is the one Turbo task here, and
+      // turbo.json passes through the CI and DATABASE_URL it reads. The server
+      // also sets the tick token into its own environment before loading the
+      // bundle.
       "includes": ["apps/web/scripts/**"],
       "javascript": {
         "globals": ["Bun"]
