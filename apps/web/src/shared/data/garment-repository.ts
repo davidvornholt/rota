@@ -4,6 +4,7 @@ import { WardrobeOwner } from '#/shared/auth/identity.ts';
 
 import { addDays, type LocalDate } from '#/shared/time/local-date.ts';
 import { notFound, readError, writeError } from './errors/data-errors.ts';
+import { staleEdit } from './errors/stale-edit.ts';
 import { GarmentFromRow, type GarmentImage } from './garment.ts';
 import type {
   GarmentColor,
@@ -58,6 +59,7 @@ const attributeUpdate = (
       notes = ${attributes.notes},
       price = ${attributes.price},
       purchased_on = ${attributes.purchasedOn},
+      revision = revision + 1,
       updated_at = now()
 `;
 
@@ -126,6 +128,19 @@ const insertGarment = (
     }),
   );
 
+/**
+ * A write guarded by the revision a form loaded, so that a form that is out of
+ * date never undoes another save. If it changed no row, the garment has a
+ * newer revision or is gone, which `missing` reports first.
+ */
+const savedOrStale = <E, R>(
+  rows: ReadonlyArray<unknown>,
+  missing: Effect.Effect<unknown, E, R>,
+) =>
+  rows.length > 0
+    ? Effect.void
+    : Effect.andThen(missing, Effect.fail(staleEdit()));
+
 const readGarments = readError('The wardrobe');
 const writeGarment = writeError('The garment');
 
@@ -155,7 +170,7 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
                array_to_json(g.slots) as slots,
                g.warmth, g.rain_ok, g.formality, g.wear_budget, g.washed_on, g.washed_after_wear, g.laundry_started_on, g.laundry_ready_on, g.colors,
                g.pattern, g.material, g.fit, g.sleeve, g.brand,
-               g.notes, g.price, g.purchased_on, g.image_choice,
+               g.notes, g.price, g.purchased_on, g.image_choice, g.revision,
                g.processing_error, g.studio_error, g.retired_at, g.created_at,
                ${imagesJson} as images
         from garment g
@@ -211,10 +226,18 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
           where id = ${id} and owner_id = ${owner.id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
-      const update = (id: string, attributes: GarmentAttributes) =>
-        sql`
-          update garment ${attributeUpdate(sql, attributes)} where id = ${id} and owner_id = ${owner.id}
-        `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
+      const update = (
+        id: string,
+        attributes: GarmentAttributes,
+        revision: number,
+      ) =>
+        sql<{ readonly id: string }>`
+          update garment ${attributeUpdate(sql, attributes)}
+          where id = ${id} and owner_id = ${owner.id} and revision = ${revision} returning id
+        `.pipe(
+          Effect.mapError(writeGarment),
+          Effect.flatMap((rows) => savedOrStale(rows, byId(id))),
+        );
 
       const markProcessingError = (id: string, message: string) =>
         sql`

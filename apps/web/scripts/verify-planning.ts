@@ -213,12 +213,14 @@ const verifyAutomaticLaundry = Effect.gen(function* () {
   assert.equal((yield* viewPiece(later(delayedDay)))?.wearsSinceWash, 0);
 });
 
+const shorterLaundry = 3;
+
 const verify = Effect.gen(function* () {
   const settings = yield* SettingsRepository;
-  const shorterLaundry = 3;
-  yield* settings.save({ ...defaultSettings, laundryDays: shorterLaundry });
+  const shorter = { ...defaultSettings, laundryDays: shorterLaundry };
+  yield* settings.saveRotation(shorter, 0);
   assert.equal((yield* settings.read()).laundryDays, shorterLaundry);
-  yield* settings.save(defaultSettings);
+  yield* settings.saveRotation(defaultSettings, 1);
   const sql = yield* SqlClient.SqlClient;
   yield* sql`insert into garment (owner_id, id, status, name, category, slots) values
     (${owner.id}, ${topId}, 'active', 'Blue shirt', 'shirt', array['top']::garment_slot[]),

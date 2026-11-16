@@ -44,10 +44,8 @@ export const saveLocationFn = createServerFn({ method: 'POST' })
       runtime.run(
         Effect.gen(function* () {
           const settings = yield* SettingsRepository;
-          const current = yield* settings.read();
-          const next = { ...current, location: data.location };
-          yield* settings.save(next);
-          return next;
+          yield* settings.saveLocation(data.location);
+          return yield* settings.read();
         }),
       ),
   );
@@ -60,10 +58,8 @@ export const saveRotationSettingsFn = createServerFn({ method: 'POST' })
       runtime.run(
         Effect.gen(function* () {
           const settings = yield* SettingsRepository;
-          const current = yield* settings.read();
-          const next = { ...current, ...data };
-          yield* settings.save(next);
-          return next;
+          yield* settings.saveRotation(data, data.revision);
+          return yield* settings.read();
         }),
       ),
   );

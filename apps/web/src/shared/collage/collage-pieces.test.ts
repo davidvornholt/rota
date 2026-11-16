@@ -14,6 +14,7 @@ const original = {
 const studio = { ...original, key: 'studio.png' };
 const garment: Garment = {
   id: 'shirt',
+  revision: 0,
   status: 'active',
   name: 'Shirt',
   category: 'shirt',

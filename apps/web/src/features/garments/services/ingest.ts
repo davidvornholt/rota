@@ -222,23 +222,29 @@ export class IngestService extends Context.Service<IngestService>()(
           )
           .pipe(Effect.asVoid);
 
-      /** Renders the studio image again for a garment whose attributes are already known. */
+      /**
+       * Saves the wearer's edit, then renders the studio image again for it.
+       * The save comes first and is checked against the revision the form
+       * loaded, so a form that is out of date is refused before anything renders.
+       */
       const retryStudio = (
         id: string,
         edit: GarmentEdit,
+        revision: number,
         instructions: string,
       ) =>
-        jobs
-          .start(id, (report) =>
+        Effect.gen(function* () {
+          if (jobs.progress().has(id)) {
+            return yield* Effect.fail(renderInProgress);
+          }
+          yield* garments.update(id, edit, revision);
+          const started = yield* jobs.start(id, (report) =>
             studioWork(
               id,
               Effect.gen(function* () {
                 const garment = yield* garments
-                  .update(id, edit)
-                  .pipe(
-                    Effect.andThen(garments.byId(id)),
-                    withStudioPersistenceDeadline,
-                  );
+                  .byId(id)
+                  .pipe(withStudioPersistenceDeadline);
                 yield* renderStudio(deps, {
                   garment,
                   description: renderDescription(edit),
@@ -252,12 +258,11 @@ export class IngestService extends Context.Service<IngestService>()(
                 });
               }),
             ),
-          )
-          .pipe(
-            Effect.flatMap((started) =>
-              started ? Effect.void : Effect.fail(renderInProgress),
-            ),
           );
+          if (!started) {
+            return yield* Effect.fail(renderInProgress);
+          }
+        });
 
       return {
         start,

@@ -89,6 +89,10 @@ export const proposalStatus = pgEnum('proposal_status', [
  *
  * `wear_budget` is the per-garment override of the category default in
  * settings; null means "use the category default".
+ *
+ * `revision` counts the writes to the attributes the garment form edits. The
+ * form sends the revision it loaded, and the write refuses a form that is out
+ * of date, so a save never undoes an edit it did not see.
  */
 const pricePrecision = 10;
 const priceScale = 2;
@@ -129,6 +133,7 @@ export const garment = pgTable(
     imageChoice: garmentImageChoice('image_choice').notNull().default('studio'),
     extraction: jsonb('extraction'),
     uploadId: uuid('upload_id'),
+    revision: integer('revision').notNull().default(0),
     processingError: text('processing_error'),
     studioError: text('studio_error'),
     retiredAt: timestamp('retired_at', { withTimezone: true }),
@@ -293,7 +298,9 @@ export const weatherDay = pgTable(
 
 /**
  * Settings for one wardrobe. `location` is null until the first-run setup picks
- * one; nothing weather-related runs before then.
+ * one; nothing weather-related runs before then. `revision` counts the saves of
+ * the rotation form, which sends the revision it loaded; a save from an older
+ * form is refused (no row yet counts as revision 0).
  */
 const defaultLaundryDays = 4;
 
@@ -312,6 +319,7 @@ export const settings = pgTable(
     proposalHour: integer('proposal_hour')
       .notNull()
       .default(defaultProposalHour),
+    revision: integer('revision').notNull().default(0),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -59,7 +59,7 @@ export const acceptGarmentFn = createServerFn({ method: 'POST' })
       garmentsRuntime.run(
         Effect.gen(function* () {
           const garments = yield* GarmentRepository;
-          yield* garments.update(data.id, data.edit);
+          yield* garments.update(data.id, data.edit, data.revision);
           yield* garments.setImageChoice(data.id, data.imageChoice);
           yield* garments.setStatus(data.id, 'active');
           return yield* garmentView(data.id);
@@ -75,7 +75,7 @@ export const updateGarmentFn = createServerFn({ method: 'POST' })
       garmentsRuntime.run(
         Effect.gen(function* () {
           const garments = yield* GarmentRepository;
-          yield* garments.update(data.id, data.edit);
+          yield* garments.update(data.id, data.edit, data.revision);
           return yield* garmentView(data.id);
         }),
       ),
@@ -128,8 +128,16 @@ export const retryStudioFn = createServerFn({ method: 'POST' })
       garmentsRuntime.run(
         Effect.gen(function* () {
           const ingest = yield* IngestService;
-          yield* ingest.retryStudio(data.id, data.edit, data.instructions);
-          return yield* garmentView(data.id);
+          yield* ingest.retryStudio(
+            data.id,
+            data.edit,
+            data.revision,
+            data.instructions,
+          );
+          // The revision this save made. Another tab's save after it must not
+          // be adopted with the form fields it didn't write.
+          const view = yield* garmentView(data.id);
+          return { ...view, revision: data.revision + 1 };
         }),
       ),
   );

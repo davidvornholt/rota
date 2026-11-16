@@ -10,6 +10,7 @@ import { buildProposalPrompt } from './proposal-prompt.ts';
 
 const garment = (id: string, slots: ReadonlyArray<Slot>): Garment => ({
   id,
+  revision: 0,
   status: 'active',
   name: id,
   category: slots[0] === 'bottom' ? 'trousers' : 'shirt',

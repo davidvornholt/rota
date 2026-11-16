@@ -9,8 +9,20 @@ export const SettingsSchema = Schema.Struct({
   cooldownDays: Schema.Number,
   categoryBudgets: Schema.Record(Schema.String, Schema.Number),
   proposalHour: Schema.Number,
+  /** The version of the rotation fields; a save sends the one its form loaded. */
+  revision: Schema.Int,
 });
 export type Settings = Schema.Schema.Type<typeof SettingsSchema>;
+
+/** What the rotation form edits: every field but the place, which saves on its own. */
+export type RotationSettings = Pick<
+  Settings,
+  | 'cleanTopAnchor'
+  | 'laundryDays'
+  | 'cooldownDays'
+  | 'categoryBudgets'
+  | 'proposalHour'
+>;
 
 export const SettingsFromRow = Schema.Struct({
   laundryDays: Schema.Number,
@@ -19,6 +31,7 @@ export const SettingsFromRow = Schema.Struct({
   cooldownDays: Schema.Number,
   categoryBudgets: Schema.Record(Schema.String, Schema.Number),
   proposalHour: Schema.Number,
+  revision: Schema.Int,
 }).pipe(
   Schema.encodeKeys({
     laundryDays: 'laundry_days',
@@ -36,4 +49,5 @@ export const defaultSettings: Settings = {
   cooldownDays: 7,
   categoryBudgets: {},
   proposalHour: 5,
+  revision: 0,
 };

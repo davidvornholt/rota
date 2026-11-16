@@ -278,7 +278,7 @@ try {
   ).toBe('Family note');
   await first.runPromise(
     Effect.flatMap(SettingsRepository, (settings) =>
-      settings.save({ ...defaultSettings, cooldownDays: 4 }),
+      settings.saveRotation({ ...defaultSettings, cooldownDays: 4 }, 0),
     ),
   );
   expect(

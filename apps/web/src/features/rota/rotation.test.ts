@@ -17,6 +17,7 @@ const garment = (
   overrides: Partial<Garment> = {},
 ): Garment => ({
   id,
+  revision: 0,
   status: 'active',
   name: id,
   category: slots[0] === 'bottom' ? 'trousers' : 'shirt',
@@ -54,7 +55,6 @@ const worn = (date: string, garmentId: string, slot: Slot): WearEntry => ({
   slot,
   source: 'proposed',
 });
-
 const today = localDate('2026-09-04');
 const threeDays = 3;
 const fourDays = 4;

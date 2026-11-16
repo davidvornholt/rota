@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { RotationSettingsInput } from '#/features/settings/schemas/settings-input.ts';
+import type { SaveRotationSettingsInput } from '#/features/settings/schemas/settings-input.ts';
 import { defaultSettings, type Settings } from '#/shared/data/settings.ts';
 import type { Location } from '#/shared/weather/location.ts';
 export let settings: Settings = {
@@ -16,11 +16,11 @@ export let settings: Settings = {
 export const saveRotationSettingsFn = ({
   data,
 }: {
-  readonly data: RotationSettingsInput;
+  readonly data: SaveRotationSettingsInput;
 }) =>
   Effect.runPromise(
     Effect.sync(() => {
-      settings = { ...settings, ...data };
+      settings = { ...settings, ...data, revision: data.revision + 1 };
       return settings;
     }),
   );

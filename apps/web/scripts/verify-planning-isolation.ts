@@ -88,7 +88,8 @@ export const verifyPlanningIsolation = async (
           defaultSettings.laundryDays,
         );
         const settings = yield* SettingsRepository;
-        yield* settings.save({ ...defaultSettings, cleanTopAnchor: date });
+        const anchored = { ...defaultSettings, cleanTopAnchor: date };
+        yield* settings.saveRotation(anchored, 0);
       }),
     );
     await first.runPromise(

@@ -60,21 +60,27 @@ export const GarmentEditSchema = Schema.Struct({
 
 export type GarmentEdit = Schema.Schema.Type<typeof GarmentEditSchema>;
 
+/** The revision the form loaded, which the save sends back to prove the form is current. */
+const revision = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
+
 export const GarmentIdInputSchema = Schema.Struct({ id: UuidSchema });
 
 export const UpdateGarmentInputSchema = Schema.Struct({
   id: UuidSchema,
+  revision,
   edit: GarmentEditSchema,
 });
 
 export const AcceptGarmentInputSchema = Schema.Struct({
   id: UuidSchema,
+  revision,
   edit: GarmentEditSchema,
   imageChoice: ImageChoiceSchema,
 });
 
 export const RetryStudioInputSchema = Schema.Struct({
   id: UuidSchema,
+  revision,
   edit: GarmentEditSchema,
   instructions: Schema.String.check(
     Schema.isMaxLength(renderInstructionsLength),

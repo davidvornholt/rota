@@ -62,6 +62,8 @@ export type GarmentView = {
   readonly price: number | null;
   readonly purchasedOn: LocalDate | null;
   readonly imageChoice: ImageChoice;
+  /** The version of the editable fields this view shows; a save sends it back. */
+  readonly revision: number;
   readonly processingError: string | null;
   readonly studioError: string | null;
   readonly studioState: StudioState;
@@ -180,6 +182,7 @@ export const toGarmentView = ({
     price: garment.price,
     purchasedOn: garment.purchasedOn,
     imageChoice: garment.imageChoice,
+    revision: garment.revision,
     processingError: garment.processingError,
     studioError: garment.studioError,
     studioState: studioProgress ?? settledStudioState(garment),
