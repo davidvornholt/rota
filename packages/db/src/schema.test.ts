@@ -2,6 +2,7 @@ import { expect, it } from 'bun:test';
 import { is, SQL } from 'drizzle-orm';
 import { getTableConfig, PgDialect } from 'drizzle-orm/pg-core';
 
+import { member } from './auth-schema.ts';
 import { garment, garmentImage, settings, wearLog } from './schema.ts';
 
 const dialect = new PgDialect();
@@ -35,6 +36,10 @@ it('a day holds one garment per slot, which is what makes the log an outfit', ()
 
 it('an owner cannot open two garments from one upload', () => {
   expect(uniqueColumns(garment)).toEqual([['owner_id', 'upload_id']]);
+});
+
+it('one invitation form fill opens one member, however often it is sent', () => {
+  expect(uniqueColumns(member)).toEqual([['submission_id']]);
 });
 
 it('a garment keeps at most one image of each kind', () => {

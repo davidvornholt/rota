@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  uuid,
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
@@ -99,20 +100,26 @@ export const deviceCode = pgTable('device_code', {
   scope: text('scope'),
 });
 
-export const member = pgTable('member', {
-  id: text('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .unique()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
-  enabled: boolean('enabled').notNull().default(true),
-  admin: boolean('admin').notNull().default(false),
-  lastActiveAt: timestamp('last_active_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const member = pgTable(
+  'member',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .unique()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    admin: boolean('admin').notNull().default(false),
+    lastActiveAt: timestamp('last_active_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Members invited without one have none, and any number of rows may. */
+    submissionId: uuid('submission_id'),
+  },
+  (table) => [uniqueIndex('member_submission_unique').on(table.submissionId)],
+);
 
 export const accessCode = pgTable('access_code', {
   digest: text('digest').primaryKey(),

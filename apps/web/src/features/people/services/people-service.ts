@@ -31,13 +31,47 @@ export const peopleOperation = <A>(work: () => Promise<A>) =>
     }),
   );
 
+type AccessClient = Parameters<
+  Parameters<typeof withAccessTransaction<unknown>>[0]
+>[0];
+
+/**
+ * The member an earlier invitation with this ID created. The access lock
+ * serializes invitations, so a twin that is still running has committed by the
+ * time this runs.
+ */
+const storedInvitation = async (
+  client: AccessClient,
+  submissionId: string | undefined,
+) => {
+  if (submissionId === undefined) {
+    return;
+  }
+  const result = await client.query<{ id: string }>(
+    'select id from member where submission_id = $1',
+    [submissionId],
+  );
+  return result.rows[0]?.id;
+};
+
+/**
+ * Issues an invitation for `name`, or a recovery code for `memberId`. Sending
+ * an invitation again with the same `submissionId`, for example after a lost
+ * answer, creates no second member. Only the digest of a code is stored, so the
+ * first code cannot be shown again: the repeat replaces it with a new code for
+ * the same member.
+ */
 export const issueCode = async (input: {
   readonly name?: string;
   readonly memberId?: string;
+  readonly submissionId?: string;
 }) =>
   withAccessTransaction(async (client) => {
     const code = newAccessCode();
-    let id = input.memberId;
+    const storedId = input.memberId
+      ? undefined
+      : await storedInvitation(client, input.submissionId);
+    let id = input.memberId ?? storedId;
     if (id) {
       const member = await client.query(
         'select id from member where id = $1 and not admin and enabled for update',
@@ -56,8 +90,8 @@ export const issueCode = async (input: {
         [userId, input.name, `${userId}@accounts.invalid`],
       );
       await client.query(
-        'insert into member (id, user_id, name) values ($1, $2, $3)',
-        [id, userId, input.name],
+        'insert into member (id, user_id, name, submission_id) values ($1, $2, $3, $4)',
+        [id, userId, input.name, input.submissionId ?? null],
       );
     }
     await client.query(
