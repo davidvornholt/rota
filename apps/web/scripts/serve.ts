@@ -26,6 +26,7 @@ type StartServerEntry = {
 
 const immutableCache = 'public, max-age=31536000, immutable';
 const okStatus = 200;
+const unavailableStatus = 503;
 const healthPath = '/api/healthz';
 const pagePath = '/login';
 const selfCheckTimeout = 10_000;
@@ -178,6 +179,17 @@ const loadSsrBundle = async (entryUrl: URL): Promise<SsrBundle> => {
   }
 };
 
+type Check = {
+  readonly path: string;
+  readonly acceptedStatuses: ReadonlyArray<number>;
+};
+
+const healthCheck: Check = {
+  path: healthPath,
+  acceptedStatuses: [okStatus, unavailableStatus],
+};
+const pageCheck: Check = { path: pagePath, acceptedStatuses: [okStatus] };
+
 const timedOut = Symbol('boot self-check timeout');
 
 /**
@@ -189,7 +201,7 @@ const timedOut = Symbol('boot self-check timeout');
 const requestFailure = async (
   handler: FetchHandler,
   port: number,
-  path: string,
+  { path, acceptedStatuses }: Check,
   timeoutMs: number,
 ): Promise<string | null> => {
   try {
@@ -201,30 +213,33 @@ const requestFailure = async (
     if (answer === timedOut) {
       return `${path} timed out after ${timeoutMs}ms`;
     }
-    return answer.status === okStatus
+    return acceptedStatuses.includes(answer.status)
       ? null
-      : `${path} answered ${answer.status} instead of ${okStatus}`;
+      : `${path} answered ${answer.status} instead of ${acceptedStatuses.join(' or ')}`;
   } catch (error) {
     return `${path} threw: ${describeError(error)}`;
   }
 };
 
 /**
- * What the process proves before it listens: the liveness route answers, and a
- * real page renders. Liveness runs first as the cheaper check; it touches
- * neither database nor OAuth. The sign-in page then covers what it never
- * reaches — router, React render, document shell — and needs no database
- * either: its session lookup fails closed and renders signed out. Anything
- * else means the process cannot serve requests, and one that stays up in that
- * state answers health checks with a lie.
+ * What the process proves before it listens: the health route answers, and a
+ * real page renders. The health route runs first as the cheaper check. It
+ * answers 503 while the database is unreachable, and that counts as an answer:
+ * a process that exited because the database was down would restart in a loop
+ * until the database came back, while the host's health probes already report
+ * the outage. The sign-in page then covers what the route never reaches —
+ * router, React render, document shell — and needs no database either: its
+ * session lookup fails closed and renders signed out. Anything else means the
+ * process cannot serve requests, and one that stays up in that state answers
+ * health checks with a lie.
  */
 export const bootSelfCheckFailure = async (
   handler: FetchHandler,
   port: number,
   timeoutMs: number,
 ): Promise<string | null> =>
-  (await requestFailure(handler, port, healthPath, timeoutMs)) ??
-  (await requestFailure(handler, port, pagePath, timeoutMs));
+  (await requestFailure(handler, port, healthCheck, timeoutMs)) ??
+  (await requestFailure(handler, port, pageCheck, timeoutMs));
 
 /**
  * The scheduler: once a minute the process asks itself, in-process and without
