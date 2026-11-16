@@ -68,12 +68,14 @@ stdenvNoCC.mkDerivation {
   dontStrip = true;
   dontPatchELF = true;
   # The Standards workflow builds this package, so a binary that can't start,
-  # or skills installed differently from apps/cli/skills, fail `check`.
+  # or skills installed differently from apps/cli/skills, fail `check`. The
+  # comparison reads the skills unfiltered, so it also catches a tracked skill
+  # file that a .gitignore line keeps out of src.
   doInstallCheck = true;
   installCheckPhase = ''
     runHook preInstallCheck
     HOME=$TMPDIR $out/bin/rota --help >/dev/null
-    diff -r skills "$out/share/${pname}/skills"
+    diff -r ${../apps/cli/skills} "$out/share/${pname}/skills"
     runHook postInstallCheck
   '';
 
