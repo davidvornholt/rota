@@ -10,7 +10,7 @@ Expected returns are estimates. Changing the turnaround or editing wear history 
 
 For a clean top every other day, choose the starting date in Settings. The day’s “Clean top” checkbox overrides that schedule for that date.
 
-Run `bun run test:planning-db` after generating the development environment and starting the local database. It creates and removes its own disposable database, applies the generated migrations, and uses deterministic model and weather responses. It only accepts a localhost database connection.
+`bun run test:planning-db` checks planning, garments, laundry and retries against PostgreSQL. It creates and removes its own disposable database, applies the generated migrations, and uses deterministic model and weather responses. It only accepts a localhost database connection. The root `bun run check` includes it, and CI always runs it against its Postgres service. Locally it runs only when `DATABASE_URL` is set, because the script loads no `.env.local`: after generating the development environment and starting the local database, run `bun --env-file=.env.local run test:planning-db` in this directory.
 
 ## Family accounts
 

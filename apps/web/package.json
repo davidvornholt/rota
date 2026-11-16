@@ -16,7 +16,7 @@
     "check-types": "tsc --noEmit",
     "test": "bun test",
     "test:a11y": "playwright test --config playwright.config.ts",
-    "test:planning-db": "bun --env-file=.env.local run scripts/verify-planning.ts",
+    "test:planning-db": "bun --env-file=.env.planning-db run scripts/planning-db-check.ts",
     "test:family": "bun --env-file=.env.local run scripts/family-check.ts",
     "test:oauth": "bun --env-file=.env.local run scripts/oauth-check.ts"
   },
