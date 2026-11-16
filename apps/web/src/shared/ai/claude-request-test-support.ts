@@ -24,6 +24,7 @@ export const input: GenerateJsonInput<{ choice: string }, { choice: string }> =
       type: 'object',
       properties: { choice: { type: 'string' } },
       required: ['choice'],
+      additionalProperties: false,
     },
   };
 

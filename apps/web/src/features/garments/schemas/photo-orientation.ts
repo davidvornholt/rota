@@ -21,4 +21,5 @@ export const photoOrientationJsonSchema = {
   type: 'object',
   properties: photoOrientationProperties,
   required: ['rotationClockwise'],
+  additionalProperties: false,
 } as const;

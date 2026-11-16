@@ -68,16 +68,16 @@ export const proposalAnswerJsonSchema = (
       .map(([name]) => name);
     const separate = separateSlots.includes(slot);
     const optional = !separate || dressOffered;
-    const optionalType = choices.length === 0 ? 'null' : ['string', 'null'];
     const guidance =
       separate && dressOffered
         ? separateWithDressDescription
         : (optionalSlotDescription[slot] ?? '');
-    return {
-      type: optional ? optionalType : 'string',
-      enum: optional ? [...choices, null] : choices,
-      description: `An offered alias for ${slot}, never a garment name.${guidance}`,
-    };
+    const description = `An offered alias for ${slot}, never a garment name.${guidance}`;
+    // Structured outputs reject an enum next to a type array such as
+    // ['string', 'null'], so an optional slot is a bare enum that lists null.
+    return optional
+      ? { enum: [...choices, null], description }
+      : { type: 'string', enum: choices, description };
   };
   return {
     type: 'object',
@@ -96,6 +96,7 @@ export const proposalAnswerJsonSchema = (
           bag: forSlot('bag'),
         },
         required: [...slotOrder],
+        additionalProperties: false,
       },
       headline: alias(
         'One short sentence, second person, plain and specific, that opens the morning: what to keep, what is fresh, and the one reason. At most 90 characters. Example: "Keep the grey chinos; a fresh white shirt for the warmer afternoon."',
@@ -114,9 +115,11 @@ export const proposalAnswerJsonSchema = (
             reason: alias('Why this garment, today.'),
           },
           required: ['alias', 'reason'],
+          additionalProperties: false,
         },
       },
     },
     required: ['outfit', 'headline', 'reasons'],
+    additionalProperties: false,
   } as const;
 };

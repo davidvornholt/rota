@@ -11,7 +11,6 @@ import {
 import { Duration, Effect, Exit, Schedule, Schema } from 'effect';
 import { prepareClaudeParts } from './claude-images.ts';
 import { ClaudeError } from './errors/ai-errors.ts';
-import { jsonAnswer } from './json-answer.ts';
 
 /** Every Claude request in Rota asks Claude Sonnet 5.5. */
 export const claudeModel = 'claude-sonnet-5-5';
@@ -31,6 +30,10 @@ export type GenerateJsonInput<A, I> = {
   readonly system: string;
   readonly parts: ReadonlyArray<PromptPart>;
   readonly schema: Schema.Codec<A, I>;
+  /**
+   * The JSON Schema the Claude API constrains the answer to. It must keep to
+   * the structured-output subset, or the API rejects the request with a 400.
+   */
   readonly jsonSchema: Record<string, unknown>;
 };
 
@@ -141,14 +144,11 @@ const messageRequest = (
   betas: ['server-side-fallback-2026-07-01'],
   fallbacks: 'default',
   thinking: { type: 'adaptive' },
-  output_config: { effort: 'high' },
-  system: [
-    { type: 'text', text: system },
-    {
-      type: 'text',
-      text: `Return only a JSON object matching this schema, without Markdown or commentary: ${JSON.stringify(jsonSchema)}`,
-    },
-  ],
+  output_config: {
+    effort: 'high',
+    format: { type: 'json_schema', schema: jsonSchema },
+  },
+  system,
   messages: [
     {
       role: 'user',
@@ -171,7 +171,9 @@ const messageRequest = (
 
 /**
  * The value an answer holds, or why the request failed: Claude stopped before
- * finishing, or what it wrote doesn't match the schema.
+ * finishing, or what it wrote doesn't match the schema. The API already
+ * constrains a finished answer to the JSON Schema; decoding it with the Effect
+ * schema checks that again and yields Rota's own types.
  */
 const readAnswer = <A, I>(
   response: MessageAnswer,
@@ -187,7 +189,7 @@ const readAnswer = <A, I>(
     );
   }
   return Schema.decodeUnknownEffect(Schema.fromJsonString(schema))(
-    jsonAnswer(servedText(response.content)),
+    servedText(response.content),
   ).pipe(
     Effect.mapError(
       () =>
