@@ -26,7 +26,6 @@ type Located = readonly [Node, string];
 const isNode = (value: unknown): value is Node =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** The problems with one schema node itself, not with the nodes inside it. */
 const nodeProblems = (node: Node, path: string): ReadonlyArray<string> => [
   ...unsupportedKeywords
     .filter((keyword) => keyword in node)
@@ -57,7 +56,6 @@ const branchesOf = (node: Node, path: string): ReadonlyArray<Located> =>
       : [];
   });
 
-/** Each schema node directly inside this one, with its path. */
 const children = (node: Node, path: string): ReadonlyArray<Located> => [
   ...Object.entries(isNode(node.properties) ? node.properties : {}).flatMap(
     ([name, property]): ReadonlyArray<Located> =>

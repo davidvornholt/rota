@@ -175,7 +175,6 @@ export const extractionSystemPrompt = [
   'You see one photo of one garment, usually laid on a bed, a floor, or held up, in ordinary indoor light.',
   'Describe the garment itself, never the surroundings.',
   'Judge colour from the fabric, correcting for the lighting.',
-  'Answer only with the JSON the schema asks for.',
 ].join(' ');
 
 export const extractionPrompt = 'Read this garment and fill in every field.';

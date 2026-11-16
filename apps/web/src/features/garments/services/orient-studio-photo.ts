@@ -14,10 +14,8 @@ export const orientStudioPhoto = (
   Effect.gen(function* () {
     const orientation = yield* claude.generateJson({
       purpose: 'garment',
-      system: [
+      system:
         'Identify the upright orientation of a garment in a wardrobe photo.',
-        'Answer only with the JSON the schema asks for.',
-      ].join(' '),
       parts: [
         { image: { mimeType: photo.mime, data: photo.bytes } },
         { text: 'Report the rotation needed to make this garment upright.' },
