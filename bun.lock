@@ -6,7 +6,7 @@
       "name": "@rota/root",
       "devDependencies": {
         "@biomejs/biome": "2.5.15",
-        "@davidvornholt/standards": "0.41.1",
+        "@davidvornholt/standards": "0.42.0",
         "turbo": "^2.11.11",
         "typescript": "7.0.2",
       },
@@ -203,7 +203,7 @@
 
     "@davidvornholt/a11y-testing": ["@davidvornholt/a11y-testing@workspace:packages/a11y-testing"],
 
-    "@davidvornholt/standards": ["@davidvornholt/standards@0.41.1", "", { "dependencies": { "yaml": "^2.9.1" }, "bin": { "standards": "src/cli.ts" } }, "sha512-c2BHpRQMAHz8EUCahOi8JlvuA03Q8/3ZPh+jWj69YuP047l8PRUFtkUn0hzZC25FPhRVDTj/z5zvGqZleb2tRA=="],
+    "@davidvornholt/standards": ["@davidvornholt/standards@0.42.0", "", { "dependencies": { "yaml": "^2.9.1" }, "bin": { "standards": "src/cli.ts" } }, "sha512-BApnCpshDnavYwhzvz7RJZsK71/+0VDtvliVexcszubTfx/jypUbBw+gny7ukPMaH3XfRQNxGL9bUHz6f9yCkw=="],
 
     "@davidvornholt/typescript-config": ["@davidvornholt/typescript-config@workspace:packages/typescript-config"],
 
