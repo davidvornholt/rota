@@ -161,7 +161,8 @@ export const AppShell = () => {
     mutationFn: () => authClient.signOut().then(rejectAuthError),
     onSuccess: async () => {
       queryClient.clear();
-      await router.navigate({ to: '/login' });
+      // The session has ended, so unsaved changes can no longer be saved.
+      await router.navigate({ to: '/login', ignoreBlocker: true });
       // The router keeps the pages it loaded, preloaded tabs included; none
       // of them may outlive the session.
       router.clearCache();
