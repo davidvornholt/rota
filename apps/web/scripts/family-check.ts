@@ -23,7 +23,11 @@ import {
   checkPeopleActions,
 } from './family-actions-check.ts';
 import { checkMediaCopies } from './family-media-check.ts';
-import { checkRevocation, expectRevoked } from './family-revocation-check.ts';
+import {
+  checkRevocation,
+  expectRevoked,
+  expectSignedOutPage,
+} from './family-revocation-check.ts';
 import { checkUsage } from './family-usage-check.ts';
 
 // This test creates fixtures only in the explicitly isolated development database.
@@ -343,8 +347,7 @@ try {
   ).resolves.toBeNull();
   await expect(resolveAccessCode(recovery.code)).rejects.toThrow();
   await setAccess(alex.id, false);
-  await recovered.page.goto(`${origin}/wardrobe`);
-  await expect(recovered.page).toHaveURL(`${origin}/login`);
+  await expectSignedOutPage(recovered.page, origin);
   await signIn(recovered.page);
   await expect(recovered.page.getByRole('alert')).toBeVisible();
   await expectRevoked(alex.userId);

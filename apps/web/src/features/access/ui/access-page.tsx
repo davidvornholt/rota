@@ -13,6 +13,13 @@ import {
 import { Notice } from '#/shared/ui/notice.tsx';
 import { Tally } from '#/shared/ui/tally.tsx';
 
+/** After a sign-in, nothing the router cached for an earlier session in this tab may show. */
+const openWardrobe = async (router: ReturnType<typeof useRouter>) => {
+  router.clearCache();
+  await router.invalidate();
+  await router.navigate({ to: '/' });
+};
+
 export const SignInPage = ({
   oauthError,
 }: {
@@ -24,10 +31,7 @@ export const SignInPage = ({
     mutationFn: async () => {
       await authClient.signIn.passkey().then(rejectAuthError);
     },
-    onSuccess: async () => {
-      await router.invalidate();
-      await router.navigate({ to: '/' });
-    },
+    onSuccess: () => openWardrobe(router),
   });
   const github = useMutation({
     mutationFn: () =>
@@ -111,10 +115,7 @@ export const JoinPage = () => {
         })
         .then(rejectAuthError);
     },
-    onSuccess: async () => {
-      await router.invalidate();
-      await router.navigate({ to: '/' });
-    },
+    onSuccess: () => openWardrobe(router),
   });
   return (
     <main className="flex min-h-svh items-center py-16">

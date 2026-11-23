@@ -5,11 +5,29 @@ class ServerRequestError extends Schema.TaggedError<ServerRequestError>()(
   { message: Schema.String },
 ) {}
 
+const unauthorized = 401;
+
+/**
+ * The fetch behind every server function call in the browser. Each server
+ * function checks the session itself, so a 401 means the session has ended:
+ * signed out elsewhere, expired, or access revoked. The browser then loads the
+ * sign-in page, which also drops everything this tab still holds.
+ */
+export const signedInFetch = async (
+  ...args: Parameters<typeof fetch>
+): Promise<Response> => {
+  const response = await fetch(...args);
+  if (response.status === unauthorized) {
+    globalThis.location.assign('/login');
+  }
+  return response;
+};
+
 /** Reject proxy failures before TanStack tries to decode them as RPC results. */
 export const serverFunctionFetch = (...args: Parameters<typeof fetch>) =>
   Effect.runPromise(
     Effect.tryPromise({
-      try: () => fetch(...args),
+      try: () => signedInFetch(...args),
       catch: () =>
         new ServerRequestError({
           message:

@@ -1,5 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-import { serverFunctionFetch } from './server-function-fetch.ts';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  spyOn,
+} from 'bun:test';
+import { serverFunctionFetch, signedInFetch } from './server-function-fetch.ts';
 
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>>;
 beforeEach(() => {
@@ -7,6 +15,8 @@ beforeEach(() => {
 });
 afterEach(() => fetchSpy.mockRestore());
 const ok = 200;
+const unauthorized = 401;
+const forbidden = 403;
 const conflict = 409;
 
 describe('serverFunctionFetch', () => {
@@ -45,6 +55,52 @@ describe('serverFunctionFetch', () => {
         'https://rota.test/_serverFn/test',
         { signal: abort.signal },
       );
+    },
+  );
+});
+
+describe('signedInFetch', () => {
+  const assign = mock();
+  beforeEach(() => {
+    assign.mockReset();
+    Object.defineProperty(globalThis, 'location', {
+      value: { assign },
+      configurable: true,
+    });
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, 'location');
+  });
+
+  it('sends the tab to sign in once the session has ended', async () => {
+    const response = new Response('Not authorized.', { status: unauthorized });
+    fetchSpy.mockResolvedValue(response);
+    expect(await signedInFetch('https://rota.test/_serverFn/test')).toBe(
+      response,
+    );
+    expect(assign).toHaveBeenCalledWith('/login');
+  });
+
+  it('also covers calls made through serverFunctionFetch', async () => {
+    fetchSpy.mockResolvedValue(
+      new Response('"Not authorized."', {
+        status: unauthorized,
+        headers: {
+          'content-type': 'application/json',
+          'x-tss-serialized': 'true',
+        },
+      }),
+    );
+    await serverFunctionFetch('https://rota.test/_serverFn/test');
+    expect(assign).toHaveBeenCalledWith('/login');
+  });
+
+  it.each([ok, forbidden, conflict])(
+    'keeps the tab where it is for status %s',
+    async (status) => {
+      fetchSpy.mockResolvedValue(new Response('{}', { status }));
+      await signedInFetch('https://rota.test/_serverFn/test');
+      expect(assign).not.toHaveBeenCalled();
     },
   );
 });
