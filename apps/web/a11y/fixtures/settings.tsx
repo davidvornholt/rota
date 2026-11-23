@@ -21,6 +21,8 @@ const router = createRouter({
   routeTree: route,
   history: createMemoryHistory({ initialEntries: ['/'] }),
 });
+// Tests reload the loader the way the router's background refresh does.
+Object.assign(globalThis, { refreshSettings: () => router.invalidate() });
 const root = document.querySelector('#root');
 if (root !== null) {
   createRoot(root).render(

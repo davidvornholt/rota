@@ -189,6 +189,14 @@ const LocationSection = ({
   );
 };
 
+const rotationDraftOf = (settings: Settings): RotationSettingsInput => ({
+  cleanTopAnchor: settings.cleanTopAnchor,
+  laundryDays: settings.laundryDays,
+  cooldownDays: settings.cooldownDays,
+  proposalHour: settings.proposalHour,
+  categoryBudgets: budgetsOf(settings),
+});
+
 const RotationSection = ({
   settings,
   onSaved,
@@ -199,23 +207,15 @@ const RotationSection = ({
   const cooldownId = useId();
   const hourId = useId();
   const headingId = useId();
-  const [draft, setDraft] = useState<RotationSettingsInput>(() => ({
-    cleanTopAnchor: settings.cleanTopAnchor,
-    laundryDays: settings.laundryDays,
-    cooldownDays: settings.cooldownDays,
-    proposalHour: settings.proposalHour,
-    categoryBudgets: budgetsOf(settings),
-  }));
+  const [draft, setDraft] = useState(() => rotationDraftOf(settings));
   const [saved, setSaved] = useState(false);
-  useEffect(() => {
-    setDraft({
-      cleanTopAnchor: settings.cleanTopAnchor,
-      laundryDays: settings.laundryDays,
-      cooldownDays: settings.cooldownDays,
-      proposalHour: settings.proposalHour,
-      categoryBudgets: budgetsOf(settings),
-    });
-  }, [settings]);
+  // A background refresh brings the same saved settings as a new object; only a
+  // newer revision may replace what the person is typing.
+  const [draftRevision, setDraftRevision] = useState(settings.revision);
+  if (settings.revision !== draftRevision) {
+    setDraftRevision(settings.revision);
+    setDraft(rotationDraftOf(settings));
+  }
   const save = useMutation({
     mutationFn: () =>
       saveRotationSettingsFn({
