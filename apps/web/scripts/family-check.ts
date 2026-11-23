@@ -23,6 +23,7 @@ import {
   checkPeopleActions,
 } from './family-actions-check.ts';
 import { checkMediaCopies } from './family-media-check.ts';
+import { checkAddedPasskey } from './family-passkey-check.ts';
 import {
   checkRevocation,
   expectRevoked,
@@ -190,23 +191,7 @@ try {
   expect(oldCredentials.credentials).toHaveLength(1);
   await family.page.goto(`${origin}/account`);
   await scan(family.page);
-  await family.cdp.send('WebAuthn.removeVirtualAuthenticator', {
-    authenticatorId: family.authenticatorId,
-  });
-  await family.cdp.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
-    },
-  });
-  await family.page
-    .getByRole('button', { name: 'Add a passkey', exact: true })
-    .click();
-  await expect(family.page.getByRole('status')).toHaveText('Passkey added.');
+  await checkAddedPasskey(family, alex.userId);
   const deniedPeople = await family.page.goto(`${origin}/people`);
   expect(deniedPeople?.status()).toBe(serverError);
   await expect(

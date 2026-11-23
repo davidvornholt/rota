@@ -15,6 +15,7 @@ import {
 import { auth } from '../src/shared/auth/auth.ts';
 import { pool } from '../src/shared/db/database.ts';
 
+const tapTimeout = 2000;
 /**
  * Revoking access signs the person out of their open app without a reload, and
  * out of a fresh page load too. The tabs the app loads in the background may
@@ -22,13 +23,10 @@ import { pool } from '../src/shared/db/database.ts';
  * app to sign in.
  */
 export const expectSignedOutPage = async (page: Page, origin: string) => {
-  await Promise.race([
-    page
-      .getByRole('link', { name: 'Wardrobe', exact: true })
-      .click()
-      .catch(() => undefined),
-    page.waitForURL(`${origin}/login`),
-  ]);
+  await page
+    .getByRole('link', { name: 'Wardrobe', exact: true })
+    .click({ timeout: tapTimeout })
+    .catch(() => undefined);
   await expect(page).toHaveURL(`${origin}/login`);
   await page.goto(`${origin}/wardrobe`);
   await expect(page).toHaveURL(`${origin}/login`);

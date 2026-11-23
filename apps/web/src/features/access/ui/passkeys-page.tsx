@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authClient } from '#/shared/auth/auth-client.ts';
-import { rejectSignedInAuthError } from '#/shared/auth/auth-response.ts';
+import {
+  rejectAuthError,
+  rejectSignedInAuthError,
+} from '#/shared/auth/auth-response.ts';
 import { frameClass, signalButtonClass } from '#/shared/ui/classes.ts';
 import { Notice } from '#/shared/ui/notice.tsx';
 export const PasskeysPage = () => {
@@ -14,10 +17,11 @@ export const PasskeysPage = () => {
     },
   });
   const add = useMutation({
+    // Adding a passkey answers 401 to a valid session older than ten minutes.
     mutationFn: () =>
       authClient.passkey
         .addPasskey({ name: 'Rota passkey' })
-        .then(rejectSignedInAuthError),
+        .then(rejectAuthError),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['passkeys'] }),
   });
   return (

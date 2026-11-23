@@ -28,7 +28,7 @@ describe('rejectSignedInAuthError', () => {
     expect(assign).toHaveBeenCalledWith('/login');
   });
 
-  it('leaves a stale but signed-in session on the page', async () => {
+  it('leaves the page open after another error', async () => {
     await expect(rejectSignedInAuthError(failure(forbidden))).rejects.toEqual(
       failure(forbidden).error,
     );
