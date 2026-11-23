@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { authClient } from '#/shared/auth/auth-client.ts';
-import { rejectAuthError } from '#/shared/auth/auth-response.ts';
+import { rejectSignedInAuthError } from '#/shared/auth/auth-response.ts';
 import {
   fieldClass,
   frameClass,
@@ -64,7 +64,7 @@ export const DevicePage = ({ userCode }: { readonly userCode: string }) => {
         // biome-ignore lint/style/useNamingConvention: Better Auth's device endpoint takes the RFC 8628 parameter name.
         query: { user_code: code },
       });
-      await rejectAuthError(response);
+      await rejectSignedInAuthError(response);
       return response.data;
     },
   });
@@ -73,7 +73,7 @@ export const DevicePage = ({ userCode }: { readonly userCode: string }) => {
       (decision === 'approve'
         ? authClient.device.approve({ userCode: code })
         : authClient.device.deny({ userCode: code })
-      ).then(rejectAuthError),
+      ).then(rejectSignedInAuthError),
   });
   const decided = decide.variables === 'approve' ? 'approved' : 'denied';
   const status = decide.isSuccess ? decided : request.data?.status;

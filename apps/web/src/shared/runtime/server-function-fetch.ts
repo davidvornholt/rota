@@ -8,18 +8,20 @@ class ServerRequestError extends Schema.TaggedError<ServerRequestError>()(
 const unauthorized = 401;
 
 /**
- * The fetch behind every server function call in the browser. Each server
- * function checks the session itself, so a 401 means the session has ended:
- * signed out elsewhere, expired, or access revoked. The browser then loads the
- * sign-in page, which also drops everything this tab still holds.
+ * On a signed-in page, a 401 means the session has ended. A page load of sign-in,
+ * not a router navigation, drops everything this tab still holds.
  */
+export const signInIfSessionEnded = (status: number) => {
+  if (status === unauthorized) {
+    globalThis.location.assign('/login');
+  }
+};
+
 export const signedInFetch = async (
   ...args: Parameters<typeof fetch>
 ): Promise<Response> => {
   const response = await fetch(...args);
-  if (response.status === unauthorized) {
-    globalThis.location.assign('/login');
-  }
+  signInIfSessionEnded(response.status);
   return response;
 };
 

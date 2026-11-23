@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authClient } from '#/shared/auth/auth-client.ts';
-import { rejectAuthError } from '#/shared/auth/auth-response.ts';
+import { rejectSignedInAuthError } from '#/shared/auth/auth-response.ts';
 import { frameClass, signalButtonClass } from '#/shared/ui/classes.ts';
 import { Notice } from '#/shared/ui/notice.tsx';
 export const PasskeysPage = () => {
@@ -9,7 +9,7 @@ export const PasskeysPage = () => {
     queryKey: ['passkeys'],
     queryFn: async () => {
       const response = await authClient.passkey.listUserPasskeys();
-      await rejectAuthError(response);
+      await rejectSignedInAuthError(response);
       return response.data;
     },
   });
@@ -17,7 +17,7 @@ export const PasskeysPage = () => {
     mutationFn: () =>
       authClient.passkey
         .addPasskey({ name: 'Rota passkey' })
-        .then(rejectAuthError),
+        .then(rejectSignedInAuthError),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['passkeys'] }),
   });
   return (
