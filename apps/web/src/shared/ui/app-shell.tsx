@@ -37,7 +37,7 @@ const navItems = [
 // small label under its icon instead. Items grow from their label's width, so
 // the longest label still fits a 320 px screen on one line.
 const barLinkClass =
-  'relative flex min-h-14 flex-col items-center justify-center gap-1 whitespace-nowrap font-medium text-ink-muted text-xs transition-colors hover:text-ink';
+  'relative flex min-h-14 flex-col items-center justify-center gap-1 whitespace-nowrap font-medium text-ink-muted text-xs transition-colors [-webkit-tap-highlight-color:transparent] hover:text-ink active:bg-paper-deep';
 const barActiveClass =
   'text-ink after:absolute after:inset-x-2 after:top-0 after:h-0.5 after:bg-signal';
 
@@ -96,12 +96,42 @@ const focusMainAfterNavigation = (target: HTMLElement): void => {
   }
 };
 
+const idleTimeout = 2000;
+// Safari has no idle callback, so there the load waits a moment past the
+// first render instead.
+const fallbackDelay = 500;
+
+/**
+ * A tab seen before shows what the router cached at once while it refreshes in
+ * the background.
+ */
+const usePreloadedTabs = () => {
+  const router = useRouter();
+  useEffect(() => {
+    const preload = () => {
+      const current = router.state.location.pathname;
+      for (const { to } of navItems) {
+        if (to !== current) {
+          router.preloadRoute({ to }).catch(() => undefined);
+        }
+      }
+    };
+    if ('requestIdleCallback' in globalThis) {
+      const handle = requestIdleCallback(preload, { timeout: idleTimeout });
+      return () => cancelIdleCallback(handle);
+    }
+    const handle = setTimeout(preload, fallbackDelay);
+    return () => clearTimeout(handle);
+  }, [router]);
+};
+
 export const AppShell = () => {
   const person = useQuery({
     queryKey: ['current-person'],
     queryFn: () => currentPersonFn(),
   });
   const queryClient = useQueryClient();
+  usePreloadedTabs();
   const mainId = useId();
   const router = useRouter();
   const mainRef = useRef<HTMLElement>(null);
@@ -127,8 +157,11 @@ export const AppShell = () => {
     mutationFn: () => authClient.signOut().then(rejectAuthError),
     onSuccess: async () => {
       queryClient.clear();
-      await router.invalidate();
-      await router.navigate({ to: '/login' });
+      // The session has ended, so unsaved changes can no longer be saved.
+      await router.navigate({ to: '/login', ignoreBlocker: true });
+      // The router keeps the pages it loaded, preloaded tabs included; none
+      // of them may outlive the session.
+      router.clearCache();
     },
     onSettled: () => {
       signOutStartedRef.current = false;

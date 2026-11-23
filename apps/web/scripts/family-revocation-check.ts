@@ -1,4 +1,5 @@
-import { expect } from '@playwright/test';
+// biome-ignore lint/correctness/noUnresolvedImports: Biome cannot resolve Playwright's re-exports; TypeScript and the browser run verify these exports.
+import { expect, type Page } from '@playwright/test';
 import {
   issueCode,
   setAccess,
@@ -13,6 +14,23 @@ import {
 } from '../src/shared/auth/access-transaction.ts';
 import { auth } from '../src/shared/auth/auth.ts';
 import { pool } from '../src/shared/db/database.ts';
+
+const tapTimeout = 2000;
+/**
+ * Revoking access signs the person out of their open app without a reload, and
+ * out of a fresh page load too. The tabs the app loads in the background may
+ * find the revocation before a tap on the next tab does; either one sends the
+ * app to sign in.
+ */
+export const expectSignedOutPage = async (page: Page, origin: string) => {
+  await page
+    .getByRole('link', { name: 'Wardrobe', exact: true })
+    .click({ timeout: tapTimeout })
+    .catch(() => undefined);
+  await expect(page).toHaveURL(`${origin}/login`);
+  await page.goto(`${origin}/wardrobe`);
+  await expect(page).toHaveURL(`${origin}/login`);
+};
 
 export const expectRevoked = async (userId: string) => {
   expect(

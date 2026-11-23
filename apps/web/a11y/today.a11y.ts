@@ -348,3 +348,20 @@ test('clean-top cadence can be set and cleared without accessory wash budgets', 
   await page.getByRole('button', { name: 'Save rotation settings' }).click();
   await expect(start).toHaveValue('');
 });
+
+test('a background refresh keeps the rotation settings being typed', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureOrigin}a11y/fixtures/settings.html`);
+  const repeats = page.getByRole('spinbutton', {
+    name: 'Preferred days between repeats',
+  });
+  await repeats.fill('9');
+  await page.evaluate(async () => {
+    await (
+      globalThis as unknown as { refreshSettings: () => Promise<void> }
+    ).refreshSettings();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  });
+  await expect(repeats).toHaveValue('9');
+});

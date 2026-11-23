@@ -5,11 +5,31 @@ class ServerRequestError extends Schema.TaggedError<ServerRequestError>()(
   { message: Schema.String },
 ) {}
 
+const unauthorized = 401;
+
+/**
+ * On a signed-in page, a 401 means the session has ended. A page load of sign-in,
+ * not a router navigation, drops everything this tab still holds.
+ */
+export const signInIfSessionEnded = (status: number) => {
+  if (status === unauthorized) {
+    globalThis.location.assign('/login');
+  }
+};
+
+export const signedInFetch = async (
+  ...args: Parameters<typeof fetch>
+): Promise<Response> => {
+  const response = await fetch(...args);
+  signInIfSessionEnded(response.status);
+  return response;
+};
+
 /** Reject proxy failures before TanStack tries to decode them as RPC results. */
 export const serverFunctionFetch = (...args: Parameters<typeof fetch>) =>
   Effect.runPromise(
     Effect.tryPromise({
-      try: () => fetch(...args),
+      try: () => signedInFetch(...args),
       catch: () =>
         new ServerRequestError({
           message:

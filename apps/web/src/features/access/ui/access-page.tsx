@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useHydrated, useRouter } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 import { authClient } from '#/shared/auth/auth-client.ts';
@@ -12,6 +12,7 @@ import {
 } from '#/shared/ui/classes.ts';
 import { Notice } from '#/shared/ui/notice.tsx';
 import { Tally } from '#/shared/ui/tally.tsx';
+import { openWardrobe } from './open-wardrobe.ts';
 
 export const SignInPage = ({
   oauthError,
@@ -19,15 +20,13 @@ export const SignInPage = ({
   readonly oauthError?: string;
 }) => {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const hydrated = useHydrated();
   const signIn = useMutation({
     mutationFn: async () => {
       await authClient.signIn.passkey().then(rejectAuthError);
     },
-    onSuccess: async () => {
-      await router.invalidate();
-      await router.navigate({ to: '/' });
-    },
+    onSuccess: () => openWardrobe(router, queryClient),
   });
   const github = useMutation({
     mutationFn: () =>
@@ -97,6 +96,7 @@ export const SignInPage = ({
 export const JoinPage = () => {
   const formId = useId();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const hydrated = useHydrated();
   const [code, setCode] = useState('');
   const register = useMutation({
@@ -111,10 +111,7 @@ export const JoinPage = () => {
         })
         .then(rejectAuthError);
     },
-    onSuccess: async () => {
-      await router.invalidate();
-      await router.navigate({ to: '/' });
-    },
+    onSuccess: () => openWardrobe(router, queryClient),
   });
   return (
     <main className="flex min-h-svh items-center py-16">
