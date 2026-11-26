@@ -4,6 +4,7 @@ import { fixtureOrigin } from './fixture-origin.ts';
 
 const shirtWorn = /Blue Oxford shirt1 of 2 wears · last worn 5 Sept/u;
 const chinosWorn = /Navy chinos2 of 4 wears · last worn 7 Sept/u;
+const navyChinos = /Navy chinos/u;
 
 test('laundry lists pieces worn since washing, closest to the wash first, and sends one to the basket or counts it washed', async ({
   page,
@@ -28,4 +29,7 @@ test('laundry lists pieces worn since washing, closest to the wash first, and se
     .click();
   await expect(worn).toHaveCount(0);
   await expect(laundry.getByRole('status')).toHaveText('Laundry updated.');
+  await expect(
+    laundry.getByRole('region', { name: 'In laundry' }).getByRole('listitem'),
+  ).toHaveText([navyChinos]);
 });
