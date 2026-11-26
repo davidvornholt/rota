@@ -141,8 +141,46 @@ const savedOrStale = <E, R>(
     ? Effect.void
     : Effect.andThen(missing, Effect.fail(staleEdit()));
 
+/**
+ * The two stored images folded into one JSON object keyed by kind, so the row
+ * already has the `images` shape the schema decodes. A missing image is simply
+ * an absent key.
+ */
+const imagesJson = (sql: SqlClient.SqlClient) => sql`
+  (select coalesce(json_object_agg(
+     i.kind,
+     json_build_object('key', i.storage_key, 'mime', i.mime,
+                       'width', i.width, 'height', i.height)), '{}'::json)
+   from garment_image i
+   where i.garment_id = g.id)
+`;
+
 const readGarments = readError('The wardrobe');
 const writeGarment = writeError('The garment');
+
+/**
+ * Takes a garment out of review in one write guarded by the revision the
+ * caller read, so a second accept, or one racing an edit, is refused instead
+ * of undoing it, and every open form of the garment goes stale.
+ */
+const acceptWith =
+  <E, R>(
+    sql: SqlClient.SqlClient,
+    ownerId: string,
+    byId: (id: string) => Effect.Effect<unknown, E, R>,
+  ) =>
+  (id: string, choice: ImageChoice, revision: number) =>
+    sql<{ readonly id: string }>`
+      update garment
+      set status = 'active', image_choice = ${choice},
+          revision = revision + 1, updated_at = now()
+      where id = ${id} and owner_id = ${ownerId}
+        and status = 'review' and revision = ${revision}
+      returning id
+    `.pipe(
+      Effect.mapError(writeGarment),
+      Effect.flatMap((rows) => savedOrStale(rows, byId(id))),
+    );
 
 export class GarmentRepository extends Context.Service<GarmentRepository>()(
   'shared/GarmentRepository',
@@ -151,20 +189,6 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
       const sql = yield* SqlClient.SqlClient;
       const owner = yield* WardrobeOwner;
 
-      /**
-       * The two stored images folded into one JSON object keyed by kind, so
-       * the row already has the `images` shape the schema decodes. A missing
-       * image is simply an absent key.
-       */
-      const imagesJson = sql`
-        (select coalesce(json_object_agg(
-           i.kind,
-           json_build_object('key', i.storage_key, 'mime', i.mime,
-                             'width', i.width, 'height', i.height)), '{}'::json)
-         from garment_image i
-         where i.garment_id = g.id)
-      `;
-
       const selectGarments = (where: Statement.Fragment) => sql`
         select g.id, g.status, g.name, g.category, g.subcategory,
                array_to_json(g.slots) as slots,
@@ -172,7 +196,7 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
                g.pattern, g.material, g.fit, g.sleeve, g.brand,
                g.notes, g.price, g.purchased_on, g.image_choice, g.revision,
                g.processing_error, g.studio_error, g.retired_at, g.created_at,
-               ${imagesJson} as images
+               ${imagesJson(sql)} as images
         from garment g
         where g.owner_id = ${owner.id} ${where}
         order by g.created_at desc
@@ -299,6 +323,7 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
         markProcessingError,
         setStudioError,
         setStatus,
+        accept: acceptWith(sql, owner.id, byId),
         setImageChoice,
         remove,
       };

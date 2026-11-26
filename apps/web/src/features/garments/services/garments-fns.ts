@@ -14,6 +14,7 @@ import {
   decodeRetryStudioInput,
   decodeUpdateGarmentInput,
 } from '../schemas/garment-input.ts';
+import { acceptEdited } from './accept-edited.ts';
 import { deleteGarment, setRetired } from './garment-lifecycle.ts';
 import { garmentView, garmentViews } from './garment-views.ts';
 import { garmentsRuntime } from './garments-runtime.ts';
@@ -57,13 +58,10 @@ export const acceptGarmentFn = createServerFn({ method: 'POST' })
   .handler(
     ({ data }): Promise<GarmentView> =>
       garmentsRuntime.run(
-        Effect.gen(function* () {
-          const garments = yield* GarmentRepository;
-          yield* garments.update(data.id, data.edit, data.revision);
-          yield* garments.setImageChoice(data.id, data.imageChoice);
-          yield* garments.setStatus(data.id, 'active');
-          return yield* garmentView(data.id);
-        }),
+        Effect.andThen(
+          acceptEdited(data.id, data.edit, data.revision, data.imageChoice),
+          garmentView(data.id),
+        ),
       ),
   );
 

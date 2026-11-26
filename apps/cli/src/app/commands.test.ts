@@ -1,15 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import process from 'node:process';
-import { BunServices } from '@effect/platform-bun';
 import { signOutPath } from '@rota/api/device-login';
 import type { Garment } from '@rota/api/wardrobe';
-import { ConfigProvider, Effect, FileSystem, PlatformError } from 'effect';
-import { Command } from 'effect/cli';
-import { FetchHttpClient } from 'effect/http';
-import { logout, status } from './account-commands.ts';
+import { Effect, PlatformError } from 'effect';
 import {
   dayView,
   garment,
@@ -17,104 +11,21 @@ import {
   pictureKey,
   shirt,
 } from './command-fixtures.ts';
-import { days } from './day-commands.ts';
-import { garments } from './garment-commands.ts';
-import { history } from './history-command.ts';
-import { outfits } from './outfit-commands.ts';
-import { root } from './root.ts';
+import {
+  cli,
+  endCommandTest,
+  failureOf,
+  origin,
+  printed,
+  runOk,
+  startCommandTest,
+  token,
+} from './command-harness.ts';
 
-const origin = 'https://rota.example.com';
-const token = 'session-token';
 const outfitPath = /^\/api\/cli\/outfits\/[0-9a-f-]{36}$/u;
 
-type Sent = {
-  readonly method: string;
-  readonly path: string;
-  readonly authorization: string | null;
-  readonly body: unknown;
-};
-
-// Stands in for the Rota server: records each request and answers it with
-// `answer`, so no test reaches a real server.
-let sent: Array<Sent> = [];
-let answer: (path: string) => Response = () => Response.json({});
-let fileSystem = (real: FileSystem.FileSystem) => real;
-
-const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-  const request = new Request(input, init);
-  const url = new URL(request.url);
-  const text = await request.text();
-  sent.push({
-    method: request.method,
-    path: `${url.pathname}${url.search}`,
-    authorization: request.headers.get('authorization'),
-    body: text === '' ? undefined : JSON.parse(text),
-  });
-  return answer(`${url.pathname}${url.search}`);
-}) as typeof globalThis.fetch;
-
-const rota = root.pipe(
-  Command.withSubcommands([logout, status, garments, days, outfits, history]),
-);
-
-let home = '';
-let stdout: ReturnType<typeof spyOn>;
-
-const printed = () =>
-  JSON.parse(String(stdout.mock.calls.at(-1)?.[0] ?? 'null'));
-
-const run = (...args: ReadonlyArray<string>) =>
-  Effect.runPromise(
-    Command.runWith(rota, { version: 'test' })(args).pipe(
-      Effect.updateService(FileSystem.FileSystem, (real) => fileSystem(real)),
-      Effect.provide(BunServices.layer),
-      Effect.provide(
-        ConfigProvider.layer(
-          ConfigProvider.fromDotEnvContents(
-            [
-              `ROTA_SERVER=${origin}`,
-              `XDG_CONFIG_HOME=${join(home, 'config')}`,
-              `XDG_CACHE_HOME=${join(home, 'cache')}`,
-            ].join('\n'),
-          ),
-        ),
-      ),
-      Effect.provideService(FetchHttpClient.Fetch, fakeFetch),
-      Effect.result,
-    ),
-  );
-
-const runOk = async (...args: ReadonlyArray<string>) => {
-  const result = await run(...args);
-  if (result._tag === 'Failure') {
-    throw new Error(`rota ${args.join(' ')} failed: ${result.failure}`);
-  }
-};
-
-const failureOf = async (...args: ReadonlyArray<string>) => {
-  const result = await run(...args);
-  if (result._tag === 'Success') {
-    throw new Error(`rota ${args.join(' ')} succeeded`);
-  }
-  return result.failure;
-};
-
-beforeEach(async () => {
-  sent = [];
-  answer = () => Response.json(dayView);
-  fileSystem = (real) => real;
-  home = await mkdtemp(join(tmpdir(), 'rota-cli-'));
-  await Bun.write(
-    join(home, 'config', 'rota', 'sessions.json'),
-    JSON.stringify({ [origin]: { token } }),
-  );
-  stdout = spyOn(process.stdout, 'write').mockImplementation(() => true);
-});
-
-afterEach(async () => {
-  stdout.mockRestore();
-  await rm(home, { recursive: true, force: true });
-});
+beforeEach(startCommandTest);
+afterEach(endCommandTest);
 
 describe('rota day', () => {
   it('plans tomorrow from slot flags with the stored session', async () => {
@@ -129,7 +40,7 @@ describe('rota day', () => {
       '--based-on',
       'Office',
     );
-    expect(sent).toEqual([
+    expect(cli.sent).toEqual([
       {
         method: 'PUT',
         path: '/api/cli/days/tomorrow/plan',
@@ -147,14 +58,14 @@ describe('rota day', () => {
   });
 
   it('rejects a garment id before reading the session or asking the server', async () => {
-    await rm(join(home, 'config'), { recursive: true });
+    await rm(join(cli.home, 'config'), { recursive: true });
     const failure = await failureOf('day', 'plan', '--top', 'shirt');
     expect(failure._tag).toBe('InvalidInput');
-    expect(sent).toEqual([]);
+    expect(cli.sent).toEqual([]);
   });
 
   it('asks to sign in again when the server refuses the session', async () => {
-    answer = () =>
+    cli.answer = () =>
       Response.json(
         { _tag: 'Unauthorized', message: 'Not signed in.' },
         { status: 401 },
@@ -167,7 +78,7 @@ describe('rota day', () => {
 
 describe('rota outfits save', () => {
   it('saves a new outfit under a fresh id', async () => {
-    answer = (path) =>
+    cli.answer = (path) =>
       Response.json({
         id: path.split('/').at(-1),
         name: 'Dinner',
@@ -188,7 +99,7 @@ describe('rota outfits save', () => {
       'Evenings',
       '--favourite',
     );
-    const [request] = sent;
+    const [request] = cli.sent;
     expect(request?.method).toBe('PUT');
     expect(request?.path).toMatch(outfitPath);
     expect(request?.body).toEqual({
@@ -205,7 +116,7 @@ describe('rota outfits save', () => {
 
 describe('rota garments', () => {
   it('lists only active garments unless asked for all', async () => {
-    answer = () =>
+    cli.answer = () =>
       Response.json([garment(shirt, 'active'), garment(jeans, 'retired')]);
     await runOk('garments', 'list');
     expect(printed().map((item: Garment) => item.id)).toEqual([shirt]);
@@ -214,7 +125,7 @@ describe('rota garments', () => {
   });
 
   it('saves a picture once and prints its path', async () => {
-    answer = (path) =>
+    cli.answer = (path) =>
       path.startsWith('/api/media/')
         ? new Response(new Uint8Array([1, 2, 3]), {
             headers: { 'content-type': 'image/webp' },
@@ -223,7 +134,7 @@ describe('rota garments', () => {
     await runOk('garments', 'picture', shirt);
     await runOk('garments', 'picture', shirt);
     const file = join(
-      home,
+      cli.home,
       'cache',
       'rota',
       'pictures',
@@ -231,7 +142,7 @@ describe('rota garments', () => {
     );
     expect(printed()).toEqual([{ id: shirt, name: 'Garment 11', path: file }]);
     expect(await Bun.file(file).bytes()).toEqual(new Uint8Array([1, 2, 3]));
-    const media = sent.filter((request) =>
+    const media = cli.sent.filter((request) =>
       request.path.startsWith('/api/media/'),
     );
     expect(media).toEqual([
@@ -245,7 +156,7 @@ describe('rota garments', () => {
   });
 
   it('reads a redirect from the media route as a lost session', async () => {
-    answer = (path) =>
+    cli.answer = (path) =>
       path.startsWith('/api/media/')
         ? new Response(null, {
             status: 303,
@@ -254,23 +165,23 @@ describe('rota garments', () => {
         : Response.json(garment(shirt, 'active'));
     const failure = await failureOf('garments', 'picture', shirt);
     expect(failure._tag).toBe('NotSignedIn');
-    expect(await readdir(join(home, 'cache')).catch(() => [])).toEqual([]);
+    expect(await readdir(join(cli.home, 'cache')).catch(() => [])).toEqual([]);
   });
 
   it('checks every id before fetching any garment', async () => {
     const failure = await failureOf('garments', 'picture', shirt, 'jeans');
     expect(failure._tag).toBe('InvalidInput');
-    expect(sent).toEqual([]);
+    expect(cli.sent).toEqual([]);
   });
 
   it('retires, restores, and deletes a garment', async () => {
-    answer = () => Response.json(garment(shirt, 'retired'));
+    cli.answer = () => Response.json(garment(shirt, 'retired'));
     await runOk('garments', 'retire', shirt);
     await runOk('garments', 'restore', shirt);
-    answer = () => new Response(null, { status: 204 });
+    cli.answer = () => new Response(null, { status: 204 });
     await runOk('garments', 'delete', shirt);
     expect(
-      sent.map(({ method, path, body }) => ({ method, path, body })),
+      cli.sent.map(({ method, path, body }) => ({ method, path, body })),
     ).toEqual([
       {
         method: 'PUT',
@@ -288,7 +199,7 @@ describe('rota garments', () => {
   });
 
   it('refuses a picture the server names outside its media route', async () => {
-    answer = () =>
+    cli.answer = () =>
       Response.json({
         ...garment(shirt, 'active'),
         picture: { url: '/api/media/../../etc/passwd', width: 1, height: 1 },
@@ -300,11 +211,11 @@ describe('rota garments', () => {
 
 describe('rota history', () => {
   it("leaves a missing end to the server, which knows the wardrobe's date", async () => {
-    answer = () => Response.json([]);
+    cli.answer = () => Response.json([]);
     await runOk('history');
     await runOk('history', '--to', '2026-03-30');
     await runOk('history', '--from', '2025-01-01', '--to', '2026-01-01');
-    expect(sent.map((request) => request.path)).toEqual([
+    expect(cli.sent.map((request) => request.path)).toEqual([
       '/api/cli/history',
       '/api/cli/history?to=2026-03-30',
       '/api/cli/history?from=2025-01-01&to=2026-01-01',
@@ -331,14 +242,14 @@ describe('rota history', () => {
       'InvalidInput',
     ]);
     expect(tooLong.message).toContain('366');
-    expect(sent).toEqual([]);
+    expect(cli.sent).toEqual([]);
   });
 });
 
 describe('rota logout', () => {
   it('ends the session and reports a token it could not remove', async () => {
-    answer = () => Response.json({});
-    fileSystem = (real) => ({
+    cli.answer = () => Response.json({});
+    cli.fileSystem = (real) => ({
       ...real,
       rename: () =>
         Effect.fail(
@@ -352,7 +263,7 @@ describe('rota logout', () => {
     const failure = await failureOf('logout');
     expect(failure._tag).toBe('SessionStoreFailed');
     expect(failure.message).toContain('rota logout');
-    expect(sent).toEqual([
+    expect(cli.sent).toEqual([
       {
         method: 'POST',
         path: signOutPath,
@@ -365,9 +276,9 @@ describe('rota logout', () => {
 
 describe('rota status', () => {
   it('reports a machine that never signed in to the server', async () => {
-    await rm(join(home, 'config'), { recursive: true });
+    await rm(join(cli.home, 'config'), { recursive: true });
     await runOk('status');
     expect(printed()).toEqual({ server: origin, signedIn: false });
-    expect(sent).toEqual([]);
+    expect(cli.sent).toEqual([]);
   });
 });

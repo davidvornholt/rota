@@ -13,6 +13,7 @@ import {
   MemberSchema,
   OutfitEntriesSchema,
   OutfitSchema,
+  SlotSchema,
 } from './wardrobe.ts';
 
 export const outfitNameLength = 80;
@@ -41,6 +42,35 @@ export const OccasionPayloadSchema = Schema.Struct({
   text: Schema.String.check(Schema.isMaxLength(occasionLength)),
 });
 
+/**
+ * The fields of a garment a client changes; a field left out keeps its value.
+ * `wearBudget: null` returns to the category's default and `price` or
+ * `purchasedOn: null` clears it. The server checks the result against the
+ * same rules as the web app's form, such as a known category and 1 to 3 for
+ * warmth, and rejects it with the reason.
+ */
+export const GarmentChangesSchema = Schema.Struct({
+  name: Schema.optionalKey(Schema.String),
+  category: Schema.optionalKey(Schema.String),
+  subcategory: Schema.optionalKey(Schema.String),
+  slots: Schema.optionalKey(Schema.Array(SlotSchema)),
+  warmth: Schema.optionalKey(Schema.Number),
+  formality: Schema.optionalKey(Schema.Number),
+  rainOk: Schema.optionalKey(Schema.Boolean),
+  wearBudget: Schema.optionalKey(Schema.NullOr(Schema.Number)),
+  /** Hex colours such as `#3B2A22`, the main one first. */
+  colors: Schema.optionalKey(Schema.Array(Schema.String)),
+  pattern: Schema.optionalKey(Schema.String),
+  material: Schema.optionalKey(Schema.String),
+  fit: Schema.optionalKey(Schema.String),
+  sleeve: Schema.optionalKey(Schema.String),
+  brand: Schema.optionalKey(Schema.String),
+  notes: Schema.optionalKey(Schema.String),
+  price: Schema.optionalKey(Schema.NullOr(Schema.Number)),
+  purchasedOn: Schema.optionalKey(Schema.NullOr(DaySchema)),
+});
+export type GarmentChanges = typeof GarmentChangesSchema.Type;
+
 export const WearPayloadSchema = Schema.Struct({ items: OutfitEntriesSchema });
 
 export const SaveOutfitPayloadSchema = Schema.Struct({
@@ -66,6 +96,18 @@ export const GarmentsApi = HttpApiGroup.make('garments')
       error: failures,
     }),
     HttpApiEndpoint.get('get', '/:id', {
+      params: idParams,
+      success: GarmentSchema,
+      error: failures,
+    }),
+    HttpApiEndpoint.put('update', '/:id', {
+      params: idParams,
+      payload: GarmentChangesSchema,
+      success: GarmentSchema,
+      error: failures,
+    }),
+    /** Takes a garment that waits for review into the wardrobe as it reads now. */
+    HttpApiEndpoint.put('accept', '/:id/accepted', {
       params: idParams,
       success: GarmentSchema,
       error: failures,
