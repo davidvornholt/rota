@@ -29,7 +29,6 @@ const draftFor = (view: PlanningView, id: string, care: Care) => {
     : null;
 };
 
-/** What is in the laundry, what has been worn since washing, sending a piece early, and what Rota counts as back from the wash. */
 export const LaundryPage = ({
   initial,
 }: {

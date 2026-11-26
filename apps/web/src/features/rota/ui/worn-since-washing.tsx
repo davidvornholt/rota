@@ -3,7 +3,6 @@ import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { LaundryItem } from './laundry-item.tsx';
 import { wearsStatus } from './laundry-lists.ts';
 
-/** Pieces worn since their last wash, each with a way to put it in the basket now or count it as washed. */
 export const WornSinceWashing = ({
   garments,
   disabled,
