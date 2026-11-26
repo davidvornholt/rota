@@ -132,7 +132,10 @@ test('laundry shows photos in both lists and a fallback for garments without pho
   await expect(emptySlot(page, 'bottom')).toBeVisible();
   await page.getByRole('link', { name: 'Laundry', exact: true }).click();
   const laundry = page.getByRole('main');
-  const returned = laundry.getByRole('region', { name: 'Expected back' });
+  const returned = laundry.getByRole('region', { name: 'Back from laundry' });
+  await expect(
+    returned.getByText('Counted as back on 7 Sept', { exact: true }),
+  ).toBeVisible();
   const returnedPhoto = returned.locator('img');
   await expect(returnedPhoto).toBeVisible();
   await expect(returnedPhoto).toHaveAttribute(

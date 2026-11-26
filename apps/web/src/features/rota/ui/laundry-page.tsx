@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { hasWearBudget } from '#/shared/data/garment-types.ts';
-import { addDays, formatDayMonth } from '#/shared/time/local-date.ts';
+import { formatDayMonth } from '#/shared/time/local-date.ts';
 import { frameClass, linkButtonClass } from '#/shared/ui/classes.ts';
 import { GarmentPicker } from '#/shared/ui/garment-picker.tsx';
 import { IconButton } from '#/shared/ui/icon-button.tsx';
@@ -10,11 +10,9 @@ import type { PlanningView } from '../schemas/planning-view.ts';
 import { dayEntries } from './day-entries.ts';
 import { EarlyLaundry } from './early-laundry.tsx';
 import { LaundryItem } from './laundry-item.tsx';
-import { wornSinceWashing } from './laundry-lists.ts';
+import { backFromLaundry, wornSinceWashing } from './laundry-lists.ts';
 import { usePlanningChange } from './use-planning-change.ts';
 import { WornSinceWashing } from './worn-since-washing.tsx';
-
-const recentReturnDays = 7;
 
 type Care = 'laundry' | 'washed' | 'postpone';
 
@@ -31,7 +29,6 @@ const draftFor = (view: PlanningView, id: string, care: Care) => {
     : null;
 };
 
-/** What is in the laundry, what has been worn since washing, what came back, and sending a piece early. */
 export const LaundryPage = ({
   initial,
 }: {
@@ -46,13 +43,7 @@ export const LaundryPage = ({
   const selected = garments.find((garment) => garment.id === early);
   const waiting = garments.filter((garment) => garment.inLaundry);
   const worn = wornSinceWashing(garments);
-  const returned = garments.filter(
-    (garment) =>
-      !garment.inLaundry &&
-      garment.wearsSinceWash === 0 &&
-      garment.assumedCleanOn !== null &&
-      garment.assumedCleanOn >= addDays(view.actualToday, -recentReturnDays),
-  );
+  const returned = backFromLaundry(garments, view.actualToday);
   const care = async (id: string, next: Care) => {
     setError('');
     try {
@@ -128,16 +119,30 @@ export const LaundryPage = ({
           onBasket={(id) => {
             care(id, 'laundry').catch(() => undefined);
           }}
+          onWashed={(id) => {
+            care(id, 'washed').catch(() => undefined);
+          }}
         />
+        <EarlyLaundry
+          selected={selected}
+          disabled={busy}
+          onChoose={() => setPicking(true)}
+          onSend={() => {
+            care(early, 'laundry').catch(() => undefined);
+          }}
+        />
+        <p role="status" className="mt-3 text-ink-muted text-sm">
+          {message}
+        </p>
         {returned.length === 0 ? null : (
-          <section className="mt-6" aria-label="Expected back">
-            <h2 className="type-eyebrow">Expected back</h2>
+          <section className="mt-6" aria-label="Back from laundry">
+            <h2 className="type-eyebrow">Back from laundry</h2>
             <ul className="mt-2 divide-y divide-rule">
               {returned.map((garment) => (
                 <LaundryItem
                   key={garment.id}
                   garment={garment}
-                  status="Available again"
+                  status={`Counted as back on ${formatDayMonth(garment.assumedCleanOn)}`}
                 >
                   <IconButton
                     icon="clock"
@@ -152,17 +157,6 @@ export const LaundryPage = ({
             </ul>
           </section>
         )}
-        <EarlyLaundry
-          selected={selected}
-          disabled={busy}
-          onChoose={() => setPicking(true)}
-          onSend={() => {
-            care(early, 'laundry').catch(() => undefined);
-          }}
-        />
-        <p role="status" className="mt-3 text-ink-muted text-sm">
-          {message}
-        </p>
       </div>
       {picking ? (
         <GarmentPicker
