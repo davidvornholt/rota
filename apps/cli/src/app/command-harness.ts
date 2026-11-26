@@ -13,6 +13,7 @@ import { garments } from './garment-commands.ts';
 import { history } from './history-command.ts';
 import { outfits } from './outfit-commands.ts';
 import { root } from './root.ts';
+import { settings } from './settings-commands.ts';
 
 export const origin = 'https://rota.example.com';
 export const token = 'session-token';
@@ -56,7 +57,15 @@ const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 }) as typeof globalThis.fetch;
 
 const rota = root.pipe(
-  Command.withSubcommands([logout, status, garments, days, outfits, history]),
+  Command.withSubcommands([
+    logout,
+    status,
+    garments,
+    days,
+    outfits,
+    history,
+    settings,
+  ]),
 );
 
 export const printed = () => JSON.parse(written.at(-1) ?? 'null');

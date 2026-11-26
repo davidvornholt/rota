@@ -10,6 +10,7 @@ import { history } from './history-command.ts';
 import { outfits } from './outfit-commands.ts';
 import { report } from './output.ts';
 import { root } from './root.ts';
+import { settings } from './settings-commands.ts';
 
 const rota = root.pipe(
   Command.withSubcommands([
@@ -21,6 +22,7 @@ const rota = root.pipe(
     forecast,
     outfits,
     history,
+    settings,
   ]),
 );
 

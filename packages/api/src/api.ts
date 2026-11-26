@@ -13,6 +13,7 @@ import {
   MemberSchema,
   OutfitEntriesSchema,
   OutfitSchema,
+  SettingsSchema,
   SlotSchema,
 } from './wardrobe.ts';
 
@@ -70,6 +71,23 @@ export const GarmentChangesSchema = Schema.Struct({
   purchasedOn: Schema.optionalKey(Schema.NullOr(DaySchema)),
 });
 export type GarmentChanges = typeof GarmentChangesSchema.Type;
+
+/**
+ * The settings a client changes; a field left out keeps its value, and so
+ * does every category `wearBudgets` doesn't name. A category's `null` returns
+ * it to Rota's default. The server checks the result against the same rules
+ * as the web app's form, such as 1 to 30 wears, and rejects it with the reason.
+ */
+export const SettingsChangesSchema = Schema.Struct({
+  laundryDays: Schema.optionalKey(Schema.Number),
+  cooldownDays: Schema.optionalKey(Schema.Number),
+  proposalHour: Schema.optionalKey(Schema.Number),
+  cleanTopFrom: Schema.optionalKey(Schema.NullOr(DaySchema)),
+  wearBudgets: Schema.optionalKey(
+    Schema.Record(Schema.String, Schema.NullOr(Schema.Number)),
+  ),
+});
+export type SettingsChanges = typeof SettingsChangesSchema.Type;
 
 export const WearPayloadSchema = Schema.Struct({ items: OutfitEntriesSchema });
 
@@ -185,6 +203,19 @@ export const OutfitsApi = HttpApiGroup.make('outfits')
   )
   .prefix('/outfits');
 
+/** The place is chosen in the web app, which searches for it by name. */
+export const SettingsApi = HttpApiGroup.make('settings').add(
+  HttpApiEndpoint.get('get', '/settings', {
+    success: SettingsSchema,
+    error: failures,
+  }),
+  HttpApiEndpoint.put('update', '/settings', {
+    payload: SettingsChangesSchema,
+    success: SettingsSchema,
+    error: failures,
+  }),
+);
+
 /** How many days, both ends included, a history request without `from` covers. */
 export const historyDefaultDays = 30;
 /** The most days, both ends included, one history request may cover. */
@@ -213,5 +244,6 @@ export class RotaApi extends HttpApi.make('rota')
   .add(DaysApi)
   .add(OutfitsApi)
   .add(HistoryApi)
+  .add(SettingsApi)
   .middleware(Authorization)
   .prefix(apiPrefix) {}
