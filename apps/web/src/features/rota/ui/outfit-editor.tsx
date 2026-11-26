@@ -26,6 +26,65 @@ type OutfitEditorProps = {
   readonly onLaundry: ((id: string) => void) | null;
 };
 
+/**
+ * Keeping, laundry and removal for a chosen piece. A piece that has left the
+ * wardrobe keeps only removal, so the outfit can still be completed without it.
+ */
+const PieceActions = ({
+  slot,
+  garment,
+  disabled,
+  readOnly,
+  laundryDisabled,
+  onLaundry,
+  pinned,
+  onPin,
+  onRemove,
+}: Pick<
+  OutfitEditorProps,
+  'disabled' | 'readOnly' | 'laundryDisabled' | 'onLaundry' | 'pinned' | 'onPin'
+> & {
+  readonly slot: Slot;
+  readonly garment: GarmentView | undefined;
+  readonly onRemove: (slot: Slot) => void;
+}) => (
+  <div className="flex flex-wrap items-center justify-between gap-x-3">
+    {onPin === null || garment === undefined ? null : (
+      <label className="inline-flex min-h-11 items-center gap-2 text-sm">
+        <input
+          className={checkClass}
+          type="checkbox"
+          checked={pinned.includes(garment.id)}
+          disabled={disabled}
+          onChange={() => onPin(garment.id)}
+        />
+        Keep when suggesting
+      </label>
+    )}
+    <div className="ml-auto flex items-center">
+      {onLaundry === null ||
+      garment === undefined ||
+      garment.inLaundry ||
+      !hasWearBudget(garment) ? null : (
+        <IconButton
+          icon="laundry"
+          label={`Send ${garment.name} to laundry`}
+          disabled={laundryDisabled}
+          onClick={() => onLaundry(garment.id)}
+        />
+      )}
+      {readOnly ? null : (
+        <IconButton
+          icon="close"
+          label={`Remove ${slotLabel[slot].toLowerCase()}`}
+          disabled={disabled}
+          onClick={() => onRemove(slot)}
+        />
+      )}
+    </div>
+  </div>
+);
+
 const OutfitPiece = ({
   slot,
   entries,
@@ -81,43 +140,20 @@ const OutfitPiece = ({
         </span>
       </button>
       {garment === undefined ? null : (
-        <>
-          <p className="mt-1 text-ink-muted text-xs">{careLabel(garment)}</p>
-          <div className="flex flex-wrap items-center justify-between gap-x-3">
-            {onPin === null ? null : (
-              <label className="inline-flex min-h-11 items-center gap-2 text-sm">
-                <input
-                  className={checkClass}
-                  type="checkbox"
-                  checked={pinned.includes(garment.id)}
-                  disabled={disabled}
-                  onChange={() => onPin(garment.id)}
-                />
-                Keep when suggesting
-              </label>
-            )}
-            <div className="ml-auto flex items-center">
-              {onLaundry === null ||
-              garment.inLaundry ||
-              !hasWearBudget(garment) ? null : (
-                <IconButton
-                  icon="laundry"
-                  label={`Send ${garment.name} to laundry`}
-                  disabled={laundryDisabled}
-                  onClick={() => onLaundry(garment.id)}
-                />
-              )}
-              {readOnly ? null : (
-                <IconButton
-                  icon="close"
-                  label={`Remove ${slotLabel[slot].toLowerCase()}`}
-                  disabled={disabled}
-                  onClick={() => onRemove(slot)}
-                />
-              )}
-            </div>
-          </div>
-        </>
+        <p className="mt-1 text-ink-muted text-xs">{careLabel(garment)}</p>
+      )}
+      {entry === undefined ? null : (
+        <PieceActions
+          slot={slot}
+          garment={garment}
+          disabled={disabled}
+          readOnly={readOnly}
+          laundryDisabled={laundryDisabled}
+          onLaundry={onLaundry}
+          pinned={pinned}
+          onPin={onPin}
+          onRemove={onRemove}
+        />
       )}
     </section>
   );
@@ -251,7 +287,7 @@ export const OutfitEditor = ({
           selectedId={
             entries.find((entry) => entry.slot === choosing)?.garmentId
           }
-          nothingFits="Add a piece to your wardrobe first."
+          nothingFits="Nothing in the wardrobe fits this slot."
           onPick={(garment) => choose(choosing, garment)}
           onClose={() => setChoosing(null)}
         />

@@ -2,13 +2,12 @@ import { Effect } from 'effect';
 import type { PlanningChange } from '#/features/rota/schemas/planning-input.ts';
 import type { PlanningView } from '#/features/rota/schemas/planning-view.ts';
 import type { SuggestionJob } from '#/features/rota/schemas/suggestion-job.ts';
-import { emptyPlan } from '#/shared/data/outfit.ts';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import type { serverFunctionFetch } from '#/shared/runtime/server-function-fetch.ts';
 import type { LocalDate } from '#/shared/time/local-date.ts';
 import { addDays, localDate } from '#/shared/time/local-date.ts';
 import { changeSavedOutfits } from './saved-outfits.ts';
-import { demoProposal, shirt } from './today-proposal.ts';
+import { demoProposal, shirt, unavailablePlan } from './today-proposal.ts';
 
 const laundryDays = 4;
 const bottom = {
@@ -135,7 +134,7 @@ export const planningFixture = (date: string): PlanningView => {
     laundry: laundryFixture(),
     laundryDays,
     cleanTop: false,
-    plan: emptyPlan,
+    plan: unavailablePlan(),
     outfits: savedOutfits(),
     warnings: [],
   };

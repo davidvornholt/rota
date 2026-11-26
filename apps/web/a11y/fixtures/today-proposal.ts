@@ -3,6 +3,7 @@ import type {
   UnloggedGap,
 } from '#/features/rota/schemas/today-view.ts';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
+import { emptyPlan } from '#/shared/data/outfit.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 
 export const shirt: GarmentView = {
@@ -113,3 +114,18 @@ export let fixtureProposal: TodayView | undefined;
 export const setFixtureProposal = (view: TodayView) => {
   fixtureProposal = view;
 };
+
+/** `?unavailable` saves the demo outfit with an under layer that has since left the wardrobe. */
+export const unavailablePlan = () =>
+  new URLSearchParams(globalThis.location.search).has('unavailable')
+    ? {
+        ...emptyPlan,
+        entries: [
+          ...(demoProposal.proposal?.items ?? []).map((item) => ({
+            slot: item.slot,
+            garmentId: item.garment.id,
+          })),
+          { slot: 'under' as const, garmentId: 'demo-retired-tee' },
+        ],
+      }
+    : emptyPlan;
