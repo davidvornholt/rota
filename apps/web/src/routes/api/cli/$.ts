@@ -7,6 +7,7 @@ import { garmentsApi } from '#/features/garments/api/garments-api.ts';
 import { historyApi } from '#/features/history/api/history-api.ts';
 import { daysApi } from '#/features/rota/api/days-api.ts';
 import { outfitsApi } from '#/features/rota/api/outfits-api.ts';
+import { settingsApi } from '#/features/settings/api/settings-api.ts';
 import { accountApi } from '#/shared/api/account-api.ts';
 import { apiAuthorization } from '#/shared/api/api-authorization.ts';
 import { applyPrivateResponseHeaders } from '#/shared/auth/private-response.ts';
@@ -26,6 +27,7 @@ const cliHandler = (): Handler => {
       daysApi,
       outfitsApi,
       historyApi,
+      settingsApi,
     ).pipe(Layer.provide(apiAuthorization(authorizedIdentity)));
     const { handler } = HttpRouter.toWebHandler(
       HttpApiBuilder.layer(RotaApi).pipe(

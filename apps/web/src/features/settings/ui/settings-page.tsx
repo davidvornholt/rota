@@ -2,7 +2,6 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { useEffect, useId, useState } from 'react';
 import {
-  categoryDefaults,
   categoryLabel,
   garmentCategories,
   hasWearBudget,
@@ -24,22 +23,13 @@ import {
   locationSearchLabel,
 } from '#/shared/weather/location.ts';
 import type { RotationSettingsInput } from '../schemas/settings-input.ts';
+import { budgetsOf } from '../services/settings-changes.ts';
 import {
   saveLocationFn,
   saveRotationSettingsFn,
   searchLocationsFn,
 } from '../services/settings-fns.ts';
 import { LaundrySetting } from './laundry-setting.tsx';
-
-const budgetsOf = (
-  settings: Settings,
-): RotationSettingsInput['categoryBudgets'] =>
-  Object.fromEntries(
-    garmentCategories.map((category) => [
-      category,
-      settings.categoryBudgets[category] ?? categoryDefaults[category].budget,
-    ]),
-  ) as RotationSettingsInput['categoryBudgets'];
 
 const failureMessage = (error: unknown) =>
   error instanceof Error && error.message !== ''

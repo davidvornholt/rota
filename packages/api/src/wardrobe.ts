@@ -187,6 +187,26 @@ export const ForecastSchema = Schema.Struct({
 });
 export type Forecast = typeof ForecastSchema.Type;
 
+/** The wardrobe's settings, as the web app's Settings page shows them. */
+export const SettingsSchema = Schema.Struct({
+  /** The place the weather is for, or null until one is chosen in the web app. */
+  location: Schema.NullOr(Schema.String),
+  /** Days a garment is away after its last wear before washing. */
+  laundryDays: Schema.Number,
+  /** Days before a worn outfit is proposed again. */
+  cooldownDays: Schema.Number,
+  /** The hour of the morning Rota proposes the day's outfit. */
+  proposalHour: Schema.Number,
+  /** The first day of a clean top every other day, or null when each day is chosen freely. */
+  cleanTopFrom: Schema.NullOr(DaySchema),
+  /**
+   * Wears between washes for each category that is washed, in force for a
+   * garment that doesn't carry its own number.
+   */
+  wearBudgets: Schema.Record(Schema.String, Schema.Number),
+});
+export type Settings = typeof SettingsSchema.Type;
+
 export const MemberSchema = Schema.Struct({
   name: Schema.String,
   admin: Schema.Boolean,

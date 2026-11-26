@@ -15,7 +15,7 @@ const server = Flag.String('server').pipe(
 export const root = Command.make('rota').pipe(
   Command.withSharedFlags({ server }),
   Command.withDescription(
-    'Read and plan your Rota wardrobe: garments and their pictures, today and tomorrow, saved outfits, and what you wore. Prints JSON.',
+    'Read and plan your Rota wardrobe: garments and their pictures, today and tomorrow, saved outfits, what you wore, and the settings. Prints JSON.',
   ),
 );
 

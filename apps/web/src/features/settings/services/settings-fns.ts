@@ -1,10 +1,9 @@
 import { createServerFn } from '@tanstack/react-start';
-import { Effect, Layer } from 'effect';
+import { Effect } from 'effect';
 
 import { sessionRequired } from '#/shared/auth/auth-middleware.ts';
 import type { Settings } from '#/shared/data/settings.ts';
 import { SettingsRepository } from '#/shared/data/settings-repository.ts';
-import { featureRuntime } from '#/shared/runtime/infrastructure.ts';
 import type { Location } from '#/shared/weather/location.ts';
 import { WeatherApi } from '#/shared/weather/open-meteo.ts';
 import {
@@ -12,8 +11,7 @@ import {
   decodeRotationSettingsInput,
   decodeSaveLocationInput,
 } from '../schemas/settings-input.ts';
-
-const runtime = featureRuntime('settings', () => Layer.empty);
+import { settingsRuntime as runtime } from './settings-runtime.ts';
 
 export const readSettingsFn = createServerFn({ method: 'GET' })
   .middleware([sessionRequired])

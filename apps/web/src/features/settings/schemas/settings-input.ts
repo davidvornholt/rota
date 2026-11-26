@@ -35,7 +35,7 @@ const budgetDay = Schema.Int.check(
   Schema.isBetween({ minimum: 1, maximum: longestWearBudget }),
 );
 
-const RotationFieldsSchema = Schema.Struct({
+export const RotationFieldsSchema = Schema.Struct({
   cleanTopAnchor: Schema.NullOr(LocalDateSchema),
   laundryDays: Schema.Int.check(
     Schema.isBetween({ minimum: 1, maximum: longestLaundry }),

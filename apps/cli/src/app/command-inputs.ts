@@ -22,6 +22,22 @@ export const flag = (name: string, description: string) =>
 export const fail = (message: string) =>
   Effect.fail(new InvalidInput({ message }));
 
+/** A flag's value as a number; `clear` names the word that stands for null. */
+export const number =
+  (flagName: string, clear?: string) =>
+  (value: string): Effect.Effect<number | null, InvalidInput> => {
+    const trimmed = value.trim();
+    if (clear !== undefined && trimmed.toLowerCase() === clear) {
+      return Effect.succeed(null);
+    }
+    const parsed = Number(trimmed);
+    return trimmed === '' || !Number.isFinite(parsed)
+      ? fail(
+          `--${flagName} takes a number${clear === undefined ? '' : ` or ${clear}`}, not ${value}.`,
+        )
+      : Effect.succeed(parsed);
+  };
+
 /**
  * Checks a value against the schema the server will check it with, so a
  * mistake is reported here with a reason instead of as a bare rejection.

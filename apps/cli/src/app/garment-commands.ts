@@ -12,6 +12,7 @@ import {
   fail,
   flag,
   idArgument,
+  number,
   once,
   optionalString,
   validId,
@@ -94,22 +95,6 @@ const textFlags = Object.fromEntries(
     optionalString(field, description),
   ]),
 ) as Record<TextField, Flag.Flag<Option.Option<string>>>;
-
-/** Each flag's value as the payload field wants it; `clear` names the word that empties a nullable field. */
-const number =
-  (flagName: string, clear?: string) =>
-  (value: string): Effect.Effect<number | null, InvalidInput> => {
-    const trimmed = value.trim();
-    if (clear !== undefined && trimmed.toLowerCase() === clear) {
-      return Effect.succeed(null);
-    }
-    const parsed = Number(trimmed);
-    return trimmed === '' || !Number.isFinite(parsed)
-      ? fail(
-          `--${flagName} takes a number${clear === undefined ? '' : ` or ${clear}`}, not ${value}.`,
-        )
-      : Effect.succeed(parsed);
-  };
 
 const commaList = (value: string) =>
   Effect.succeed(
