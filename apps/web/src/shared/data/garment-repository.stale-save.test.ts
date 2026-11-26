@@ -1,72 +1,19 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { createPool, pgClientLayer } from '@rota/db/connections';
 import { env } from 'bun';
-import { Effect, Layer, ManagedRuntime } from 'effect';
-import { WardrobeOwner } from '#/shared/auth/identity.ts';
-import { createDisposableDatabase } from './disposable-database.ts';
-import { GarmentRepository } from './garment-repository.ts';
+import { Effect } from 'effect';
+import {
+  garmentTestDatabase,
+  garmentTestSetupMs,
+} from './garment-test-database.ts';
 
-const setupTimeoutMs = 60_000;
 const adminDatabaseUrl = env.DATABASE_URL?.trim() ?? '';
 
-/**
- * A disposable database with one owner's garment repository, made before the
- * tests of the calling `describe` and dropped after them.
- */
+/** A disposable database for the tests of the calling `describe`. */
 const garmentDatabase = (prefix: string) => {
-  const owner = {
-    id: `stale-${crypto.randomUUID()}`,
-    userId: 'synthetic-user',
-    name: 'Synthetic',
-    admin: false,
-  };
-  let database:
-    | Awaited<ReturnType<typeof createDisposableDatabase>>
-    | undefined;
-  let pool: ReturnType<typeof createPool> | undefined;
-  let runtime:
-    | ManagedRuntime.ManagedRuntime<GarmentRepository, unknown>
-    | undefined;
-
-  beforeAll(async () => {
-    database = await createDisposableDatabase(adminDatabaseUrl, prefix);
-    pool = createPool(database.url);
-    runtime = ManagedRuntime.make(
-      GarmentRepository.layer.pipe(
-        Layer.provide(
-          Layer.merge(
-            pgClientLayer(database.url),
-            Layer.succeed(WardrobeOwner, owner),
-          ),
-        ),
-      ),
-    );
-  }, setupTimeoutMs);
-
-  afterAll(async () => {
-    await runtime?.dispose();
-    await pool?.end();
-    await database?.drop();
-  }, setupTimeoutMs);
-
-  const run = <A, E>(
-    use: (garments: GarmentRepository['Service']) => Effect.Effect<A, E>,
-  ) => {
-    if (runtime === undefined) {
-      throw new Error('The database is not ready.');
-    }
-    return runtime.runPromise(Effect.flatMap(GarmentRepository, use));
-  };
-  const insert = async (status: 'active' | 'review' = 'active') => {
-    const id = crypto.randomUUID();
-    await pool?.query(
-      `INSERT INTO garment (id, owner_id, name, category, status, slots, colors, notes)
-       VALUES ($1, $2, 'Synthetic shirt', 'shirt', $3, ARRAY['top']::garment_slot[], '[{"hex":"#ffffff"}]'::jsonb, 'Original note')`,
-      [id, owner.id, status],
-    );
-    return id;
-  };
-  return { run, insert };
+  const database = garmentTestDatabase(adminDatabaseUrl, prefix);
+  beforeAll(database.start, garmentTestSetupMs);
+  afterAll(database.stop, garmentTestSetupMs);
+  return database;
 };
 
 // Two tabs open the same garment and each form sends every editable
@@ -165,6 +112,24 @@ describe.skipIf(adminDatabaseUrl === '')(
         imageChoice: 'original',
         name: 'Synthetic shirt',
         revision: loaded.revision + 1,
+      });
+    });
+
+    it('refuses an accept based on the garment before an edit', async () => {
+      const id = await insert('review');
+      const loaded = await run((garments) => garments.byId(id));
+      await run((garments) =>
+        garments.update(id, { ...loaded, notes: 'Dry flat' }, loaded.revision),
+      );
+
+      const refused = await run((garments) =>
+        Effect.flip(garments.accept(id, 'studio', loaded.revision)),
+      );
+
+      expect(refused._tag).toBe('StaleEditError');
+      expect(await run((garments) => garments.byId(id))).toMatchObject({
+        status: 'review',
+        notes: 'Dry flat',
       });
     });
 
