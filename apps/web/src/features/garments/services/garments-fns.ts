@@ -60,8 +60,8 @@ export const acceptGarmentFn = createServerFn({ method: 'POST' })
         Effect.gen(function* () {
           const garments = yield* GarmentRepository;
           yield* garments.update(data.id, data.edit, data.revision);
-          yield* garments.setImageChoice(data.id, data.imageChoice);
-          yield* garments.setStatus(data.id, 'active');
+          // The update above advanced the revision by one.
+          yield* garments.accept(data.id, data.imageChoice, data.revision + 1);
           return yield* garmentView(data.id);
         }),
       ),

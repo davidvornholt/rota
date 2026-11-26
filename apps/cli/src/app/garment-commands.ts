@@ -104,7 +104,7 @@ const number =
       return Effect.succeed(null);
     }
     const parsed = Number(trimmed);
-    return trimmed === '' || Number.isNaN(parsed)
+    return trimmed === '' || !Number.isFinite(parsed)
       ? fail(
           `--${flagName} takes a number${clear === undefined ? '' : ` or ${clear}`}, not ${value}.`,
         )

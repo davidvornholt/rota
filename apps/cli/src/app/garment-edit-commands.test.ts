@@ -48,6 +48,7 @@ describe('rota garments accept and edit', () => {
     const malformed = [
       [],
       ['--warmth', 'warm'],
+      ['--price', '1e999'],
       ['--slots', 'top,cape'],
       ['--purchased-on', 'May'],
     ];

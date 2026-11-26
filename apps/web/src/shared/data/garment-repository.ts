@@ -261,6 +261,24 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
           where id = ${id} and owner_id = ${owner.id}
         `.pipe(Effect.asVoid, Effect.mapError(writeGarment));
 
+      /**
+       * Takes a garment out of review in one write guarded by the revision the
+       * caller read, so a second accept, or one racing an edit, is refused
+       * instead of undoing it, and every open form of the garment goes stale.
+       */
+      const accept = (id: string, choice: ImageChoice, revision: number) =>
+        sql<{ readonly id: string }>`
+          update garment
+          set status = 'active', image_choice = ${choice},
+              revision = revision + 1, updated_at = now()
+          where id = ${id} and owner_id = ${owner.id}
+            and status = 'review' and revision = ${revision}
+          returning id
+        `.pipe(
+          Effect.mapError(writeGarment),
+          Effect.flatMap((rows) => savedOrStale(rows, byId(id))),
+        );
+
       const setImageChoice = (id: string, choice: ImageChoice) =>
         sql`
           update garment set image_choice = ${choice}, updated_at = now()
@@ -299,6 +317,7 @@ export class GarmentRepository extends Context.Service<GarmentRepository>()(
         markProcessingError,
         setStudioError,
         setStatus,
+        accept,
         setImageChoice,
         remove,
       };

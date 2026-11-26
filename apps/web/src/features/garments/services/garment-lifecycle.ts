@@ -82,10 +82,10 @@ export const acceptGarment = (id: string) =>
         'Its studio picture is still being made. Try again in a minute.',
       );
     }
-    yield* garments.setImageChoice(
+    yield* garments.accept(
       id,
       view.studio === undefined ? 'original' : 'studio',
+      garment.revision,
     );
-    yield* garments.setStatus(id, 'active');
     return yield* garmentView(id);
   });

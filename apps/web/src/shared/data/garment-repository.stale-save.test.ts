@@ -61,12 +61,12 @@ describe.skipIf(adminDatabaseUrl === '')(
       }
       return runtime.runPromise(Effect.flatMap(GarmentRepository, use));
     };
-    const insert = async () => {
+    const insert = async (status: 'active' | 'review' = 'active') => {
       const id = crypto.randomUUID();
       await pool?.query(
         `INSERT INTO garment (id, owner_id, name, category, status, slots, colors, notes)
-         VALUES ($1, $2, 'Synthetic shirt', 'shirt', 'active', ARRAY['top']::garment_slot[], '[{"hex":"#ffffff"}]'::jsonb, 'Original note')`,
-        [id, owner.id],
+         VALUES ($1, $2, 'Synthetic shirt', 'shirt', $3, ARRAY['top']::garment_slot[], '[{"hex":"#ffffff"}]'::jsonb, 'Original note')`,
+        [id, owner.id, status],
       );
       return id;
     };
@@ -125,6 +125,46 @@ describe.skipIf(adminDatabaseUrl === '')(
         name: 'Renamed shirt',
         notes: 'Hand wash only',
         revision: reloaded.revision + 1,
+      });
+    });
+
+    it('accepts a garment once, so a second accept or an older form is refused', async () => {
+      const id = await insert('review');
+      const loaded = await run((garments) => garments.byId(id));
+      await run((garments) => garments.accept(id, 'original', loaded.revision));
+
+      const again = await run((garments) =>
+        Effect.flip(garments.accept(id, 'studio', loaded.revision)),
+      );
+      const olderForm = await run((garments) =>
+        Effect.flip(
+          garments.update(id, { ...loaded, name: 'Renamed' }, loaded.revision),
+        ),
+      );
+
+      expect(again._tag).toBe('StaleEditError');
+      expect(olderForm._tag).toBe('StaleEditError');
+      const stored = await run((garments) => garments.byId(id));
+      expect(stored).toMatchObject({
+        status: 'active',
+        imageChoice: 'original',
+        name: 'Synthetic shirt',
+        revision: loaded.revision + 1,
+      });
+    });
+
+    it('refuses to accept a garment that is not waiting for review', async () => {
+      const id = await insert('active');
+      const loaded = await run((garments) => garments.byId(id));
+
+      const refused = await run((garments) =>
+        Effect.flip(garments.accept(id, 'studio', loaded.revision)),
+      );
+
+      expect(refused._tag).toBe('StaleEditError');
+      expect(await run((garments) => garments.byId(id))).toMatchObject({
+        status: 'active',
+        revision: loaded.revision,
       });
     });
   },
