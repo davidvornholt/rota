@@ -1,5 +1,11 @@
 import type { GarmentView } from '#/shared/data/garment-view.ts';
-import { formatDayMonth } from '#/shared/time/local-date.ts';
+import {
+  addDays,
+  formatDayMonth,
+  type LocalDate,
+} from '#/shared/time/local-date.ts';
+
+const recentReturnDays = 7;
 
 const wearsLeft = (garment: GarmentView) =>
   garment.effectiveBudget - garment.wearsSinceWash;
@@ -23,3 +29,21 @@ export const wearsStatus = (garment: GarmentView): string => {
     ? wears
     : `${wears} · last worn ${formatDayMonth(garment.lastWornOn)}`;
 };
+
+/**
+ * Pieces Rota counted as back from the wash in the last week, unworn since,
+ * so a piece that is still in the basket can be held back.
+ */
+export const backFromLaundry = (
+  garments: ReadonlyArray<GarmentView>,
+  today: LocalDate,
+): ReadonlyArray<GarmentView & { readonly assumedCleanOn: LocalDate }> =>
+  garments.filter(
+    (
+      garment,
+    ): garment is GarmentView & { readonly assumedCleanOn: LocalDate } =>
+      !garment.inLaundry &&
+      garment.wearsSinceWash === 0 &&
+      garment.assumedCleanOn !== null &&
+      garment.assumedCleanOn >= addDays(today, -recentReturnDays),
+  );

@@ -3,15 +3,17 @@ import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { LaundryItem } from './laundry-item.tsx';
 import { wearsStatus } from './laundry-lists.ts';
 
-/** Pieces worn since their last wash, each with a way to put it in the basket now. */
+/** Pieces worn since their last wash, each with a way to put it in the basket now or count it as washed. */
 export const WornSinceWashing = ({
   garments,
   disabled,
   onBasket,
+  onWashed,
 }: {
   readonly garments: ReadonlyArray<GarmentView>;
   readonly disabled: boolean;
   readonly onBasket: (id: string) => void;
+  readonly onWashed: (id: string) => void;
 }) =>
   garments.length === 0 ? null : (
     <section className="mt-6" aria-label="Worn since washing">
@@ -23,12 +25,20 @@ export const WornSinceWashing = ({
             garment={garment}
             status={wearsStatus(garment)}
           >
-            <IconButton
-              icon="laundry"
-              label={`Put in basket: ${garment.name}`}
-              disabled={disabled}
-              onClick={() => onBasket(garment.id)}
-            />
+            <div className="flex items-center">
+              <IconButton
+                icon="laundry"
+                label={`Put in basket: ${garment.name}`}
+                disabled={disabled}
+                onClick={() => onBasket(garment.id)}
+              />
+              <IconButton
+                icon="check"
+                label={`Washed: ${garment.name}`}
+                disabled={disabled}
+                onClick={() => onWashed(garment.id)}
+              />
+            </div>
           </LaundryItem>
         ))}
       </ul>

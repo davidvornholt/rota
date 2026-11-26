@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import type { GarmentView } from '#/shared/data/garment-view.ts';
 import { localDate } from '#/shared/time/local-date.ts';
-import { wearsStatus, wornSinceWashing } from './laundry-lists.ts';
+import {
+  backFromLaundry,
+  wearsStatus,
+  wornSinceWashing,
+} from './laundry-lists.ts';
 
 /** A piece worn `wears` of `budget` times, last on `lastWornOn`. */
 const piece = (
@@ -44,5 +48,25 @@ describe('wearsStatus', () => {
       '2 of 4 wears · last worn 22 Nov',
     );
     expect(wearsStatus(piece('shirt', [1, 2], null))).toBe('1 of 2 wears');
+  });
+});
+
+describe('backFromLaundry', () => {
+  it('lists unworn pieces Rota counted as back in the last week', () => {
+    const back = (name: string, on: string | null, wears = 0) =>
+      ({
+        ...piece(name, [wears, 2], null),
+        assumedCleanOn: on === null ? null : localDate(on),
+      }) as GarmentView;
+    const listed = backFromLaundry(
+      [
+        back('this week', '2026-11-19'),
+        back('last month', '2026-11-18'),
+        back('worn since', '2026-11-25', 1),
+        back('never washed', null),
+      ],
+      localDate('2026-11-26'),
+    );
+    expect(listed.map((garment) => garment.name)).toEqual(['this week']);
   });
 });
