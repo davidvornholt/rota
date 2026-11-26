@@ -86,6 +86,29 @@ const savedOutfits = (): PlanningView['outfits'] => {
       ]
     : (JSON.parse(stored) as PlanningView['outfits']);
 };
+/** `?returned` brings the shirt back from the wash; `?worn` has the chinos and the shirt part-way to their next wash. */
+const laundryFixture = (): PlanningView['laundry'] => {
+  const search = new URLSearchParams(globalThis.location.search);
+  if (search.has('returned')) {
+    return wardrobe.map((garment) =>
+      garment.id === shirt.id
+        ? { ...garment, assumedCleanOn: demoProposal.today }
+        : garment,
+    );
+  }
+  if (search.has('worn')) {
+    const worn = new Map([
+      [bottom.id, { wearsSinceWash: 2, lastWornOn: demoProposal.today }],
+      [
+        shirt.id,
+        { wearsSinceWash: 1, lastWornOn: addDays(demoProposal.today, -2) },
+      ],
+    ]);
+    return wardrobe.map((garment) => ({ ...garment, ...worn.get(garment.id) }));
+  }
+  return wardrobe;
+};
+
 export const planningFixture = (date: string): PlanningView => {
   const stored = sessionStorage.getItem(`planning-view-${date}`);
   const existing =
@@ -109,13 +132,7 @@ export const planningFixture = (date: string): PlanningView => {
             : garment,
         )
       : wardrobe,
-    laundry: new URLSearchParams(globalThis.location.search).has('returned')
-      ? wardrobe.map((garment) =>
-          garment.id === shirt.id
-            ? { ...garment, assumedCleanOn: demoProposal.today }
-            : garment,
-        )
-      : wardrobe,
+    laundry: laundryFixture(),
     laundryDays,
     cleanTop: false,
     plan: emptyPlan,

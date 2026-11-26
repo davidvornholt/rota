@@ -1,47 +1,22 @@
 import { Link } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
+import { useState } from 'react';
 import { hasWearBudget } from '#/shared/data/garment-types.ts';
-import type { GarmentView } from '#/shared/data/garment-view.ts';
 import { addDays, formatDayMonth } from '#/shared/time/local-date.ts';
 import { frameClass, linkButtonClass } from '#/shared/ui/classes.ts';
-import { GarmentFigure } from '#/shared/ui/garment-figure.tsx';
 import { GarmentPicker } from '#/shared/ui/garment-picker.tsx';
 import { IconButton } from '#/shared/ui/icon-button.tsx';
 import { Notice } from '#/shared/ui/notice.tsx';
 import type { PlanningView } from '../schemas/planning-view.ts';
 import { dayEntries } from './day-entries.ts';
 import { EarlyLaundry } from './early-laundry.tsx';
+import { LaundryItem } from './laundry-item.tsx';
+import { wornSinceWashing } from './laundry-lists.ts';
 import { usePlanningChange } from './use-planning-change.ts';
+import { WornSinceWashing } from './worn-since-washing.tsx';
 
 const recentReturnDays = 7;
 
 type Care = 'laundry' | 'washed' | 'postpone';
-
-const LaundryItem = ({
-  garment,
-  status,
-  children,
-}: {
-  readonly garment: GarmentView;
-  readonly status: string;
-  readonly children: ReactNode;
-}) => (
-  <li className="flex items-center gap-4 py-4">
-    <GarmentFigure
-      alt=""
-      className="w-16 shrink-0 sm:w-20"
-      colors={garment.colors}
-      image={garment.image}
-      name={garment.name}
-      sizes="(min-width: 640px) 5rem, 4rem"
-    />
-    <span className="min-w-0 flex-1 break-words">
-      {garment.name}
-      <span className="mt-1 block text-ink-muted text-xs">{status}</span>
-    </span>
-    {children}
-  </li>
-);
 
 /**
  * A piece sent to laundry early leaves today's outfit too, so the outfit is
@@ -56,7 +31,7 @@ const draftFor = (view: PlanningView, id: string, care: Care) => {
     : null;
 };
 
-/** What is in the laundry, what came back, and sending a piece early. */
+/** What is in the laundry, what has been worn since washing, what came back, and sending a piece early. */
 export const LaundryPage = ({
   initial,
 }: {
@@ -70,6 +45,7 @@ export const LaundryPage = ({
   const garments = view.laundry.filter((garment) => hasWearBudget(garment));
   const selected = garments.find((garment) => garment.id === early);
   const waiting = garments.filter((garment) => garment.inLaundry);
+  const worn = wornSinceWashing(garments);
   const returned = garments.filter(
     (garment) =>
       !garment.inLaundry &&
@@ -146,6 +122,13 @@ export const LaundryPage = ({
             </ul>
           </section>
         )}
+        <WornSinceWashing
+          garments={worn}
+          disabled={busy}
+          onBasket={(id) => {
+            care(id, 'laundry').catch(() => undefined);
+          }}
+        />
         {returned.length === 0 ? null : (
           <section className="mt-6" aria-label="Expected back">
             <h2 className="type-eyebrow">Expected back</h2>
