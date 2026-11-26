@@ -1,6 +1,6 @@
 ---
 name: rota
-description: Read and plan the user's wardrobe in Rota with the rota command, and show pictures of their garments. Use when the user asks what to wear, wants to discuss or plan an outfit for a day or an occasion, asks about their clothes, saved outfits, laundry, the weather for getting dressed, or what they wore before, wants an outfit saved, planned, or recorded as worn, or has given away or stopped wearing a garment.
+description: Read and plan the user's wardrobe in Rota with the rota command, and show pictures of their garments. Use when the user asks what to wear, wants to discuss or plan an outfit for a day or an occasion, asks about their clothes, saved outfits, laundry, the weather for getting dressed, or what they wore before, wants an outfit saved, planned, or recorded as worn, wants a new garment reviewed and accepted or a garment's details corrected, or has given away or stopped wearing a garment.
 ---
 
 # Rota

@@ -27,7 +27,7 @@ type Sent = {
 /**
  * What a command test sets and reads: the requests the stand-in server
  * received, how it answers, the file system the CLI sees, and the temporary
- * home. `useCommandHarness` resets it before each test.
+ * home. `startCommandTest` resets it.
  */
 export const cli = {
   sent: [] as Array<Sent>,
