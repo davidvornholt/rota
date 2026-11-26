@@ -3,7 +3,12 @@ import { Effect } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
 import { asMember } from '#/shared/api/member-runtime.ts';
 import { toApiGarment } from '#/shared/api/wire.ts';
-import { deleteGarment, setRetired } from '../services/garment-lifecycle.ts';
+import {
+  acceptGarment,
+  deleteGarment,
+  editGarment,
+  setRetired,
+} from '../services/garment-lifecycle.ts';
 import { garmentView, garmentViews } from '../services/garment-views.ts';
 import { garmentsRuntime } from '../services/garments-runtime.ts';
 
@@ -26,6 +31,20 @@ export const garmentsApi = HttpApiBuilder.group(
           asMember(() =>
             garmentsRuntime.run(
               Effect.map(garmentView(params.id), toApiGarment),
+            ),
+          ),
+        )
+        .handle('update', ({ params, payload }) =>
+          asMember(() =>
+            garmentsRuntime.run(
+              Effect.map(editGarment(params.id, payload), toApiGarment),
+            ),
+          ),
+        )
+        .handle('accept', ({ params }) =>
+          asMember(() =>
+            garmentsRuntime.run(
+              Effect.map(acceptGarment(params.id), toApiGarment),
             ),
           ),
         )
