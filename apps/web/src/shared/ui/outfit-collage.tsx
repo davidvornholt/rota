@@ -32,7 +32,15 @@ const progressMessage = (progress: StudioProgress): string => {
   }
 };
 
-const statusMessage = ({ state, unavailable }: OutfitCollageQuery): string => {
+const statusMessage = (
+  { state, unavailable }: OutfitCollageQuery,
+  entries: ReadonlyArray<CollageEntry>,
+): string => {
+  if (state?.status === 'empty') {
+    return entries.every(({ garment }) => garment === undefined)
+      ? 'No picture, because these pieces have left the wardrobe.'
+      : 'No picture, because none of these pieces has a photo.';
+  }
   if (state?.status === 'failed') {
     return state.message;
   }
@@ -49,10 +57,12 @@ const statusMessage = ({ state, unavailable }: OutfitCollageQuery): string => {
  */
 const CollageStatus = ({
   collage,
+  entries,
 }: {
   readonly collage: OutfitCollageQuery;
+  readonly entries: ReadonlyArray<CollageEntry>;
 }) => {
-  const message = statusMessage(collage);
+  const message = statusMessage(collage, entries);
   const failed = collage.unavailable || collage.state?.status === 'failed';
   return (
     <div
@@ -149,7 +159,7 @@ export const OutfitCollage = ({
           />
         ))}
       </div>
-      {state?.status === 'empty' ? null : <CollageStatus collage={collage} />}
+      <CollageStatus collage={collage} entries={entries} />
     </div>
   );
 };
