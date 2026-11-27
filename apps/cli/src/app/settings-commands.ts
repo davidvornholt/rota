@@ -26,6 +26,10 @@ const setFlags = {
     'clean-top-from',
     'A clean top every other day from YYYY-MM-DD, or none to choose each day',
   ),
+  styleNote: optionalString(
+    'style-note',
+    'Standing style preferences every proposal follows, such as "Smart casual most days". An empty text clears it.',
+  ),
   wearBudgets: Flag.String('wear-budget').pipe(
     Flag.withDescription(
       "A category's wears between washes as category=number, or category=default for Rota's. Repeat it for more categories.",
@@ -59,6 +63,7 @@ const changesOf = (given: {
   readonly cooldownDays: Option.Option<string>;
   readonly proposalHour: Option.Option<string>;
   readonly cleanTopFrom: Option.Option<string>;
+  readonly styleNote: Option.Option<string>;
   readonly wearBudgets: ReadonlyArray<string>;
 }) =>
   Effect.gen(function* () {
@@ -71,6 +76,7 @@ const changesOf = (given: {
           day.trim().toLowerCase() === 'none' ? null : day.trim(),
         ),
       ),
+      styleNote: Option.getOrUndefined(given.styleNote),
       wearBudgets:
         given.wearBudgets.length === 0
           ? undefined
@@ -99,7 +105,7 @@ const set = Command.make('set', setFlags, (given) =>
 
 export const settings = Command.make('settings').pipe(
   Command.withDescription(
-    'Read and change the settings: laundry and rotation timing, and wears between washes by category. The place is chosen in the web app.',
+    'Read and change the settings: laundry and rotation timing, wears between washes by category, and the style note. The place is chosen in the web app.',
   ),
   Command.withSubcommands([show, set]),
 );

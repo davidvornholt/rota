@@ -31,6 +31,7 @@ const clock: WardrobeClock = {
     cooldownDays: 7,
     categoryBudgets: {},
     proposalHour: 5,
+    styleNote: '',
     revision: 0,
   },
   timeZone: 'Europe/Berlin',

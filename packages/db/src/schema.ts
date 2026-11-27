@@ -319,6 +319,8 @@ export const settings = pgTable(
     proposalHour: integer('proposal_hour')
       .notNull()
       .default(defaultProposalHour),
+    /** The wearer's standing style preferences, which every proposal follows. */
+    styleNote: text('style_note').notNull().default(''),
     revision: integer('revision').notNull().default(0),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
@@ -333,6 +335,10 @@ export const settings = pgTable(
     check(
       'settings_proposal_hour_range',
       sql`${table.proposalHour} between 0 and 23`,
+    ),
+    check(
+      'settings_style_note_length',
+      sql`char_length(${table.styleNote}) <= 500`,
     ),
   ],
 );

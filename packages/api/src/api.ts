@@ -83,6 +83,8 @@ export const SettingsChangesSchema = Schema.Struct({
   cooldownDays: Schema.optionalKey(Schema.Number),
   proposalHour: Schema.optionalKey(Schema.Number),
   cleanTopFrom: Schema.optionalKey(Schema.NullOr(DaySchema)),
+  /** Replaces the style note; an empty one clears it. */
+  styleNote: Schema.optionalKey(Schema.String),
   wearBudgets: Schema.optionalKey(
     Schema.Record(Schema.String, Schema.NullOr(Schema.Number)),
   ),

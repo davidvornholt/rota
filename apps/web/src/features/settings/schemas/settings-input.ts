@@ -13,6 +13,8 @@ const longestQuery = 80;
 const longestCooldown = 60;
 const lastHour = 23;
 const longestLaundry = 30;
+/** The style note's limit; the settings table checks the same. */
+export const longestStyleNote = 500;
 
 export const LocationQuerySchema = Schema.Struct({
   query: Schema.String.check(
@@ -47,6 +49,7 @@ export const RotationFieldsSchema = Schema.Struct({
     Schema.isBetween({ minimum: 0, maximum: lastHour }),
   ),
   categoryBudgets: Schema.Record(Schema.Literals(garmentCategories), budgetDay),
+  styleNote: Schema.Trim.check(Schema.isMaxLength(longestStyleNote)),
 });
 
 /** The fields the rotation form edits. */

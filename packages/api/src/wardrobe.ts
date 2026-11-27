@@ -199,6 +199,8 @@ export const SettingsSchema = Schema.Struct({
   proposalHour: Schema.Number,
   /** The first day of a clean top every other day, or null when each day is chosen freely. */
   cleanTopFrom: Schema.NullOr(DaySchema),
+  /** The wearer's standing style preferences, which every proposal follows; empty when none are given. */
+  styleNote: Schema.String,
   /**
    * Wears between washes for each category that is washed, in force for a
    * garment that doesn't carry its own number.
