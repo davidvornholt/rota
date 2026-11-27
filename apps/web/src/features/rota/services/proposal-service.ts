@@ -81,14 +81,17 @@ const withOutfitContext = (
         ]
       : [];
   });
+  const lines = [
+    pinned.length === 0
+      ? undefined
+      : `Keep these aliases the wearer chose: ${aliasesFor(pinned).join(', ')}.`,
+    savedLines.length === 0
+      ? undefined
+      : `Saved outfits the wearer likes, with the wearer's collections in brackets; use one when it suits the day, preferring a favourite slightly, or propose a new combination: ${savedLines.join('; ')}.`,
+  ].filter((line) => line !== undefined);
   return {
     ...prompt,
-    parts: [
-      ...prompt.parts,
-      {
-        text: `Keep these wearer-selected aliases exactly: ${aliasesFor(pinned).join(', ') || 'none'}. Saved combinations the wearer likes (consider when suitable, but you may propose new combinations; square brackets list the wearer's own collections for an outfit, such as an occasion or a season, which can show when it suits the wearer's note; "(favourite)" marks an outfit the wearer likes most, which you may prefer slightly when it suits the weather, the note and recent wear as well as the alternatives do): ${savedLines.join('; ') || 'none'}.`,
-      },
-    ],
+    parts: [...prompt.parts, ...lines.map((text) => ({ text }))],
   };
 };
 
@@ -247,7 +250,6 @@ const generateProposal = (
       ),
     );
     const prompt = buildProposalPrompt({
-      cleanTop: input.cleanTop,
       today: clock.today,
       weather: forecast.today,
       yesterday: forecast.yesterday,

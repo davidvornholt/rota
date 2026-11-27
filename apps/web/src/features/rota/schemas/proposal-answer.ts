@@ -36,22 +36,6 @@ export const ProposalAnswerSchema = Schema.Struct({
 export type ProposalAnswer = Schema.Schema.Type<typeof ProposalAnswerSchema>;
 
 const alias = (description: string) => ({ type: 'string', description });
-const optionalSlotDescription: Readonly<Partial<Record<Slot, string>>> = {
-  under:
-    " Choose only when useful for the outfit, weather or wearer's note; otherwise null.",
-  over: " Choose only when useful for the outfit, weather or wearer's note; null when it would be too warm.",
-  shoes:
-    " Include suitable offered shoes; null only when unavailable or unsuitable for the weather, outfit or wearer's note.",
-  bag: " Include a suitable offered bag; null only when unavailable or unsuitable for the weather, outfit or wearer's note.",
-  dress:
-    ' Choose a dress in place of a top and a bottom when it suits the weather, occasion and recent outfits; otherwise null.',
-  scarf:
-    " Choose only when the weather, outfit or wearer's note calls for one; otherwise null.",
-  hat: " Choose only when the weather, outfit or wearer's note calls for one, such as a beanie in the cold or a cap in strong sun; otherwise null.",
-};
-const separateWithDressDescription =
-  ' Null when a dress is chosen, unless the dress is worn over a top or with leggings.';
-
 /**
  * A top and a bottom are required strings unless a dress is offered; then the
  * model picks either and the engine rejects an incomplete outfit.
@@ -66,13 +50,8 @@ export const proposalAnswerJsonSchema = (
     const choices = [...aliases]
       .filter(([, garment]) => garment.slot === slot)
       .map(([name]) => name);
-    const separate = separateSlots.includes(slot);
-    const optional = !separate || dressOffered;
-    const guidance =
-      separate && dressOffered
-        ? separateWithDressDescription
-        : (optionalSlotDescription[slot] ?? '');
-    const description = `An offered alias for ${slot}, never a garment name.${guidance}`;
+    const optional = !separateSlots.includes(slot) || dressOffered;
+    const description = `An offered alias for ${slot}.`;
     // Structured outputs reject an enum next to a type array such as
     // ['string', 'null'], so an optional slot is a bare enum that lists null.
     return optional

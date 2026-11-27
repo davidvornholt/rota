@@ -2,13 +2,20 @@ import { describe, expect, it } from 'bun:test';
 import { Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
 import { MediaStoreError } from '#/shared/media/errors/media-errors.ts';
-import { proposalImages } from './proposal-images.ts';
+import { proposalImages, proposalWidth } from './proposal-images.ts';
 
 const expectedConcurrency = 4;
 
 const candidate = (garmentId: string) => ({
   garmentId,
   image: { key: garmentId, mime: 'image/png', width: 1024, height: 1024 },
+});
+
+it('uses the wider copy for a landscape photo so its garment is not shrunk further', () => {
+  const image = { key: 'photo', mime: 'image/jpeg' };
+  expect(proposalWidth({ ...image, width: 1200, height: 1600 })).toBe(640);
+  expect(proposalWidth({ ...image, width: 1024, height: 1024 })).toBe(640);
+  expect(proposalWidth({ ...image, width: 2048, height: 922 })).toBe(1280);
 });
 
 describe('proposal image preparation', () => {
@@ -18,10 +25,12 @@ describe('proposal image preparation', () => {
     const result = await Effect.runPromise(
       proposalImages(
         {
-          get: (key) =>
+          variant: (key, width) =>
             Effect.sync(() => {
-              calls.push(key);
-              return key === 'missing' ? undefined : bytes;
+              calls.push(`${key}@${width}`);
+              return key === 'missing'
+                ? undefined
+                : { bytes, mime: 'image/webp', lasting: true };
             }),
         },
         [
@@ -32,9 +41,12 @@ describe('proposal image preparation', () => {
         ],
       ),
     );
-    expect(calls).toEqual(['shirt', 'missing']);
+    expect(calls).toEqual(['shirt@640', 'missing@640']);
     expect(result.size).toBe(1);
-    expect(result.get('shirt')).toEqual({ mimeType: 'image/png', data: bytes });
+    expect(result.get('shirt')).toEqual({
+      mimeType: 'image/webp',
+      data: bytes,
+    });
     expect(result.get('shirt')?.data).toBe(bytes);
   });
 
@@ -42,7 +54,7 @@ describe('proposal image preparation', () => {
     const result = await Effect.runPromise(
       proposalImages(
         {
-          get: () =>
+          variant: () =>
             Effect.fail(
               new MediaStoreError({ message: 'Unavailable', cause: undefined }),
             ),
@@ -62,7 +74,7 @@ describe('proposal image preparation', () => {
       Effect.gen(function* () {
         const task = yield* proposalImages(
           {
-            get: () =>
+            variant: () =>
               Effect.never.pipe(
                 Effect.onInterrupt(() =>
                   Effect.sync(() => {
@@ -96,7 +108,7 @@ describe('proposal image preparation', () => {
       Effect.gen(function* () {
         const task = yield* proposalImages(
           {
-            get: () =>
+            variant: () =>
               Effect.acquireUseRelease(
                 Effect.sync(() => {
                   active += 1;
@@ -104,7 +116,11 @@ describe('proposal image preparation', () => {
                 }),
                 () =>
                   Effect.sleep('19 seconds').pipe(
-                    Effect.as(new Uint8Array([1])),
+                    Effect.as({
+                      bytes: new Uint8Array([1]),
+                      mime: 'image/webp',
+                      lasting: true,
+                    }),
                   ),
                 () =>
                   Effect.sync(() => {
