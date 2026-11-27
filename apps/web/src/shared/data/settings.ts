@@ -9,7 +9,6 @@ export const SettingsSchema = Schema.Struct({
   cooldownDays: Schema.Number,
   categoryBudgets: Schema.Record(Schema.String, Schema.Number),
   proposalHour: Schema.Number,
-  /** The wearer's standing style preferences; empty when none are given. */
   styleNote: Schema.String,
   /** The version of the rotation fields; a save sends the one its form loaded. */
   revision: Schema.Int,
