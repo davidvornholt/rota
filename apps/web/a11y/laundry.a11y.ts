@@ -1,5 +1,6 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
+import { mainTab } from './app-navigation.ts';
 import { fixtureOrigin } from './fixture-origin.ts';
 import { emptySlot } from './outfit-slots.ts';
 
@@ -76,7 +77,7 @@ test('early laundry offers photos before selection, restores focus, and resets a
   await choose.click();
   await expect(shirt).toHaveCount(0);
   await picker.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.getByRole('link', { name: 'Planning', exact: true }).click();
+  await mainTab(page, 'Today').click();
   await expect(emptySlot(page, 'top')).toBeVisible();
 });
 

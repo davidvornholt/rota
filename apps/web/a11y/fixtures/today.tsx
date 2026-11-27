@@ -5,55 +5,35 @@ import {
   createRoute,
   createRouter,
   Link,
-  Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
 import { createRoot } from 'react-dom/client';
 import { LaundryPage } from '#/features/rota/ui/laundry-page.tsx';
 import { OutfitsPage } from '#/features/rota/ui/outfits-page.tsx';
 import { TodayPage } from '#/features/rota/ui/today-page.tsx';
-import { linkButtonClass } from '#/shared/ui/classes.ts';
+import { AppShell } from '#/shared/ui/app-shell.tsx';
+import { frameClass, quietButtonClass } from '#/shared/ui/classes.ts';
 import { planningFixture, tomorrow } from './planning-fns.ts';
 import { demoProposal } from './today-proposal.ts';
 
 const params = new URLSearchParams(globalThis.location.search);
-// The app shell's navigation without its session: the planning pages only.
-const pages = [
-  { to: '/', label: 'Planning' },
-  { to: '/outfits', label: 'Outfits' },
-  { to: '/laundry', label: 'Laundry' },
-] as const;
-const rootRoute = createRootRoute({
+// The app's own shell, so screenshots and scans show what the app shows.
+const rootRoute = createRootRoute({ component: AppShell });
+// Stands in for a garment's page and its "Build an outfit" link.
+const wardrobeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/wardrobe',
   component: () => (
-    <>
-      <nav aria-label="Main">
-        <ul className="flex gap-4 px-5">
-          {pages.map((item) => (
-            <li key={item.to}>
-              <Link className={linkButtonClass} to={item.to}>
-                {item.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      <main className="py-8">
-        <button
-          type="button"
-          onClick={() => {
-            router
-              .navigate({
-                to: '/',
-                search: { date: demoProposal.today, garment: 'demo-white' },
-              })
-              .catch(() => undefined);
-          }}
-        >
-          Start with white shirt
-        </button>
-        <Outlet />
-      </main>
-    </>
+    <div className={frameClass}>
+      <h1 className="type-display text-4xl">White cotton shirt</h1>
+      <Link
+        className={quietButtonClass}
+        to="/"
+        search={{ garment: 'demo-white' }}
+      >
+        Build an outfit
+      </Link>
+    </div>
   ),
 });
 const route = createRoute({
@@ -126,7 +106,12 @@ const laundryRoute = createRoute({
 });
 const startPage = params.get('page');
 const router = createRouter({
-  routeTree: rootRoute.addChildren([route, outfitsRoute, laundryRoute]),
+  routeTree: rootRoute.addChildren([
+    route,
+    outfitsRoute,
+    laundryRoute,
+    wardrobeRoute,
+  ]),
   history: createMemoryHistory({
     initialEntries: [
       sessionStorage.getItem('planning-location') ??
