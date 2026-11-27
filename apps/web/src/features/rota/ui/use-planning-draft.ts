@@ -4,13 +4,13 @@ import type { PlanningView } from '../schemas/planning-view.ts';
 import { dayEntries } from './day-entries.ts';
 
 /**
- * The outfit being planned on Today and the saved outfit it started from.
- *
  * The router can show a cached Today and reload it in the background. Until
  * the person changes the outfit here, the draft follows the reloaded plan, so
  * "Wear this" can't log an older outfit over a plan made elsewhere. After a
  * change it stays, because a reload that started before the change is older
- * than it. A starting piece or outfit from the link counts as a change.
+ * than it. A starting piece or outfit from the link and keeping a piece for
+ * the next suggestion count as changes. A day recorded as worn always shows
+ * what was worn, because nothing on it can be changed any more.
  */
 export const usePlanningDraft = (
   initial: PlanningView,
@@ -41,7 +41,10 @@ export const usePlanningDraft = (
   const touchedRef = useRef(seeded);
   const loadedRef = useRef(initial);
   useEffect(() => {
-    if (loadedRef.current !== initial && !touchedRef.current) {
+    if (
+      loadedRef.current !== initial &&
+      (initial.day.worn !== null || !touchedRef.current)
+    ) {
       setEntries(dayEntries(initial));
       setBasedOn(initial.plan.basedOn);
     }
@@ -58,5 +61,8 @@ export const usePlanningDraft = (
     },
     basedOn,
     setBasedOn,
+    markChanged: () => {
+      touchedRef.current = true;
+    },
   };
 };

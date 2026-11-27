@@ -23,6 +23,7 @@ export const usePlanning = (
     setEntries,
     basedOn,
     setBasedOn,
+    markChanged,
   } = usePlanningDraft(initial, seed);
   const [pinned, setPinned] = useState<ReadonlyArray<string>>(
     seed.garment === undefined ? [] : [seed.garment],
@@ -105,10 +106,12 @@ export const usePlanning = (
             ? { entries, basedOn }
             : null,
       }),
-    pin: (id: string) =>
+    pin: (id: string) => {
+      markChanged();
       setPinned((ids) =>
         ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id],
-      ),
+      );
+    },
   };
 };
 export type PlanningController = ReturnType<typeof usePlanning>;
