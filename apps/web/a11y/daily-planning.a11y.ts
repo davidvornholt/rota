@@ -315,3 +315,35 @@ test('a dress takes the place of the top and bottom and saves as a whole outfit'
     page.getByRole('button', { name: 'Wear a dress' }),
   ).toBeVisible();
 });
+
+test('a plan changed elsewhere replaces the untouched draft when today refreshes', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
+  await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: whiteShirt })
+    .click();
+  await expect(page.getByLabel('Plan saving status')).toContainText(
+    'Saved for',
+  );
+  await page.getByRole('link', { name: 'Outfits', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Blue and navy' }),
+  ).toBeVisible();
+  // Another device plans the dress for today.
+  await page.evaluate(() => {
+    const key = 'planning-view-2026-09-07';
+    const view = JSON.parse(sessionStorage.getItem(key) ?? '{}');
+    view.plan.entries = [{ slot: 'dress', garmentId: 'demo-dress' }];
+    sessionStorage.setItem(key, JSON.stringify(view));
+  });
+  await page.getByRole('link', { name: 'Planning', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Change Green linen dress' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Change White cotton shirt' }),
+  ).toHaveCount(0);
+});

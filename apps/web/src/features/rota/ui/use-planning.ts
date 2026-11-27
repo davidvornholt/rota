@@ -2,8 +2,8 @@ import { useRouter } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import type { PlanningView } from '../schemas/planning-view.ts';
-import { dayEntries } from './day-entries.ts';
 import { usePlanSave } from './use-plan-save.ts';
+import { usePlanningDraft } from './use-planning-draft.ts';
 import { usePlanningMutation } from './use-planning-mutation.ts';
 
 export const usePlanning = (
@@ -15,22 +15,17 @@ export const usePlanning = (
 ) => {
   const router = useRouter();
   const [view, setView] = useState(initial);
-  const garment = initial.wardrobe.find((item) => item.id === seed.garment);
-  const savedOutfit = initial.outfits.find((item) => item.id === seed.outfit);
-  const slot = garment?.slots[0];
-  const [entries, setEntries] = useState<ReadonlyArray<OutfitEntry>>(() => {
-    if (initial.day.worn !== null) {
-      return dayEntries(initial);
-    }
-    return garment !== undefined && slot !== undefined
-      ? [{ slot, garmentId: garment.id }]
-      : (savedOutfit?.entries ?? dayEntries(initial));
-  });
+  const {
+    garment,
+    savedOutfit,
+    slot,
+    entries,
+    setEntries,
+    basedOn,
+    setBasedOn,
+  } = usePlanningDraft(initial, seed);
   const [pinned, setPinned] = useState<ReadonlyArray<string>>(
     seed.garment === undefined ? [] : [seed.garment],
-  );
-  const [basedOn, setBasedOn] = useState<string | null>(
-    savedOutfit?.name ?? initial.plan.basedOn,
   );
   const [message, setMessage] = useState('');
   useEffect(() => {

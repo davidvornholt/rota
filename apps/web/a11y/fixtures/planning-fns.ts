@@ -109,10 +109,10 @@ const laundryFixture = (): PlanningView['laundry'] => {
 };
 
 export const planningFixture = (date: string): PlanningView => {
+  // The stored copy wins, so a test can change it as another device would.
   const stored = sessionStorage.getItem(`planning-view-${date}`);
   const existing =
-    views.get(date) ??
-    (stored === null ? undefined : (JSON.parse(stored) as PlanningView));
+    stored === null ? views.get(date) : (JSON.parse(stored) as PlanningView);
   if (existing !== undefined) {
     return { ...existing, outfits: savedOutfits() };
   }
