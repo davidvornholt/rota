@@ -80,7 +80,6 @@ it('says how many wears each garment has left, so a last wear does not read as t
   };
   const continuing = continuations(rotation);
   const lines = buildProposalPrompt({
-    cleanTop: false,
     today: rotation.today,
     weather: mild,
     yesterday: undefined,

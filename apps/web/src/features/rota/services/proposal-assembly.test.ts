@@ -122,7 +122,6 @@ describe('slotChoicesFor', () => {
     const continuing = continuations(rotation);
     expect(continuing.map((c) => c.garment.id)).toEqual(['shorts']);
     const prompt = buildProposalPrompt({
-      cleanTop: false,
       today: rotation.today,
       weather: { ...warm, high: 18.9, low: 15.8, precipitationProbability: 78 },
       yesterday: { ...warm, high: 32.2 },
@@ -179,7 +178,6 @@ describe('slotChoicesFor', () => {
       },
     ];
     const prompt = buildProposalPrompt({
-      cleanTop: false,
       today: rotation.today,
       weather: warm,
       yesterday: undefined,
@@ -262,7 +260,6 @@ it('describes each recent day with every piece’s role in worn order', () => {
     rotation.today,
   );
   const prompt = buildProposalPrompt({
-    cleanTop: false,
     today: rotation.today,
     weather: warm,
     yesterday: undefined,
@@ -282,7 +279,7 @@ it('describes each recent day with every piece’s role in worn order', () => {
   );
 });
 
-it('shows an original image once while offering the garment in each eligible slot', () => {
+it("shows a garment's image once while offering the garment in each eligible slot", () => {
   const shirt = { ...garment('shirt', ['top', 'over']), warmth: 1 };
   const rotation = input([shorts, shirt], []);
   const image = {
@@ -290,7 +287,6 @@ it('shows an original image once while offering the garment in each eligible slo
     data: new TextEncoder().encode('original image bytes'),
   };
   const prompt = buildProposalPrompt({
-    cleanTop: false,
     today: rotation.today,
     weather: warm,
     yesterday: undefined,
@@ -323,7 +319,6 @@ describe('complete outfit suggestions', () => {
   it('asks for suitable accessories while allowing hot-weather layers to stay empty', async () => {
     const rotation = input([shorts, tee, shoes, bag, under, over], []);
     const prompt = buildProposalPrompt({
-      cleanTop: false,
       today: rotation.today,
       weather: { ...warm, high: 34, low: 26 },
       yesterday: undefined,
@@ -335,16 +330,10 @@ describe('complete outfit suggestions', () => {
       recent: [],
       imageFor: () => undefined,
     });
-    const text = prompt.parts
-      .flatMap((part) => ('text' in part ? [part.text] : []))
-      .join('\n');
-    expect(proposalSystemPrompt).toContain('Include suitable shoes and a bag');
     expect(proposalSystemPrompt).toContain(
-      'leave unnecessary layers out in hot weather',
+      'Include suitable shoes and a bag when offered',
     );
-    expect(text).toContain('Include suitable shoes');
-    expect(text).toContain('Include a suitable bag');
-    expect(text).toContain('leave it null when it would be too warm');
+    expect(proposalSystemPrompt).toContain("count the whole outfit's warmth");
     const schema = proposalAnswerJsonSchema(prompt.aliases);
     expect(schema.properties.outfit.properties.shoes.enum).toEqual([
       'S1',

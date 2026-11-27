@@ -109,7 +109,6 @@ const promptFor = (
   continuing: ReadonlyArray<Continuation> = [],
 ) =>
   buildProposalPrompt({
-    cleanTop: false,
     today,
     weather: cold,
     yesterday: undefined,
@@ -193,8 +192,8 @@ describe('a dress in place of a top and a bottom', () => {
     expect(outfit.dress.enum).toEqual(['D1', null]);
     expect(outfit.top.enum).toEqual(['T1', null]);
     expect(outfit.bottom.enum).toEqual(['B1', null]);
-    expect(promptText(choices)).toContain(
-      'Leave the top null when you choose a dress',
+    expect(proposalSystemPrompt).toContain(
+      'With a dress, leave the top and bottom null',
     );
     const items = await Effect.runPromise(
       answerToItems(answer({ dress: 'D1' }), prompt.aliases, input),
@@ -260,7 +259,7 @@ describe('a dress with a continuing bottom', () => {
       'Bottom: no replacement available; use the continuing alias or null.',
     );
     expect(proposalSystemPrompt).toContain(
-      'You may also leave out a continuing bottom when you choose a dress in place of the top and bottom.',
+      'a continuing bottom may be left out then',
     );
   });
 });
@@ -311,8 +310,8 @@ describe('hats and scarves', () => {
       .properties;
     expect(outfit.hat.enum).toEqual(['H1', null]);
     expect(outfit.scarf.enum).toEqual(['F1', null]);
-    expect(promptText(choices)).toContain(
-      "Choose a hat only if the weather, outfit or wearer's note calls for one",
+    expect(proposalSystemPrompt).toContain(
+      'hat or scarf only when the weather, outfit or note calls for one',
     );
   });
 });

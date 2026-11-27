@@ -9,14 +9,9 @@ import { colorName } from '#/shared/data/color-name.ts';
 import type { ImagePart, PromptPart } from '#/shared/ai/claude-request.ts';
 import type { Garment } from '#/shared/data/garment.ts';
 import {
-  formalityInstruction,
-  warmthInstruction,
-} from '#/shared/data/garment-scales.ts';
-import {
   hasWearBudget,
   type Slot,
   slotLabel,
-  slotOrder,
 } from '#/shared/data/garment-types.ts';
 import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import {
@@ -46,7 +41,6 @@ export type RecentDay = {
 
 export type PromptInput = {
   readonly today: LocalDate;
-  readonly cleanTop: boolean;
   readonly weather: WeatherDay;
   readonly yesterday: WeatherDay | undefined;
   readonly upcoming: ReadonlyArray<WeatherDay>;
@@ -71,20 +65,17 @@ export type BuiltPrompt = {
 };
 
 export const proposalSystemPrompt = [
-  warmthInstruction,
-  formalityInstruction,
-  "You are the valet behind Rota, a one-person wardrobe app. Choose today's outfit from the available wardrobe for the supplied forecast and the wearer's note.",
-  'Each garment with a wear allowance says how many times it has been worn since washing and how many wears it has left. A garment with a wear left is clean enough to wear today.',
-  "Rotation is a preference, but weather and the note take priority. Keep a continuing garment while it has a wear left unless the weather or the note rules it out; do not replace it for variety. You may replace any or all of them for those reasons. You may also leave out a continuing bottom when you choose a dress in place of the top and bottom. Explain a replacement in the new garment's reason.",
-  'When you choose a bottom other than a continuing one, prefer a partly worn bottom with a wear left to a freshly washed one, and among those the one worn most recently, when it suits the weather and the note, so bottoms are worn up to their allowance before washing. Finishing a bottom comes before varying the colours of recent days.',
-  "Judge the outfit as a whole. Choose only the offered aliases. The forecast covers 05:00–20:00 in the wardrobe location's time zone.",
-  'Use the recent outfits to vary the look: avoid repeating the colours, style or combination of the last few days, even with different garments. A continuing garment or a partly worn top, dress or bottom is not a repeat, even if it was worn on recent days; vary what goes with it.',
-  'An outfit is a top and a bottom, or a dress in their place.',
-  "Consider every outfit slot. Include suitable shoes and a bag whenever offered; they may repeat freely. Omit them only when no offered choice suits the weather, outfit or wearer's note.",
-  "Choose an underlayer or overlayer only when the forecast, outfit or wearer's note makes it useful. Account for the whole outfit's warmth; leave unnecessary layers out in hot weather.",
-  "Add a hat or a scarf only when the weather, outfit or wearer's note calls for one, such as a beanie and scarf in the cold or a cap in strong sun. They may repeat freely.",
-  'Write for the wearer in plain, specific, second-person English. No exclamation marks, no emoji, no sales tone.',
-].join(' ');
+  "You choose today's outfit for the wearer of Rota, a one-person wardrobe app, from the offered garments. Answer with the offered aliases only.",
+  'Garments are rated for warmth (1 light, 2 medium, 3 heavy) and formality (1 casual; 2 smart, which covers smart casual and business casual; 3 formal, for dressy occasions).',
+  'Weigh these in order.',
+  "1. The weather and the wearer's note. The forecast covers 05:00–20:00 local time. Without a note it is an ordinary day: dress casual to smart, and keep formal garments, such as a blazer, for a note that calls for them.",
+  '2. Colours that go together. Do not pair a top or layer with a bottom of the same or a similar colour, such as an olive jumper with olive chinos; choose the rest to contrast with or complement a continuing garment.',
+  '3. Wearing clothes up to their allowance before washing. Keep a continuing garment rather than replace it for variety. Otherwise prefer a partly worn garment with wears left to a freshly washed one, and among bottoms the one worn most recently.',
+  '4. Variety. Avoid repeating the colours, style or combination of recent days, even with different garments. A continuing or partly worn garment is not a repeat; vary what goes with it.',
+  'An outfit is a top and a bottom, or a dress in their place. With a dress, leave the top and bottom null unless it is worn over a top or with leggings; a continuing bottom may be left out then.',
+  "Include suitable shoes and a bag when offered. Add an underlayer, overlayer, hat or scarf only when the weather, outfit or note calls for one, such as a beanie and scarf in the cold, and count the whole outfit's warmth. Shoes, bags, hats and scarves may repeat freely.",
+  "Write for the wearer in plain, specific, second-person English, without exclamation marks, emoji or sales tone. When you replace a continuing garment, say why in the new garment's reason.",
+].join('\n');
 
 const slotPrefix: Readonly<Record<Slot, string>> = {
   bottom: 'B',
@@ -129,23 +120,6 @@ const describeGarment = (garment: Garment): string =>
   ]
     .filter((part) => part !== undefined)
     .join('; ');
-
-const slotGuidance: Readonly<Partial<Record<Slot, string>>> = {
-  shoes:
-    "Include suitable shoes; use null only if none fit the weather, outfit or wearer's note.",
-  bag: "Include a suitable bag; use null only if none fit the weather, outfit or wearer's note.",
-  under:
-    "Choose an underlayer only if the outfit, weather or wearer's note calls for one; otherwise use null.",
-  over: "Choose an overlayer only if the outfit, weather or wearer's note calls for one; leave it null when it would be too warm.",
-  dress:
-    'Choose a dress in place of a top and a bottom when it suits the weather, occasion and recent outfits; otherwise use null.',
-  top: 'Leave the top null when you choose a dress, unless the dress is worn over a top.',
-  bottom:
-    'Leave the bottom null when you choose a dress, unless it is worn with leggings.',
-  scarf:
-    "Choose a scarf only if the weather, outfit or wearer's note calls for one; otherwise use null.",
-  hat: "Choose a hat only if the weather, outfit or wearer's note calls for one; otherwise use null.",
-};
 
 const slotInstruction = (
   open: SlotChoices,
@@ -193,11 +167,6 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
   };
 
   say(
-    input.cleanTop
-      ? 'Choose a clean top or dress. Cleanliness is already reflected in the offered candidates.'
-      : 'Prefer a partly worn top or dress with allowance left when it suits the outfit, so clothes get their second wear.',
-  );
-  say(
     `Today is ${formatWeekday(input.today)} ${formatDayMonth(input.today)}. Forecast: ${weatherSentence(input.weather)}.`,
   );
   if (input.forecastStale) {
@@ -218,7 +187,7 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
   }
   say(
     input.occasion === null
-      ? 'No occasion note for today.'
+      ? 'No occasion note today.'
       : `Occasion note from the wearer: "${input.occasion}".`,
   );
 
@@ -229,9 +198,7 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
   }
 
   if (input.continuations.length > 0) {
-    say(
-      'Available to continue from yesterday, but replace any that no longer fit the weather or note:',
-    );
+    say('Continuing from yesterday:');
     input.continuations.forEach((continuation, index) => {
       const alias = `C${index + 1}`;
       aliases.set(alias, {
@@ -254,12 +221,6 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
       (c) => c.slot === open.slot,
     );
     say(slotInstruction(open, hasContinuation));
-    if (!open.required && (open.candidates.length > 0 || hasContinuation)) {
-      const guidance = slotGuidance[open.slot];
-      if (guidance !== undefined) {
-        say(guidance);
-      }
-    }
     open.candidates.forEach((candidate, index) => {
       const alias = `${slotPrefix[open.slot]}${index + 1}`;
       aliases.set(alias, {
@@ -276,10 +237,6 @@ export const buildProposalPrompt = (input: PromptInput): BuiltPrompt => {
   for (const open of input.slotChoices) {
     describeSlotChoices(open);
   }
-
-  say(
-    `Decide today's complete outfit: a top and a bottom, or an offered dress in their place. Fill ${slotOrder.join(', ')} with aliases. Include suitable offered shoes and a bag; add under and over layers, a hat or a scarf only when useful for the weather and outfit. Leave unavailable or unsuitable optional slots null. Then write the headline and one reason per chosen garment.`,
-  );
 
   return { parts, aliases };
 };

@@ -2,6 +2,11 @@ import { Effect } from 'effect';
 import type { ImagePart } from '#/shared/ai/claude-request.ts';
 import type { GarmentImage } from '#/shared/data/garment.ts';
 import type { MediaStore } from '#/shared/media/media-store.ts';
+import {
+  largeWidth,
+  tileWidth,
+  type VariantWidth,
+} from '#/shared/media/media-variants.ts';
 import { ProposalGenerationError } from '../errors/rota-errors.ts';
 
 const imageConcurrency = 4;
@@ -13,9 +18,17 @@ type CandidateImage = {
   readonly image: GarmentImage | undefined;
 };
 
+/**
+ * The stored copy Claude sees: 640 pixels wide for a portrait or square picture
+ * and 1280 for a landscape photo, so a garment shows at a similar size either
+ * way.
+ */
+export const proposalWidth = (image: GarmentImage): VariantWidth =>
+  image.width > image.height ? largeWidth : tileWidth;
+
 /** Missing files remain optional; a stalled or failed store must not silently degrade the model's input. */
 export const proposalImages = (
-  media: Pick<MediaStore['Service'], 'get'>,
+  media: Pick<MediaStore['Service'], 'variant'>,
   shown: ReadonlyArray<CandidateImage>,
 ) =>
   Effect.forEach(
@@ -29,26 +42,30 @@ export const proposalImages = (
         if (image === undefined) {
           return [garmentId, undefined] as const;
         }
-        const bytes = yield* media.get(image.key).pipe(
-          Effect.mapError((cause) => new ProposalGenerationError(false, cause)),
-          Effect.timeoutOrElse({
-            duration: imageDeadline,
-            orElse: () =>
-              Effect.fail(
-                new ProposalGenerationError(
-                  true,
-                  'Image read deadline exceeded.',
+        const served = yield* media
+          .variant(image.key, proposalWidth(image))
+          .pipe(
+            Effect.mapError(
+              (cause) => new ProposalGenerationError(false, cause),
+            ),
+            Effect.timeoutOrElse({
+              duration: imageDeadline,
+              orElse: () =>
+                Effect.fail(
+                  new ProposalGenerationError(
+                    true,
+                    'Image read deadline exceeded.',
+                  ),
                 ),
-              ),
-          }),
-        );
+            }),
+          );
         return [
           garmentId,
-          bytes === undefined
+          served === undefined
             ? undefined
             : ({
-                mimeType: image.mime,
-                data: bytes,
+                mimeType: served.mime,
+                data: served.bytes,
               } satisfies ImagePart),
         ] as const;
       }),
