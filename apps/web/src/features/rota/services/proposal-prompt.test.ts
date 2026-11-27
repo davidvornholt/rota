@@ -6,7 +6,10 @@ import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import { continuations, type RotationInput } from '../rotation.ts';
 import { slotChoicesFor } from './proposal-assembly.ts';
-import { buildProposalPrompt } from './proposal-prompt.ts';
+import {
+  buildProposalPrompt,
+  proposalSystemPrompt,
+} from './proposal-prompt.ts';
 
 const garment = (id: string, slots: ReadonlyArray<Slot>): Garment => ({
   id,
@@ -133,4 +136,8 @@ it("passes the wearer's style note to every proposal and leaves it out when empt
     'The wearer\'s style note: "Smart casual most days.".',
   );
   expect(textFor('').some((text) => text.includes('style note'))).toBeFalse();
+  // A note that says how dressy to be replaces the ordinary-day default.
+  expect(proposalSystemPrompt).toContain(
+    'When neither says how dressy to be, dress casual to smart',
+  );
 });

@@ -46,7 +46,6 @@ export type PromptInput = {
   readonly upcoming: ReadonlyArray<WeatherDay>;
   readonly forecastStale: boolean;
   readonly occasion: string | null;
-  /** The wearer's standing style preferences; empty when none are given. */
   readonly styleNote: string;
   readonly continuations: ReadonlyArray<Continuation>;
   readonly slotChoices: ReadonlyArray<SlotChoices>;
@@ -70,7 +69,7 @@ export const proposalSystemPrompt = [
   "You choose today's outfit for the wearer of Rota, a one-person wardrobe app, from the offered garments. Answer with the offered aliases only.",
   'Garments are rated for warmth (1 light, 2 medium, 3 heavy) and formality (1 casual; 2 smart, which covers smart casual and business casual; 3 formal, for dressy occasions).',
   'Weigh these in order.',
-  "1. The weather and the wearer's notes. The forecast covers 05:00–20:00 local time. The day's occasion note comes before the standing style note. Without an occasion note it is an ordinary day: dress casual to smart, and keep formal garments, such as a blazer, for an occasion that calls for them.",
+  "1. The weather and the wearer's notes. The forecast covers 05:00–20:00 local time. The day's occasion note comes before the standing style note. When neither says how dressy to be, dress casual to smart, and keep formal garments, such as a blazer, for an occasion that calls for them.",
   '2. Colours that go together. Do not pair a top or layer with a bottom of the same or a similar colour, such as an olive jumper with olive chinos; choose the rest to contrast with or complement a continuing garment.',
   '3. Wearing clothes up to their allowance before washing. Keep a continuing garment rather than replace it for variety. Otherwise prefer a partly worn garment with wears left to a freshly washed one, and among bottoms the one worn most recently.',
   '4. Variety. Avoid repeating the colours, style or combination of recent days, even with different garments. A continuing or partly worn garment is not a repeat; vary what goes with it.',
