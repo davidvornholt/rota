@@ -21,8 +21,7 @@ type CandidateImage = {
 /**
  * The stored copy Claude sees: 640 pixels wide for a portrait or square picture
  * and 1280 for a landscape photo, so a garment shows at a similar size either
- * way. A 3:4 studio picture then costs about half the tokens of its full size
- * and still shows colour, pattern and texture clearly.
+ * way.
  */
 export const proposalWidth = (image: GarmentImage): VariantWidth =>
   image.width > image.height ? largeWidth : tileWidth;

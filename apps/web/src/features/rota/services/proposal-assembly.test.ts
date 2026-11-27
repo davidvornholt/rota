@@ -279,7 +279,7 @@ it('describes each recent day with every piece’s role in worn order', () => {
   );
 });
 
-it('shows an original image once while offering the garment in each eligible slot', () => {
+it("shows a garment's image once while offering the garment in each eligible slot", () => {
   const shirt = { ...garment('shirt', ['top', 'over']), warmth: 1 };
   const rotation = input([shorts, shirt], []);
   const image = {
