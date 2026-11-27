@@ -2,6 +2,7 @@ import { useRouter } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import type { OutfitEntry } from '#/shared/data/wear-log-repository.ts';
 import type { PlanningView } from '../schemas/planning-view.ts';
+import { dayEntries } from './day-entries.ts';
 import { usePlanSave } from './use-plan-save.ts';
 import { usePlanningDraft } from './use-planning-draft.ts';
 import { usePlanningMutation } from './use-planning-mutation.ts';
@@ -79,7 +80,9 @@ export const usePlanning = (
       router.invalidate().catch(() => undefined);
     },
     view,
-    entries,
+    // A day recorded as worn shows what was worn, also when a change's
+    // response reports it before the page has reloaded.
+    entries: view.day.worn === null ? entries : dayEntries(view),
     setEntries: (next: ReadonlyArray<OutfitEntry>) => select(next, basedOn),
     pinned,
     basedOn,

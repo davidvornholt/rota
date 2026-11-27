@@ -9,8 +9,7 @@ import { dayEntries } from './day-entries.ts';
  * "Wear this" can't log an older outfit over a plan made elsewhere. After a
  * change it stays, because a reload that started before the change is older
  * than it. A starting piece or outfit from the link and keeping a piece for
- * the next suggestion count as changes. A day recorded as worn always shows
- * what was worn, because nothing on it can be changed any more.
+ * the next suggestion count as changes.
  */
 export const usePlanningDraft = (
   initial: PlanningView,
@@ -41,10 +40,7 @@ export const usePlanningDraft = (
   const touchedRef = useRef(seeded);
   const loadedRef = useRef(initial);
   useEffect(() => {
-    if (
-      loadedRef.current !== initial &&
-      (initial.day.worn !== null || !touchedRef.current)
-    ) {
+    if (loadedRef.current !== initial && !touchedRef.current) {
       setEntries(dayEntries(initial));
       setBasedOn(initial.plan.basedOn);
     }
