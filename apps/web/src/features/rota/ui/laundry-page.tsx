@@ -75,8 +75,14 @@ export const LaundryPage = ({
           {waiting.length} piece{waiting.length === 1 ? '' : 's'} in laundry
         </p>
       </div>
-      <div className="max-w-2xl">
-        <p className="mt-5 text-ink-muted text-sm">
+      {/*
+        On a wide screen the lists take the main column and the notes and the
+        early-laundry form sit beside the list they belong to: the return
+        rule beside what is in laundry, the form beside what was worn. A phone
+        keeps one column in the same order.
+      */}
+      <div className="max-w-2xl lg:grid lg:max-w-none lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:items-start lg:gap-x-16">
+        <p className="mt-5 text-ink-muted text-sm lg:col-start-2 lg:row-start-2 lg:mt-6">
           After its final wear before washing, each piece is expected back clean
           in {view.laundryDays} days.{' '}
           <Link to="/settings" className={linkButtonClass}>
@@ -84,14 +90,19 @@ export const LaundryPage = ({
           </Link>
         </p>
         {error === '' ? null : (
-          <Notice className="mt-5" live={true}>
+          <Notice className="mt-5 lg:col-span-2 lg:row-start-1" live={true}>
             {error}
           </Notice>
         )}
         {waiting.length === 0 ? (
-          <p className="mt-6 text-ink-muted">Nothing waiting on laundry.</p>
+          <p className="mt-6 text-ink-muted lg:col-start-1 lg:row-start-2">
+            Nothing waiting on laundry.
+          </p>
         ) : (
-          <section className="mt-6" aria-label="In laundry">
+          <section
+            className="mt-6 lg:col-start-1 lg:row-start-2"
+            aria-label="In laundry"
+          >
             <h2 className="type-eyebrow">In laundry</h2>
             <ul className="mt-2 divide-y divide-rule">
               {waiting.map((garment) => (
@@ -113,29 +124,36 @@ export const LaundryPage = ({
             </ul>
           </section>
         )}
-        <WornSinceWashing
-          garments={worn}
-          disabled={busy}
-          onBasket={(id) => {
-            care(id, 'laundry').catch(() => undefined);
-          }}
-          onWashed={(id) => {
-            care(id, 'washed').catch(() => undefined);
-          }}
-        />
-        <EarlyLaundry
-          selected={selected}
-          disabled={busy}
-          onChoose={() => setPicking(true)}
-          onSend={() => {
-            care(early, 'laundry').catch(() => undefined);
-          }}
-        />
-        <p role="status" className="mt-3 text-ink-muted text-sm">
-          {message}
-        </p>
+        <div className="lg:col-start-1 lg:row-start-3">
+          <WornSinceWashing
+            garments={worn}
+            disabled={busy}
+            onBasket={(id) => {
+              care(id, 'laundry').catch(() => undefined);
+            }}
+            onWashed={(id) => {
+              care(id, 'washed').catch(() => undefined);
+            }}
+          />
+        </div>
+        <div className="lg:col-start-2 lg:row-span-2 lg:row-start-3">
+          <EarlyLaundry
+            selected={selected}
+            disabled={busy}
+            onChoose={() => setPicking(true)}
+            onSend={() => {
+              care(early, 'laundry').catch(() => undefined);
+            }}
+          />
+          <p role="status" className="mt-3 text-ink-muted text-sm">
+            {message}
+          </p>
+        </div>
         {returned.length === 0 ? null : (
-          <section className="mt-6" aria-label="Back from laundry">
+          <section
+            className="mt-6 lg:col-start-1 lg:row-start-4"
+            aria-label="Back from laundry"
+          >
             <h2 className="type-eyebrow">Back from laundry</h2>
             <ul className="mt-2 divide-y divide-rule">
               {returned.map((garment) => (
