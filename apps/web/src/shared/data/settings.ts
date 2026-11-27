@@ -9,6 +9,7 @@ export const SettingsSchema = Schema.Struct({
   cooldownDays: Schema.Number,
   categoryBudgets: Schema.Record(Schema.String, Schema.Number),
   proposalHour: Schema.Number,
+  styleNote: Schema.String,
   /** The version of the rotation fields; a save sends the one its form loaded. */
   revision: Schema.Int,
 });
@@ -22,6 +23,7 @@ export type RotationSettings = Pick<
   | 'cooldownDays'
   | 'categoryBudgets'
   | 'proposalHour'
+  | 'styleNote'
 >;
 
 export const SettingsFromRow = Schema.Struct({
@@ -31,6 +33,7 @@ export const SettingsFromRow = Schema.Struct({
   cooldownDays: Schema.Number,
   categoryBudgets: Schema.Record(Schema.String, Schema.Number),
   proposalHour: Schema.Number,
+  styleNote: Schema.String,
   revision: Schema.Int,
 }).pipe(
   Schema.encodeKeys({
@@ -39,6 +42,7 @@ export const SettingsFromRow = Schema.Struct({
     cooldownDays: 'cooldown_days',
     categoryBudgets: 'category_budgets',
     proposalHour: 'proposal_hour',
+    styleNote: 'style_note',
   }),
 );
 
@@ -49,5 +53,6 @@ export const defaultSettings: Settings = {
   cooldownDays: 7,
   categoryBudgets: {},
   proposalHour: 5,
+  styleNote: '',
   revision: 0,
 };

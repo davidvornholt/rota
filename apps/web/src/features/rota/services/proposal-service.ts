@@ -256,6 +256,7 @@ const generateProposal = (
       upcoming: forecast.upcoming,
       forecastStale: forecast.stale,
       occasion,
+      styleNote: clock.settings.styleNote,
       continuations: continuing,
       slotChoices,
       recent: recentSummary(log, all, clock.today),

@@ -349,6 +349,16 @@ test('clean-top cadence can be set and cleared without accessory wash budgets', 
   await expect(start).toHaveValue('');
 });
 
+test('the style note saves with the rotation settings', async ({ page }) => {
+  await page.goto(`${fixtureOrigin}a11y/fixtures/settings.html`);
+  const note = page.getByRole('textbox', { name: 'Your style (optional)' });
+  await note.fill('Smart casual most days.');
+  await page.getByRole('button', { name: 'Save rotation settings' }).click();
+  await expect(page.getByRole('status')).toHaveText('Saved');
+  await expect(note).toHaveValue('Smart casual most days.');
+  expect(await scanWcag22AaViolations(page)).toEqual([]);
+});
+
 test('a background refresh keeps the rotation settings being typed', async ({
   page,
 }) => {

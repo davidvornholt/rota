@@ -115,6 +115,7 @@ const promptFor = (
     upcoming: [],
     forecastStale: false,
     occasion: null,
+    styleNote: '',
     continuations: continuing,
     slotChoices: choices,
     recent: [],

@@ -16,6 +16,7 @@ const shown = {
   cooldownDays: 7,
   proposalHour: 5,
   cleanTopFrom: null,
+  styleNote: '',
   wearBudgets: { jumper: 6 },
 };
 
@@ -34,6 +35,8 @@ describe('rota settings', () => {
       'none',
       '--laundry-days',
       '3',
+      '--style-note',
+      'Smart casual most days.',
     );
     expect(
       cli.sent.map(({ method, path, body }) => [method, path, body]),
@@ -45,6 +48,7 @@ describe('rota settings', () => {
         {
           laundryDays: 3,
           cleanTopFrom: null,
+          styleNote: 'Smart casual most days.',
           wearBudgets: { jumper: 6, shirt: null },
         },
       ],

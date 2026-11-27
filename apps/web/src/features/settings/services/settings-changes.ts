@@ -47,6 +47,7 @@ export const apiSettings = (settings: Settings): ApiSettings => {
     cooldownDays: settings.cooldownDays,
     proposalHour: settings.proposalHour,
     cleanTopFrom: settings.cleanTopAnchor,
+    styleNote: settings.styleNote,
     wearBudgets: Object.fromEntries(
       washed.map((category) => [category, budgets[category]]),
     ),
@@ -81,5 +82,6 @@ export const changedRotation = (settings: Settings, changes: SettingsChanges) =>
       cooldownDays: changes.cooldownDays ?? settings.cooldownDays,
       proposalHour: changes.proposalHour ?? settings.proposalHour,
       categoryBudgets: budgets,
+      styleNote: changes.styleNote ?? settings.styleNote,
     }).pipe(Effect.mapError((error) => new InvalidSettings(error.message)));
   });

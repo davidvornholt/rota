@@ -30,6 +30,7 @@ import {
   searchLocationsFn,
 } from '../services/settings-fns.ts';
 import { LaundrySetting } from './laundry-setting.tsx';
+import { StyleSetting } from './style-setting.tsx';
 
 const failureMessage = (error: unknown) =>
   error instanceof Error && error.message !== ''
@@ -185,6 +186,7 @@ const rotationDraftOf = (settings: Settings): RotationSettingsInput => ({
   cooldownDays: settings.cooldownDays,
   proposalHour: settings.proposalHour,
   categoryBudgets: budgetsOf(settings),
+  styleNote: settings.styleNote,
 });
 
 const RotationSection = ({
@@ -230,6 +232,10 @@ const RotationSection = ({
           save.mutate();
         }}
       >
+        <StyleSetting
+          onChange={(styleNote) => setDraft({ ...draft, styleNote })}
+          value={draft.styleNote}
+        />
         <div className="grid max-w-prose gap-6 sm:grid-cols-2">
           <div>
             <label className={labelClass} htmlFor={cooldownId}>

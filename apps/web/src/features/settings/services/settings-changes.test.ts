@@ -43,6 +43,25 @@ describe('changedRotation', () => {
     ).toBeNull();
   });
 
+  it('trims a new style note, keeps the saved one when none is given, and limits its length', () => {
+    expect(
+      Result.getOrThrow(changed({ styleNote: '  Smart casual most days. ' }))
+        .styleNote,
+    ).toBe('Smart casual most days.');
+    expect(
+      Result.getOrThrow(
+        changedRotation(
+          { ...stored, styleNote: 'No green on green.' },
+          {},
+        ).pipe(Effect.result, Effect.runSync),
+      ).styleNote,
+    ).toBe('No green on green.');
+    expect(Result.getOrThrow(changed({ styleNote: '' })).styleNote).toBe('');
+    expect(failure({ styleNote: 'x'.repeat(501) })).toContain(
+      'Invalid settings',
+    );
+  });
+
   it("rejects what the settings form wouldn't save, with the reason", () => {
     expect(failure({ wearBudgets: { shoes: 3 } })).toContain(
       'shoes is not a category that goes to the wash',

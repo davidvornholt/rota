@@ -6,7 +6,10 @@ import type { WeatherDay } from '#/shared/data/weather-repository.ts';
 import { localDate } from '#/shared/time/local-date.ts';
 import { continuations, type RotationInput } from '../rotation.ts';
 import { slotChoicesFor } from './proposal-assembly.ts';
-import { buildProposalPrompt } from './proposal-prompt.ts';
+import {
+  buildProposalPrompt,
+  proposalSystemPrompt,
+} from './proposal-prompt.ts';
 
 const garment = (id: string, slots: ReadonlyArray<Slot>): Garment => ({
   id,
@@ -86,6 +89,7 @@ it('says how many wears each garment has left, so a last wear does not read as t
     upcoming: [],
     forecastStale: false,
     occasion: null,
+    styleNote: '',
     continuations: continuing,
     slotChoices: slotChoicesFor(rotation, continuing, []),
     recent: [],
@@ -102,5 +106,38 @@ it('says how many wears each garment has left, so a last wear does not read as t
   );
   expect(line('cream')).toContain(
     '; worn 0 of 4 times since washing, 4 wears left',
+  );
+});
+
+it("passes the wearer's style note to every proposal and leaves it out when empty", () => {
+  const rotation: RotationInput = {
+    cleanTop: false,
+    today: localDate('2026-09-07'),
+    log: [],
+    garments: [garment('chinos', ['bottom']), garment('tee', ['top'])],
+    settings: { laundryDays: 4, cooldownDays: 3, categoryBudgets: {} },
+    excluded: new Set(),
+  };
+  const textFor = (styleNote: string) =>
+    buildProposalPrompt({
+      today: rotation.today,
+      weather: mild,
+      yesterday: undefined,
+      upcoming: [],
+      forecastStale: false,
+      occasion: null,
+      styleNote,
+      continuations: [],
+      slotChoices: slotChoicesFor(rotation, [], []),
+      recent: [],
+      imageFor: () => undefined,
+    }).parts.flatMap((part) => ('text' in part ? [part.text] : []));
+  expect(textFor('Smart casual most days.')).toContain(
+    'The wearer\'s style note: "Smart casual most days.".',
+  );
+  expect(textFor('').some((text) => text.includes('style note'))).toBeFalse();
+  // A note that says how dressy to be replaces the ordinary-day default.
+  expect(proposalSystemPrompt).toContain(
+    'When neither says how dressy to be, dress casual to smart',
   );
 });

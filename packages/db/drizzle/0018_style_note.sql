@@ -1,0 +1,2 @@
+ALTER TABLE "settings" ADD COLUMN "style_note" text DEFAULT '' NOT NULL;--> statement-breakpoint
+ALTER TABLE "settings" ADD CONSTRAINT "settings_style_note_length" CHECK (char_length("settings"."style_note") <= 500);
