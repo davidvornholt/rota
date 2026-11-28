@@ -37,6 +37,18 @@ test('collages name the outfit and only the pieces they show', async ({
   await expect(
     page.getByRole('button', { name: 'Share Unpictured as picture' }),
   ).toBeDisabled();
+  await expect(
+    page
+      .getByRole('listitem')
+      .filter({ hasText: 'Unpictured' })
+      .getByRole('status'),
+  ).toHaveText('No picture, because none of these pieces has a photo.');
+  await expect(
+    page
+      .getByRole('listitem')
+      .filter({ hasText: 'Given away' })
+      .getByRole('status'),
+  ).toHaveText('No picture, because these pieces have left the wardrobe.');
   expect(await scanWcag22AaViolations(page)).toEqual([]);
 });
 

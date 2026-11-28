@@ -1,5 +1,6 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
+import { dayLink, mainTab } from './app-navigation.ts';
 import { fixtureOrigin } from './fixture-origin.ts';
 import { emptySlot } from './outfit-slots.ts';
 
@@ -38,7 +39,7 @@ test('navigation waits for early laundry, retains failures, and cannot restore a
     .getByRole('button', { name: blueShirt })
     .click();
   const send = page.getByRole('button', { name: 'Put in basket' });
-  const planning = page.getByRole('link', { name: 'Planning', exact: true });
+  const planning = mainTab(page, 'Today');
   await send.click();
   await expect(send).toBeDisabled();
   await planning.click();
@@ -78,9 +79,7 @@ test('manual tomorrow choices save independently of reusable outfits and never r
   page,
 }) => {
   await page.goto(`${fixtureOrigin}a11y/fixtures/today.html?tomorrow`);
-  await expect(
-    page.getByRole('link', { name: 'Today', exact: true }),
-  ).toContainText('7 Sept');
+  await expect(dayLink(page, 'Today')).toContainText('7 Sept');
   await expect(
     page.getByRole('link', { name: 'Tomorrow', exact: true }),
   ).toContainText('8 Sept');
@@ -97,7 +96,7 @@ test('manual tomorrow choices save independently of reusable outfits and never r
   await expect(
     page.getByRole('button', { name: 'Change White cotton shirt' }),
   ).toBeVisible();
-  await page.getByRole('link', { name: 'Today', exact: true }).click();
+  await dayLink(page, 'Today').click();
   await expect(page.getByRole('button', { name: 'Wear this' })).toBeVisible();
   await expect(page.getByText('Worn today', { exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: 'Tomorrow', exact: true }).click();
@@ -215,9 +214,7 @@ test('slow autosaves keep selection responsive and persist the latest edit in or
     .getByRole('button', { name: 'Remove bottom', exact: true })
     .click();
   await expect(emptySlot(page, 'bottom')).toBeVisible();
-  await expect(
-    page.getByRole('link', { name: 'Today', exact: true }),
-  ).toHaveAttribute('aria-current', 'page');
+  await expect(dayLink(page, 'Today')).toHaveAttribute('aria-current', 'page');
   release?.();
   await expect(page.getByLabel('Plan saving status')).toContainText(
     'Saved for',
@@ -254,7 +251,7 @@ test('failed autosaves preserve edits, explain the failure, and persist after re
   await expect(
     page.getByRole('button', { name: 'Retry save', exact: true }),
   ).toBeVisible();
-  await page.getByRole('link', { name: 'Today', exact: true }).click();
+  await dayLink(page, 'Today').click();
   const unsaved = page.getByRole('dialog', { name: 'Leave without saving?' });
   await expect(unsaved).toBeVisible();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
@@ -314,4 +311,73 @@ test('a dress takes the place of the top and bottom and saves as a whole outfit'
   await expect(
     page.getByRole('button', { name: 'Wear a dress' }),
   ).toBeVisible();
+});
+
+test('a plan changed elsewhere replaces the untouched draft when today refreshes', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
+  await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: whiteShirt })
+    .click();
+  await expect(page.getByLabel('Plan saving status')).toContainText(
+    'Saved for',
+  );
+  await page.getByRole('link', { name: 'Outfits', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Blue and navy' }),
+  ).toBeVisible();
+  // Another device plans the dress for today.
+  await page.evaluate(() => {
+    const key = 'planning-view-2026-09-07';
+    const view = JSON.parse(sessionStorage.getItem(key) ?? '{}');
+    view.plan.entries = [{ slot: 'dress', garmentId: 'demo-dress' }];
+    sessionStorage.setItem(key, JSON.stringify(view));
+  });
+  await mainTab(page, 'Today').click();
+  await expect(
+    page.getByRole('button', { name: 'Change Green linen dress' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Change White cotton shirt' }),
+  ).toHaveCount(0);
+});
+
+test('a day worn elsewhere shows what was worn, even after a local change', async ({
+  page,
+}) => {
+  await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
+  await page.getByRole('button', { name: 'Change Blue Oxford shirt' }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: whiteShirt })
+    .click();
+  await expect(page.getByLabel('Plan saving status')).toContainText(
+    'Saved for',
+  );
+  // Another device records the dress as worn today.
+  await page.evaluate(() => {
+    const key = 'planning-view-2026-09-07';
+    const view = JSON.parse(sessionStorage.getItem(key) ?? '{}');
+    const dress = view.wardrobe.find(
+      (garment: { id: string }) => garment.id === 'demo-dress',
+    );
+    view.day.worn = [
+      { slot: 'dress', garment: dress, dayOfBudget: 1, budget: 1 },
+    ];
+    sessionStorage.setItem(key, JSON.stringify(view));
+  });
+  // The next save refreshes the page on this screen.
+  await page
+    .getByRole('button', { name: 'Remove bottom', exact: true })
+    .click();
+  await expect(page.getByText('Worn today', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Change Green linen dress' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Change White cotton shirt' }),
+  ).toHaveCount(0);
 });

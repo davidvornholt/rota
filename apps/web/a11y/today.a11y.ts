@@ -1,5 +1,6 @@
 import { scanWcag22AaViolations } from '@davidvornholt/a11y-testing/axe';
 import { expect, test } from '@playwright/test';
+import { dayLink, mainTab } from './app-navigation.ts';
 import { fixtureOrigin } from './fixture-origin.ts';
 import { chooseOutfitAction } from './outfit-actions.ts';
 import { emptySlot } from './outfit-slots.ts';
@@ -33,7 +34,8 @@ test('a garment starting point replaces a cached plan and stays on today after w
   page,
 }) => {
   await page.goto(`${fixtureOrigin}a11y/fixtures/today.html`);
-  await page.getByRole('button', { name: 'Start with white shirt' }).click();
+  await page.getByRole('link', { name: 'Wardrobe', exact: true }).click();
+  await page.getByRole('link', { name: 'Build an outfit' }).click();
   await expect(
     page.getByRole('button', {
       name: 'Suggest around kept pieces',
@@ -63,9 +65,7 @@ test('a garment starting point replaces a cached plan and stays on today after w
   );
   await page.getByRole('button', { name: 'Wear this', exact: true }).click();
   await expect(page.getByText('Worn today', { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole('link', { name: 'Today', exact: true }),
-  ).toHaveAttribute('aria-current', 'page');
+  await expect(dayLink(page, 'Today')).toHaveAttribute('aria-current', 'page');
   await page.reload();
   await expect(page.getByText('Worn today', { exact: true })).toBeVisible();
 });
@@ -82,7 +82,7 @@ test('tomorrow saves a plan, keeps it across day navigation and never logs it ea
     'Saved for',
   );
   expect(await scanWcag22AaViolations(page)).toEqual([]);
-  await page.getByRole('link', { name: 'Today', exact: true }).click();
+  await dayLink(page, 'Today').click();
   await expect(page.getByRole('button', { name: 'Wear this' })).toBeVisible();
   await page.getByRole('link', { name: 'Tomorrow', exact: true }).click();
   await expect(page.getByLabel('Plan saving status')).toContainText(
@@ -230,7 +230,7 @@ test('laundry shows return dates and handles early washing and late returns', as
     laundry.getByText('Expected 8 Sept', { exact: true }),
   ).toBeVisible();
   expect(await scanWcag22AaViolations(page)).toEqual([]);
-  await page.getByRole('link', { name: 'Planning', exact: true }).click();
+  await mainTab(page, 'Today').click();
   await expect(page.getByRole('button', { name: 'Wear this' })).toBeDisabled();
   await page.getByRole('link', { name: 'Laundry', exact: true }).click();
   await laundry
@@ -256,7 +256,7 @@ test('laundry shows return dates and handles early washing and late returns', as
   await expect(laundry.getByRole('region', { name: 'In laundry' })).toHaveCount(
     0,
   );
-  await page.getByRole('link', { name: 'Planning', exact: true }).click();
+  await mainTab(page, 'Today').click();
   await emptySlot(page, 'bottom').click();
   await page.getByRole('dialog').getByRole('button', { name: chinos }).click();
   await expect(page.getByRole('button', { name: 'Wear this' })).toBeEnabled();
@@ -316,7 +316,7 @@ test('a saved outfit chosen after logging today opens tomorrow without changing 
     page.getByRole('heading', { name: 'Tomorrow starts here.' }),
   ).toBeVisible();
   await expect(page.getByText('Based on Blue and navy')).toBeVisible();
-  await page.getByRole('link', { name: 'Today', exact: true }).click();
+  await dayLink(page, 'Today').click();
   await expect(
     page.getByRole('heading', { name: 'Today, dressed.' }),
   ).toBeVisible();
