@@ -100,6 +100,10 @@ const outfits: ReadonlyArray<{
     name: 'Unpictured',
     entries: [{ slot: 'top', garment: unpictured }],
   },
+  {
+    name: 'Given away',
+    entries: [{ slot: 'top', garment: undefined }],
+  },
 ];
 
 const queryClient = new QueryClient();
